@@ -6,7 +6,8 @@ import { generatePlayer } from '../player/generate'
 import { computeOvr } from '../player/ratings'
 import { Rng } from '../rng'
 import { generateSchedule } from '../schedule/schedule'
-import type { League, Player, Rotation, Team } from '../types'
+import { autoRotation } from '../sim/rotation'
+import type { League, Player, Team } from '../types'
 
 const PER_TEAM = 14
 const FREE_AGENTS = 25
@@ -22,12 +23,6 @@ function unmetNeeds(roster: Player[]) {
   return { g: Math.max(0, 2 - g), f: Math.max(0, 2 - f), b: Math.max(0, 2 - b) }
 }
 const fills = (p: Player, n: { g: number; f: number; b: number }) => (n.g > 0 && isG(p)) || (n.f > 0 && isF(p)) || (n.b > 0 && isB(p))
-
-// Temporary: Task 6 replaces this with autoRotation.
-function simpleRotation(players: Player[]): Rotation {
-  const ids = [...players].sort((a, b) => ovr(b) - ovr(a)).map((p) => p.id)
-  return { starters: ids.slice(0, 5), bench: ids.slice(5, 12), inactive: ids.slice(12) }
-}
 
 export function createLeague(opts: { seed: number; userTeamIndex: number; name: string; season?: number }): League {
   const season = opts.season ?? 1
@@ -84,7 +79,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
       for (const p of rosters[ti])
         p.contract!.salary = Math.max(MIN_SALARY, Math.floor((p.contract!.salary * k) / 100) * 100)
     }
-    team.rotation = simpleRotation(rosters[ti])
+    team.rotation = autoRotation(rosters[ti])
     for (const p of rosters[ti]) players[p.id] = p
   })
 
