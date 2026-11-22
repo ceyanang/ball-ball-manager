@@ -10,7 +10,7 @@ export function Schedule() {
   const league = useStore((s) => s.league)!
   const [teamId, setTeamId] = useState(league.userTeamId)
   const team = league.teams[teamId]
-  const games = teamGames(league, teamId)
+  const games = teamGames(league, teamId).filter((g) => g.season === league.season)
   const sortedTeams = Object.values(league.teams).sort((a, b) => teamFull(a).localeCompare(teamFull(b)))
   return (
     <div className="stack">

@@ -1,6 +1,8 @@
 import { create } from 'zustand'
 import { createLeague } from '../engine/league/create'
 import { validateRotation } from '../engine/sim/rotation'
+import { GmError } from '../engine/gm/cap'
+import { Rng } from '../engine/rng'
 import type { League, Rotation } from '../engine/types'
 import { deleteSave, loadSave, parseImport, writeSave } from '../save/db'
 import { runSim } from '../worker/client'
@@ -11,6 +13,8 @@ interface State {
   league: League | null
   busy: boolean
   error: string | null
+  /** Short confirmation of the last GM move. */
+  notice: string | null
   newLeague: (opts: { seed: number; userTeamIndex: number; name: string }) => Promise<void>
   load: (id: string) => Promise<void>
   remove: (id: string) => Promise<void>
@@ -18,6 +22,12 @@ interface State {
   setRotation: (teamId: string, rot: Rotation) => void
   importFile: (file: File) => Promise<void>
   clearError: () => void
+  clearNotice: () => void
+  /**
+   * Runs a GM move on a copy of the league. A GmError becomes a friendly error; on success the move is saved and
+   * its message (if any) shown as a notice. Returns whether it went through.
+   */
+  act: (fn: (l: League, rng: Rng) => string | void) => boolean
 }
 
 const newId = () => 'save_' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36)
@@ -27,6 +37,7 @@ export const useStore = create<State>((set, get) => ({
   league: null,
   busy: false,
   error: null,
+  notice: null,
 
   async newLeague(opts) {
     if (get().busy) return
@@ -54,7 +65,7 @@ export const useStore = create<State>((set, get) => ({
   async sim(cmd) {
     const { league, busy, saveId } = get()
     if (busy || !league) return
-    set({ busy: true, error: null })
+    set({ busy: true, error: null, notice: null })
     let next: League
     try {
       next = await runSim(league, cmd)
@@ -100,4 +111,24 @@ export const useStore = create<State>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+  clearNotice: () => set({ notice: null }),
+
+  act(fn) {
+    const { league, saveId, busy } = get()
+    if (!league || busy) return false
+    const next = structuredClone(league)
+    let msg: string | void
+    try {
+      msg = fn(next, new Rng(next.rng))
+    } catch (e) {
+      if (e instanceof GmError) {
+        set({ error: e.message, notice: null })
+        return false
+      }
+      throw e
+    }
+    set({ league: next, error: null, notice: msg || null })
+    if (saveId) void writeSave(saveId, next).catch((e) => set({ error: `Couldn’t save: ${(e as Error).message}` }))
+    return true
+  },
 }))

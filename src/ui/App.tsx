@@ -15,6 +15,11 @@ import { TeamPage } from './screens/TeamPage'
 import { TeamsBrowser } from './screens/TeamsBrowser'
 import { NewLeague } from './screens/NewLeague'
 import { Saves } from './screens/Saves'
+import { FrontOffice } from './screens/FrontOffice'
+import { Trade } from './screens/Trade'
+import { FreeAgents } from './screens/FreeAgents'
+import { Draft } from './screens/Draft'
+import { Offseason } from './screens/Offseason'
 import { useStore } from './store'
 import './theme.css'
 
@@ -52,6 +57,11 @@ export default function App() {
           <Route path="/standings" element={guarded(<Standings />)} />
           <Route path="/playoffs" element={guarded(<Playoffs />)} />
           <Route path="/leaders" element={guarded(<Leaders />)} />
+          <Route path="/office" element={guarded(<FrontOffice />)} />
+          <Route path="/trade" element={guarded(<Trade />)} />
+          <Route path="/free-agents" element={guarded(<FreeAgents />)} />
+          <Route path="/draft" element={guarded(<Draft />)} />
+          <Route path="/offseason" element={guarded(<Offseason />)} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

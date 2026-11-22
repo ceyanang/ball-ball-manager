@@ -1,0 +1,149 @@
+import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { capSeason, payroll, tradesOpen } from '../../engine/gm/cap'
+import { assetLabel, proposeTrade, suggestPackage, tradeableAssets, tradeProblem, type Asset, type Trade as TradeT } from '../../engine/gm/trade'
+import { projectedSlot } from '../../engine/gm/value'
+import { archetypeFor } from '../../engine/player/archetype'
+import type { League } from '../../engine/types'
+import { CapBar } from '../components/CapBar'
+import { OvrPill } from '../components/OvrPill'
+import { TeamBadge } from '../components/TeamBadge'
+import { Face } from '../face/Face'
+import { useStore } from '../store'
+import { fullName, money, ovrOf, teamFull } from '../util'
+
+const key = (a: Asset) => `${a.kind}:${a.id}`
+
+function AssetList({ league, teamId, assets, picked, toggle }: {
+  league: League; teamId: string; assets: Asset[]; picked: Set<string>; toggle: (a: Asset) => void
+}) {
+  const team = league.teams[teamId]
+  const players = assets.filter((a) => a.kind === 'player').map((a) => league.players[a.id]).sort((a, b) => ovrOf(b) - ovrOf(a))
+  const picks = assets.filter((a) => a.kind === 'pick')
+  return (
+    <div className="asset-list">
+      {players.map((p) => {
+        const a: Asset = { kind: 'player', id: p.id }
+        const on = picked.has(key(a))
+        const yrs = p.contract ? p.contract.expires - capSeason(league) + 1 : 0
+        return (
+          <label key={p.id} className={`asset${on ? ' on' : ''}`}>
+            <input type="checkbox" checked={on} onChange={() => toggle(a)} />
+            <Face seed={p.faceSeed} age={p.age} colors={team.colors} size={30} />
+            <span className="asset-main">
+              <span className="asset-name">{fullName(p)}{p.injury ? ' 🤕' : ''}</span>
+              <span className="asset-sub">{p.pos} · {p.age}y · {archetypeFor(p)}</span>
+            </span>
+            <span className="asset-money">{p.contract ? `${money(p.contract.salary)} · ${yrs}y` : ''}</span>
+            <OvrPill value={ovrOf(p)} />
+          </label>
+        )
+      })}
+      {picks.map((a) => {
+        const pk = league.picks.find((p) => p.id === a.id)!
+        const on = picked.has(key(a))
+        return (
+          <label key={a.id} className={`asset pick${on ? ' on' : ''}`}>
+            <input type="checkbox" checked={on} onChange={() => toggle(a)} />
+            <span className="pick-chip">R{pk.round}</span>
+            <span className="asset-main">
+              <span className="asset-name">{assetLabel(league, a)}</span>
+              <span className="asset-sub">Projected #{projectedSlot(league, pk)} in round {pk.round}</span>
+            </span>
+          </label>
+        )
+      })}
+      {!assets.length && <p className="muted">Nothing tradeable.</p>}
+    </div>
+  )
+}
+
+export function Trade() {
+  const league = useStore((s) => s.league)!
+  const act = useStore((s) => s.act)
+  const [params] = useSearchParams()
+  const me = league.userTeamId
+  const others = Object.values(league.teams).filter((t) => t.id !== me).sort((a, b) => a.city.localeCompare(b.city))
+  const [partner, setPartner] = useState(params.get('team') && params.get('team') !== me ? params.get('team')! : others[0].id)
+  const [give, setGive] = useState<Set<string>>(new Set())
+  const [get, setGet] = useState<Set<string>>(() => new Set(params.get('get') ? [`player:${params.get('get')}`] : []))
+  const [hint, setHint] = useState<string | null>(null)
+
+  const myAssets = useMemo(() => tradeableAssets(league, me), [league, me])
+  const theirAssets = useMemo(() => tradeableAssets(league, partner), [league, partner])
+  const parse = (s: Set<string>, pool: Asset[]) => pool.filter((a) => s.has(key(a)))
+  const trade: TradeT = { a: me, b: partner, aGives: parse(give, myAssets), bGives: parse(get, theirAssets) }
+  const problem = trade.aGives.length || trade.bGives.length ? tradeProblem(league, trade) : null
+  const salary = (as: Asset[]) => as.reduce((t, a) => t + (a.kind === 'player' ? league.players[a.id].contract?.salary ?? 0 : 0), 0)
+  const out = salary(trade.aGives), inn = salary(trade.bGives)
+  const toggle = (set: Set<string>, setter: (s: Set<string>) => void) => (a: Asset) => {
+    const n = new Set(set)
+    if (n.has(key(a))) n.delete(key(a)); else n.add(key(a))
+    setter(n)
+    setHint(null)
+  }
+
+  if (!tradesOpen(league))
+    return (
+      <div className="stack">
+        <h1>Trade</h1>
+        <p className="notice">{league.phase === 'playoffs' ? 'Trades are closed during the playoffs. They reopen after the Finals.' : 'The trade deadline has passed. Trades reopen after the Finals.'}</p>
+      </div>
+    )
+
+  const whatWouldItTake = () => {
+    const pkg = suggestPackage(league, me, partner, trade.bGives)
+    if (!pkg) return setHint(`Nothing on your roster gets this done with the ${league.teams[partner].name}.`)
+    setGive(new Set(pkg.map(key)))
+    setHint(`The ${league.teams[partner].name} would take: ${pkg.map((a) => assetLabel(league, a)).join(', ')}.`)
+  }
+  const propose = () => {
+    let accepted = false
+    act((l) => {
+      const v = proposeTrade(l, trade)
+      accepted = v.ok
+      return v.ok ? `✅ Trade accepted! ${trade.bGives.map((a) => assetLabel(league, a)).join(', ') || 'Nothing'} heading your way.` : `❌ ${league.teams[partner].name}: “${v.reason}”`
+    })
+    if (accepted) { setGive(new Set()); setGet(new Set()) }
+  }
+
+  return (
+    <div className="stack">
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <h1>Trade</h1>
+        <label className="field" style={{ minWidth: 240 }}>Trade partner
+          <select value={partner} onChange={(e) => { setPartner(e.target.value); setGet(new Set()); setHint(null) }}>
+            {others.map((t) => <option key={t.id} value={t.id}>{teamFull(t)}</option>)}
+          </select>
+        </label>
+      </div>
+      <p className="muted" style={{ margin: 0, maxWidth: '72ch' }}>
+        Pick what you send and what you want back. CPU teams answer instantly and only take deals that clearly help them. Contenders want talent now; rebuilding teams want youth and picks. Not sure what they want? Pick their player and ask what it would take.
+      </p>
+
+      <div className="trade-grid">
+        <section className="panel stack">
+          <div className="row"><TeamBadge team={league.teams[me]} size={32} /><h2>You send</h2></div>
+          <AssetList league={league} teamId={me} assets={myAssets} picked={give} toggle={toggle(give, setGive)} />
+        </section>
+        <section className="panel stack">
+          <div className="row"><TeamBadge team={league.teams[partner]} size={32} /><h2>You get</h2></div>
+          <AssetList league={league} teamId={partner} assets={theirAssets} picked={get} toggle={toggle(get, setGet)} />
+        </section>
+      </div>
+
+      <section className="panel stack trade-summary">
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <span>Salary out <strong>{money(out)}</strong> · in <strong>{money(inn)}</strong> · your payroll after <strong>{money(payroll(league, me) - out + inn)}</strong></span>
+          <div className="row">
+            <button className="btn" disabled={!trade.bGives.length} onClick={whatWouldItTake}>What would it take?</button>
+            <button className="btn btn-primary" disabled={!!problem || (!trade.aGives.length && !trade.bGives.length)} onClick={propose}>Propose trade</button>
+          </div>
+        </div>
+        {problem && <div className="notice">{problem}</div>}
+        {hint && <div className="notice">{hint}</div>}
+        <CapBar league={league} teamId={me} />
+      </section>
+    </div>
+  )
+}

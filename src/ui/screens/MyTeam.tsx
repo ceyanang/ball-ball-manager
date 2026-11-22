@@ -8,7 +8,11 @@ import { Face } from '../face/Face'
 import { OvrPill } from '../components/OvrPill'
 import { dropInRotation, type DropTarget, type Section } from '../rotationEdit'
 import { useStore } from '../store'
-import { fullName, one, ovrOf, rosterOf, seasonLine } from '../util'
+import { Link } from 'react-router-dom'
+import { CapBar } from '../components/CapBar'
+import { capSeason } from '../../engine/gm/cap'
+import { releasePlayer } from '../../engine/gm/roster'
+import { fullName, money, one, ovrOf, rosterOf, seasonLine } from '../util'
 
 const LABEL: Record<Section, string> = { starters: 'Starting five', bench: 'Bench', inactive: 'Inactive' }
 const BENCH_SLOTS = ACTIVE_MAX - STARTERS
@@ -26,6 +30,7 @@ export function MyTeam() {
   const league = useStore((s) => s.league)!
   const busy = useStore((s) => s.busy)
   const setRotation = useStore((s) => s.setRotation)
+  const act = useStore((s) => s.act)
   const team = league.teams[league.userTeamId]
   const roster = rosterOf(league, team.id)
   const [draft, setDraft] = useState<Rotation>(team.rotation)
@@ -183,6 +188,36 @@ export function MyTeam() {
         <div className="rot-grid">
           {draft.inactive.map((id, i) => card(league.players[id], { section: 'inactive', index: i }))}
           {openSlot('inactive', '+ Move to inactive', 'inactive-open')}
+        </div>
+      </section>
+
+      <section className="panel stack">
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <h3>Contracts</h3>
+          <Link className="link muted" to="/office">Front office →</Link>
+        </div>
+        <CapBar league={league} teamId={team.id} />
+        <div className="table-wrap">
+          <table className="stats">
+            <thead><tr><th>Player</th><th>Pos</th><th>Age</th><th>OVR</th><th>Salary</th><th>Through</th><th></th></tr></thead>
+            <tbody>
+              {[...roster].sort((a, b) => (b.contract?.salary ?? 0) - (a.contract?.salary ?? 0)).map((p) => {
+                const expiring = !p.contract || p.contract.expires < capSeason(league)
+                return (
+                  <tr key={p.id}>
+                    <td><Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link></td>
+                    <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} /></td>
+                    <td>{p.contract ? money(p.contract.salary) : '—'}</td>
+                    <td>{expiring ? <span className="muted">expiring</span> : `Season ${p.contract!.expires}`}</td>
+                    <td><button className="btn btn-danger" disabled={busy} onClick={() => {
+                      const msg = expiring ? `Let ${fullName(p)} go?` : `Release ${fullName(p)}? He goes on waivers; if nobody claims him, his ${money(p.contract!.salary)}/yr through season ${p.contract!.expires} stays on your cap as dead money.`
+                      if (confirm(msg)) act((l) => { releasePlayer(l, p.id); return `${fullName(p)} was released.` })
+                    }}>Release</button></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       </section>
 

@@ -59,7 +59,7 @@ export function BoxScore() {
   const r = g.result
   const home = league.teams[g.homeId], away = league.teams[g.awayId]
   const potg = league.players[r.potg]
-  const potgLine = r.box.find((b) => b.playerId === r.potg)!
+  const potgLine = r.box.find((b) => b.playerId === r.potg)
   const periods = r.quarters.home.map((_, i) => (i < 4 ? `Q${i + 1}` : r.quarters.home.length > 5 ? `OT${i - 3}` : 'OT'))
   const roster = (t: Team) => [...t.rotation.starters, ...t.rotation.bench, ...t.rotation.inactive].filter((pid) => league.players[pid]?.teamId === t.id)
   const homeWon = r.homeScore > r.awayScore
@@ -83,7 +83,7 @@ export function BoxScore() {
             </table>
           </div>
         </div>
-        {potg && (
+        {potg && potgLine && (
           <div className="potg">
             <Face seed={potg.faceSeed} age={potg.age} colors={league.teams[potgLine.teamId].colors} size={56} jersey={potg.jersey} />
             <div>
@@ -94,8 +94,12 @@ export function BoxScore() {
           </div>
         )}
       </section>
-      <TeamBox league={league} team={away} lines={r.box.filter((b) => b.teamId === away.id)} rosterIds={roster(away)} />
-      <TeamBox league={league} team={home} lines={r.box.filter((b) => b.teamId === home.id)} rosterIds={roster(home)} />
+      {r.box.length ? (
+        <>
+          <TeamBox league={league} team={away} lines={r.box.filter((b) => b.teamId === away.id)} rosterIds={roster(away)} />
+          <TeamBox league={league} team={home} lines={r.box.filter((b) => b.teamId === home.id)} rosterIds={roster(home)} />
+        </>
+      ) : <p className="muted">Full box scores are kept for this season and last; this one has been archived.</p>}
     </div>
   )
 }

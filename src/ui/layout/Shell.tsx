@@ -5,7 +5,7 @@ import { TeamBadge } from '../components/TeamBadge'
 import { ErrorBoundary } from '../ErrorBoundary'
 
 const LINKS: [string, string][] = [
-  ['/', 'Home'], ['/my-team', 'My Team'], ['/schedule', 'Schedule'], ['/standings', 'Standings'],
+  ['/', 'Home'], ['/my-team', 'My Team'], ['/office', 'Front Office'], ['/schedule', 'Schedule'], ['/standings', 'Standings'],
   ['/leaders', 'Leaders'], ['/teams', 'Teams'], ['/saves', 'Saves'],
 ]
 
@@ -13,13 +13,15 @@ export function Shell() {
   const league = useStore((s) => s.league)
   const error = useStore((s) => s.error)
   const clearError = useStore((s) => s.clearError)
+  const notice = useStore((s) => s.notice)
+  const clearNotice = useStore((s) => s.clearNotice)
   const team = league ? league.teams[league.userTeamId] : null
   return (
     <div className="shell">
       <aside className="side">
         <div className="wordmark">Ball Ball<br /><span>Manager</span></div>
         <nav className="nav" aria-label="Main">
-          {LINKS.map(([to, label]) => (
+          {(league?.phase === 'offseason' ? [['/offseason', 'Offseason'] as [string, string], ...LINKS] : LINKS).map(([to, label]) => (
             <NavLink key={to} to={to} end={to === '/'}>{label}</NavLink>
           ))}
         </nav>
@@ -37,9 +39,15 @@ export function Shell() {
         {league && (
           <div className="topbar">
             <span className="muted">
-              {league.phase === 'regular' ? `Regular season · Day ${league.day}` : league.phase === 'playoffs' ? `Playoffs · Day ${league.day}` : 'Offseason'}
+              {league.phase === 'regular' ? `Season ${league.season} · Day ${league.day}` : league.phase === 'playoffs' ? `Season ${league.season} playoffs · Day ${league.day}` : `Offseason after season ${league.season}`}
             </span>
             <SimControls />
+          </div>
+        )}
+        {notice && (
+          <div className="notice-bar" role="status">
+            <span>{notice}</span>
+            <button className="btn" onClick={clearNotice}>OK</button>
           </div>
         )}
         {error && (

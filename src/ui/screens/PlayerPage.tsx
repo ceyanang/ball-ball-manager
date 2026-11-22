@@ -7,6 +7,7 @@ import { OvrChart } from '../components/OvrChart'
 import { ratingColor } from '../ratingColor'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
+import { isFreeAgent, tradesOpen } from '../../engine/gm/cap'
 import { fullName, heightStr, money, one, ovrOf, teamFull } from '../util'
 
 const GROUPS: [string, [keyof Ratings, string][]][] = [
@@ -66,7 +67,7 @@ export function PlayerPage() {
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div className="title">{fullName(p)}</div>
-          <div className="sub">#{p.jersey} · {p.pos} · {team ? teamFull(team) : 'Free agent'}</div>
+          <div className="sub">#{p.jersey} · {p.pos} · {team ? teamFull(team) : p.retired ? 'Retired' : league.draftRights[p.id] ? `Draft rights: ${league.teams[league.draftRights[p.id]].name}` : 'Free agent'}</div>
           <span className="archetype-chip">{archetypeFor(p)}</span>
           {p.injury && <div style={{ marginTop: '0.4rem', fontWeight: 700 }}>🤕 {p.injury.type} — {p.injury.gamesRemaining >= 999 ? 'out for the season' : `out ${p.injury.gamesRemaining} more game${p.injury.gamesRemaining === 1 ? '' : 's'}`}</div>}
         </div>
@@ -77,6 +78,14 @@ export function PlayerPage() {
         </div>
       </div>
 
+      {!p.retired && (team ? team.id !== league.userTeamId && tradesOpen(league) : isFreeAgent(league, p)) && (
+        <div className="row">
+          {team
+            ? <Link className="btn btn-primary" style={{ textDecoration: 'none' }} to={`/trade?team=${team.id}&get=${p.id}`}>🔄 Trade for {p.lastName}</Link>
+            : <Link className="btn btn-primary" style={{ textDecoration: 'none' }} to="/free-agents">✍️ Make an offer</Link>}
+        </div>
+      )}
+
       <section className="panel">
         <dl className="facts">
           <div><dt>Age</dt><dd>{p.age}</dd></div>
@@ -85,7 +94,7 @@ export function PlayerPage() {
           <div><dt>College</dt><dd>{p.college}</dd></div>
           <div><dt>Team</dt><dd>{team ? <Link className="link" to={`/team/${team.id}`}>{teamFull(team)}</Link> : 'Free agent'}</dd></div>
           <div><dt>Contract</dt><dd>{p.contract ? `${money(p.contract.salary)} through season ${p.contract.expires}` : 'None'}</dd></div>
-          <div><dt>Draft</dt><dd>{p.draft ? `Season ${p.draft.season}, round ${p.draft.round}, pick ${p.draft.pick}` : 'Original roster'}</dd></div>
+          <div><dt>Draft</dt><dd>{p.draft ? `Season ${p.draft.season}, round ${p.draft.round}, pick ${p.draft.pick}` : p.ratingHistory[0].season > 1 ? 'Undrafted' : 'Original roster'}</dd></div>
         </dl>
       </section>
 

@@ -15,5 +15,6 @@ Never deploy a red build: the workflow runs the tests, but run them locally firs
 ## Project basics
 - React + TypeScript + Vite app; pure-TS engine in `src/engine/` (no React/DOM/Math.random — use `Rng`).
 - `npm test` (Vitest), `npm run typecheck`, `npm run dev`, `npm run build`.
-- Spec: `docs/superpowers/specs/2026-11-22-ball-ball-manager-design.md`; plans in `docs/superpowers/plans/`.
-- Save format is `League` (version 1) in IndexedDB; keep it JSON-serializable and bump `version` + add a migration if the shape changes.
+- Spec: `docs/superpowers/specs/2026-11-22-ball-ball-manager-design.md`; plans in `docs/superpowers/plans/` (M1 core league, M2 GM layer done; M3 stories next).
+- GM logic lives in `src/engine/gm/` (cap, trade, roster/FA/waivers, draft, offseason); UI GM moves go through `useStore().act`.
+- Save format is `League` (version 3) in IndexedDB; keep it JSON-serializable and bump `version` + add a migration if the shape changes.

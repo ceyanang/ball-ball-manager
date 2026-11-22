@@ -83,4 +83,16 @@ describe('store', () => {
     expect((await loadSave(idB)).name).toBe('B')
     expect((await loadSave(idA)).day).toBe(5)
   })
+  it('act: a GM error becomes a friendly message and leaves the league untouched; success shows a notice', async () => {
+    const { GmError } = await import('../../src/engine/gm/cap')
+    await useStore.getState().newLeague({ seed: 3, userTeamIndex: 1, name: 'N' })
+    const before = useStore.getState().league!
+    expect(useStore.getState().act(() => { throw new GmError('Nope.') })).toBe(false)
+    expect(useStore.getState().error).toBe('Nope.')
+    expect(useStore.getState().league).toBe(before)
+    expect(useStore.getState().act((l) => { l.name = 'Renamed'; return 'Done!' })).toBe(true)
+    expect(useStore.getState().league!.name).toBe('Renamed')
+    expect(before.name).toBe('N')
+    expect(useStore.getState().notice).toBe('Done!')
+  })
 })

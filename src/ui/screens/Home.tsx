@@ -60,6 +60,13 @@ export function Home() {
         <div className="record" aria-label={`Record ${me.w} wins ${me.l} losses`}>{me.w}–{me.l}</div>
       </div>
 
+      {league.phase === 'offseason' && league.offseason && (
+        <Link to="/offseason" className="offseason-banner">
+          <span className="gd-chip">🗓️ Offseason</span>
+          <span><strong>{{ recap: 'Season recap is in', lottery: 'The draft lottery is ready', draft: 'It’s draft day', resign: 'Time to re-sign your players', freeAgency: `Free agency · day ${league.offseason.faDay}`, ready: `Season ${league.season + 1} is ready to tip off` }[league.offseason.step]}</strong></span>
+          <span className="muted">Continue →</span>
+        </Link>
+      )}
       {gameDay && <GameDayHero league={league} game={gameDay} team={team} records={records} />}
 
       <div className="grid-2">

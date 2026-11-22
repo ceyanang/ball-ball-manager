@@ -229,3 +229,16 @@ export function startNewSeason(l: League, rng: Rng): void {
   l.deadMoney = l.deadMoney.filter((d) => d.expires >= l.season)
   for (const t of teams) refreshRotation(l, t.id)
 }
+
+/** The user swaps coaches (offseason only): the old one returns to the pool. */
+export function hireCoach(l: League, coachId: string): void {
+  if (l.phase !== 'offseason') throw new GmError('Coaching changes happen in the offseason.')
+  const c = l.coaches[coachId]
+  if (!c || c.teamId) throw new GmError('That coach is not available.')
+  const team = l.teams[l.userTeamId]
+  const old = l.coaches[team.coachId]
+  if (old) old.teamId = null
+  c.teamId = team.id
+  team.coachId = c.id
+  log(l, 'hire', [team.id], [], `${team.name} hired coach ${c.firstName} ${c.lastName}${old ? `, replacing ${old.firstName} ${old.lastName}` : ''}.`)
+}

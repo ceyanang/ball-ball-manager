@@ -2,7 +2,7 @@ import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
 import { autoRotation } from '../sim/rotation'
-import { startOffseason } from '../gm/offseason'
+import { advanceOffseason, simFreeAgency, startOffseason } from '../gm/offseason'
 import { aiFillRosters, processWaivers } from '../gm/roster'
 import { aiTrades } from '../gm/trade'
 import { rollInjuries, tickInjuries } from '../sim/injury'
@@ -80,5 +80,14 @@ export function simUntil(league: League, target: 'regularEnd' | 'playoffsEnd' | 
     target === 'deadline' ? next.phase !== 'regular' || next.day >= next.tradeDeadlineDay
     : target === 'regularEnd' ? next.phase !== 'regular' : next.phase === 'offseason'
   for (let guard = 0; !done() && guard < 1000; guard++) stepDay(next, rng)
+  return next
+}
+
+/** Offseason steps run off the main thread too: one step forward, or some free-agency days. */
+export function offseasonStep(league: League, cmd: { type: 'offseason' } | { type: 'faDays'; days: number }): League {
+  const next = structuredClone(league)
+  const rng = new Rng(next.rng)
+  if (cmd.type === 'offseason') advanceOffseason(next, rng)
+  else simFreeAgency(next, rng, cmd.days)
   return next
 }
