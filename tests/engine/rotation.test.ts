@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { createLeague } from '../../src/engine/league/create'
-import { autoRotation, gameLineup, minutesTargets, validateRotation } from '../../src/engine/sim/rotation'
+import { autoRotation, bestStartingFive, gameLineup, minutesTargets, slotFit, validateRotation } from '../../src/engine/sim/rotation'
+import { generatePlayer } from '../../src/engine/player/generate'
+import { Rng } from '../../src/engine/rng'
+import type { Position } from '../../src/engine/types'
 import type { League, Player, Team } from '../../src/engine/types'
 
 const fresh = () => createLeague({ seed: 31, userTeamIndex: 0, name: 'R' })
@@ -23,6 +26,29 @@ describe('autoRotation', () => {
   })
 })
 
+describe('bestStartingFive', () => {
+  const rng = Rng.fromSeed(8)
+  const mk = (pos: Position, ovr: number) => generatePlayer(rng, { season: 1, pos, targetOvr: ovr })
+  it('lines up PG, SG, SF, PF, C from a balanced roster', () => {
+    const roster = (['C', 'PF', 'SF', 'SG', 'PG'] as Position[]).flatMap((pos) => [mk(pos, 80), mk(pos, 70)])
+    expect(bestStartingFive(roster).map((p) => p.pos)).toEqual(['PG', 'SG', 'SF', 'PF', 'C'])
+  })
+  it('starts a far better SG at point guard over a weak PG', () => {
+    const roster = [mk('PG', 62), mk('SG', 90), mk('SG', 80), mk('SF', 78), mk('PF', 78), mk('C', 78), mk('SF', 60), mk('C', 60)]
+    const five = bestStartingFive(roster)
+    expect(five.map((p) => p.pos)).toEqual(['SG', 'SG', 'SF', 'PF', 'C'])
+  })
+  it('never starts a guard at center when a real big is close in talent', () => {
+    const roster = [mk('PG', 85), mk('PG', 84), mk('SG', 82), mk('SF', 80), mk('PF', 79), mk('C', 76)]
+    expect(bestStartingFive(roster)[4].pos).toBe('C')
+  })
+  it('is deterministic and gives the slot fit penalty for off-position play', () => {
+    const p = mk('PG', 80)
+    expect(slotFit(p, 'PG')).toBeGreaterThan(slotFit(p, 'SG'))
+    expect(slotFit(p, 'SG')).toBeGreaterThan(slotFit(p, 'C'))
+  })
+})
+
 describe('validateRotation', () => {
   const l = fresh()
   const t = firstTeam(l)
@@ -42,14 +68,17 @@ describe('validateRotation', () => {
 })
 
 describe('gameLineup', () => {
-  it('replaces an injured starter with the first healthy bench player', () => {
+  it('fills an injured starter\'s slot with the healthy bench player who fits that position best', () => {
     const l = fresh()
     const t = firstTeam(l)
     hurt(l.players[t.rotation.starters[2]], 3)
     const lu = gameLineup(t, l.players)
     expect(lu.starters).toHaveLength(5)
     expect(lu.starters).not.toContain(t.rotation.starters[2])
-    expect(lu.starters).toContain(t.rotation.bench[0])
+    const sub = lu.starters[2]
+    expect(t.rotation.bench).toContain(sub)
+    for (const id of t.rotation.bench) expect(slotFit(l.players[sub], 'SF')).toBeGreaterThanOrEqual(slotFit(l.players[id], 'SF'))
+    expect([0, 1, 3, 4].map((i) => lu.starters[i])).toEqual([0, 1, 3, 4].map((i) => t.rotation.starters[i]))
     expect(lu.starters.length + lu.bench.length).toBe(12)
   })
   it('never includes injured players when enough are healthy', () => {

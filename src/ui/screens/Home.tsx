@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { computeStandings } from '../../engine/standings'
 import { Face } from '../face/Face'
 import { TeamBadge } from '../components/TeamBadge'
+import { GameDayHero } from '../components/GameDay'
 import { useStore } from '../store'
 import { didWin, fullName, nextGame, one, ovrOf, pct, rosterOf, seasonLine, teamFull, teamGames } from '../util'
 
@@ -13,6 +14,8 @@ export function Home() {
   const me = confRows.find((r) => r.teamId === team.id)!
   const rank = confRows.indexOf(me) + 1
   const next = nextGame(league, team.id)
+  const gameDay = next && next.day === league.day ? next : null
+  const records = Object.fromEntries([...st.East, ...st.West].map((r) => [r.teamId, { w: r.w, l: r.l }]))
   const played = teamGames(league, team.id).filter((g) => g.result)
   const last5 = played.slice(-5)
   const champ = league.playoffs?.championId ? league.teams[league.playoffs.championId] : null
@@ -57,10 +60,12 @@ export function Home() {
         <div className="record" aria-label={`Record ${me.w} wins ${me.l} losses`}>{me.w}–{me.l}</div>
       </div>
 
+      {gameDay && <GameDayHero league={league} game={gameDay} team={team} records={records} />}
+
       <div className="grid-2">
         <section className="panel stack">
-          <h2>Next game</h2>
-          {next ? (() => {
+          <h2>{gameDay ? 'Recent form' : 'Next game'}</h2>
+          {gameDay ? null : next ? (() => {
             const home = next.homeId === team.id
             const opp = league.teams[home ? next.awayId : next.homeId]
             return (

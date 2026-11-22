@@ -22,6 +22,15 @@ function unmetNeeds(roster: Player[]) {
   const g = roster.filter(isG).length, f = roster.filter(isF).length, b = roster.filter(isB).length
   return { g: Math.max(0, 2 - g), f: Math.max(0, 2 - f), b: Math.max(0, 2 - b) }
 }
+const POS_ORDER = ['PG', 'SG', 'SF', 'PF', 'C']
+/** Draft bonus for filling a thin spot: none at this position is a big need, an adjacent body helps a bit. */
+function positionNeed(roster: Player[], p: Player): number {
+  const at = roster.filter((q) => q.pos === p.pos).length
+  const i = POS_ORDER.indexOf(p.pos)
+  const near = roster.filter((q) => Math.abs(POS_ORDER.indexOf(q.pos) - i) === 1).length
+  const base = at === 0 ? 5 : at === 1 ? 2.5 : at === 2 ? 0 : -2.5 * (at - 2)
+  return base - (at === 0 && near >= 2 ? 1.5 : 0)
+}
 const fills = (p: Player, n: { g: number; f: number; b: number }) => (n.g > 0 && isG(p)) || (n.f > 0 && isF(p)) || (n.b > 0 && isB(p))
 
 export function createLeague(opts: { seed: number; userTeamIndex: number; name: string; season?: number }): League {
@@ -71,6 +80,13 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
         if (needCount > 0 && picksLeft <= needCount + 1) {
           const j = pool.findIndex((p) => fills(p, needs))
           if (j >= 0) idx = j
+        } else {
+          // Best available, nudged toward positions the roster is thin at (and away from ones it's stacked at).
+          let bestV = -Infinity
+          for (let j = 0; j < Math.min(pool.length, 10); j++) {
+            const v = ovr(pool[j]) + positionNeed(roster, pool[j])
+            if (v > bestV) { bestV = v; idx = j }
+          }
         }
         roster.push(pool.splice(idx, 1)[0])
       }

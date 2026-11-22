@@ -5,6 +5,7 @@ export interface SaveMeta { id: string; name: string; teamName: string; season: 
 
 import { SaveImportError } from './errors'
 import { migrateLeague } from './migrate'
+import { refreshAiRotations } from '../engine/season/advance'
 
 export { SaveImportError }
 
@@ -25,7 +26,7 @@ export async function listSaves(): Promise<SaveMeta[]> {
 export async function loadSave(id: string): Promise<League> {
   const league = (await (await db()).get('leagues', id)) as League | undefined
   if (!league) throw new Error(`No save named "${id}" was found.`)
-  return migrateLeague(league)
+  return reslotAiRotations(migrateLeague(league))
 }
 
 export async function writeSave(id: string, league: League): Promise<void> {
@@ -77,5 +78,11 @@ export function parseImport(text: string): League {
     if (!isObj(l.coaches[t.coachId])) throw broken('coaches')
   }
   for (const g of l.games) if (!isObj(g) || !l.teams[g.homeId] || !l.teams[g.awayId]) throw broken('schedule')
+  return reslotAiRotations(l)
+}
+
+/** CPU depth charts are position-slotted (PG, SG, SF, PF, C); older saves sorted starters by OVR. Idempotent. */
+function reslotAiRotations(l: League): League {
+  refreshAiRotations(l)
   return l
 }

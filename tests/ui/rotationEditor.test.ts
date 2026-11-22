@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { moveInRotation } from '../../src/ui/rotationEdit'
+import { dropInRotation, moveInRotation } from '../../src/ui/rotationEdit'
 import type { Rotation } from '../../src/engine/types'
 
 const rot: Rotation = {
@@ -43,5 +43,36 @@ describe('moveInRotation', () => {
     expect(r.starters[0]).toBe('i2')
     expect(r.inactive).toContain('s1')
     expect(all(r)).toEqual(all(rot))
+  })
+})
+
+describe('dropInRotation', () => {
+  it('dropping a bench player on a starter swaps them', () => {
+    const r = dropInRotation(rot, 'b2', { section: 'starters', index: 0 })
+    expect(r.starters[0]).toBe('b2')
+    expect(r.bench[1]).toBe('s1')
+    expect(all(r)).toEqual(all(rot))
+  })
+  it('dropping a starter on another starter slot swaps their positions', () => {
+    const r = dropInRotation(rot, 's1', { section: 'starters', index: 4 })
+    expect(r.starters).toEqual(['s5', 's2', 's3', 's4', 's1'])
+  })
+  it('dropping within the bench reorders', () => {
+    const r = dropInRotation(rot, 'b5', { section: 'bench', index: 0 })
+    expect(r.bench).toEqual(['b5', 'b1', 'b2', 'b3', 'b4', 'b6', 'b7'])
+  })
+  it('dropping an inactive player on a bench player swaps them so the active count stays 12', () => {
+    const r = dropInRotation(rot, 'i1', { section: 'bench', index: 6 })
+    expect(r.bench[6]).toBe('i1')
+    expect(r.inactive[0]).toBe('b7')
+    expect(r.starters.length + r.bench.length).toBe(12)
+  })
+  it('dropping a bench player in the open inactive area moves him there', () => {
+    const r = dropInRotation(rot, 'b1', { section: 'inactive', append: true })
+    expect(r.inactive).toEqual(['i1', 'i2', 'b1'])
+    expect(r.bench).toHaveLength(6)
+  })
+  it('never empties a starting slot via an open-area drop', () => {
+    expect(dropInRotation(rot, 's3', { section: 'bench', append: true })).toBe(rot)
   })
 })

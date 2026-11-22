@@ -1,9 +1,10 @@
 import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
+import { autoRotation } from '../sim/rotation'
 import { rollInjuries, tickInjuries } from '../sim/injury'
 import { addBoxToStatLines } from '../stats/stats'
-import type { Game, League } from '../types'
+import type { Game, League, Player } from '../types'
 import { advancePlayoffs, seedPlayoffs } from './playoffs'
 
 /** In-season rating changes happen every this many days of the regular season. */
@@ -23,6 +24,13 @@ function playGame(league: League, g: Game, rng: Rng): void {
   }
 }
 
+/** CPU coaches re-pick their depth charts as ratings move. The user's rotation is theirs to manage. */
+export function refreshAiRotations(league: League): void {
+  const byTeam: Record<string, Player[]> = {}
+  for (const p of Object.values(league.players)) if (p.teamId) (byTeam[p.teamId] ??= []).push(p)
+  for (const t of Object.values(league.teams)) if (t.id !== league.userTeamId && byTeam[t.id]) t.rotation = autoRotation(byTeam[t.id])
+}
+
 /** Mutates `league`: plays the current day and advances the calendar. */
 function stepDay(league: League, rng: Rng): void {
   if (league.phase === 'offseason') return
@@ -30,7 +38,10 @@ function stepDay(league: League, rng: Rng): void {
     if (g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null)) playGame(league, g, rng)
   }
   if (league.phase === 'regular') {
-    if (league.day % PROGRESS_EVERY === 0) league.progress.push(...progressTick(league, rng))
+    if (league.day % PROGRESS_EVERY === 0) {
+      league.progress.push(...progressTick(league, rng))
+      refreshAiRotations(league)
+    }
     if (!league.games.some((g) => !g.playoff && !g.result)) {
       league.phase = 'playoffs'
       league.playoffs = seedPlayoffs(league)

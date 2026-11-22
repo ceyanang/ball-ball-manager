@@ -13,13 +13,16 @@ function make(pos: Position, base: number, over: Partial<Ratings>): Player {
 }
 
 describe('archetypeFor', () => {
-  it('names a pure shooting guard a Sharpshooter', () => expect(archetypeFor(make('SG', 70, { three: 92 }))).toBe('Sharpshooter'))
-  it('names a shooting + perimeter-D wing a 3&D Wing', () => expect(archetypeFor(make('SF', 70, { three: 90, perD: 90 }))).toBe('3&D Wing'))
-  it('names a shot-blocking center a Rim Protector', () => expect(archetypeFor(make('C', 70, { intD: 92, blk: 92 }))).toBe('Rim Protector'))
-  it('names a shooting center a Stretch Big', () => expect(archetypeFor(make('C', 70, { three: 88 }))).toBe('Stretch Big'))
+  it('names a pure shooting guard a Sharpshooter', () => expect(archetypeFor(make('SG', 70, { three: 88 }))).toBe('Sharpshooter'))
+  it('calls an elite pure shooter Splash', () => expect(archetypeFor(make('SG', 70, { three: 96 }))).toBe('Splash'))
+  it('names a shot-blocking wing Block Party', () => expect(archetypeFor(make('SF', 70, { intD: 96, blk: 96 }))).toBe('Block Party'))
+  it('names a passing + handling guard an Offensive Engine', () =>
+    expect(archetypeFor(make('PG', 70, { pass: 88, iq: 88, handle: 92 }))).toBe('Offensive Engine'))
+  it('names a high-flying finishing big a Launchpad', () => expect(archetypeFor(make('C', 70, { ath: 92, ins: 90 }))).toBe('Launchpad'))
   it('prefixes 2-Way when elite on both ends', () =>
-    expect(archetypeFor(make('SG', 70, { ins: 90, ath: 90, handle: 90, perD: 88, stl: 88 }))).toMatch(/^2-Way /))
-  it('falls back to Role Player for low ratings', () => expect(archetypeFor(make('SF', 55, {}))).toBe('Role Player'))
+    expect(archetypeFor(make('SG', 75, { three: 95, perD: 93, stl: 93 }))).toBe('2-Way Sharpshooter'))
+  it('crowns a do-everything big an Anomaly', () => expect(archetypeFor(make('C', 90, {}))).toBe('Anomaly'))
+  it('crowns a do-everything athletic wing a Prototype', () => expect(archetypeFor(make('SF', 90, { ath: 95 }))).toBe('Prototype'))
   it('is deterministic', () => {
     const p = make('PG', 72, { pass: 90, handle: 88 })
     expect(archetypeFor(p)).toBe(archetypeFor(structuredClone(p)))
@@ -32,7 +35,7 @@ describe('archetypeFor', () => {
       expect(ARCHETYPES).toContain(t)
       seen.add(t)
     }
-    expect(seen.size).toBeGreaterThanOrEqual(8)
+    expect(seen.size).toBeGreaterThanOrEqual(25)
   })
   it('keeps any one title under 15% of the league', () => {
     const counts: Record<string, number> = {}
@@ -42,6 +45,15 @@ describe('archetypeFor', () => {
       counts[t] = (counts[t] ?? 0) + 1
       n++
     }
-    for (const [t, c] of Object.entries(counts)) expect([t, c / n < 0.15]).toEqual([t, true])
+    for (const [t, c] of Object.entries(counts)) expect([t, c / n < 0.1]).toEqual([t, true])
+  })
+})
+
+describe('ARCHETYPES', () => {
+  it('has the 45 titles, each reachable across a few leagues', () => {
+    expect(new Set(ARCHETYPES).size).toBe(45)
+    const seen = new Set<string>()
+    for (const seed of [1, 2, 3, 4, 5, 6]) for (const p of Object.values(createLeague({ seed, userTeamIndex: 0, name: 'A' }).players)) seen.add(archetypeFor(p))
+    expect([...ARCHETYPES].filter((t) => !seen.has(t))).toEqual([])
   })
 })
