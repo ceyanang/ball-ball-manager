@@ -6,15 +6,17 @@ import { gameLineup, minutesTargets } from './rotation'
 
 /** Tuning constants (calibrated by the realism tests). */
 export const K = {
+  /** Rating treated as league-average in all make/miss formulas. */
+  pivot: 72,
   basePace: 97,
   paceStyle: 4,
   defenseStylePace: -2,
   tovBase: 0.13,
   stealShare: 0.55,
   commonFoul: 0.07,
-  rimBase: 0.58,
-  midBase: 0.38,
-  threeBase: 0.32,
+  rimBase: 0.6,
+  midBase: 0.39,
+  threeBase: 0.332,
   shooterK: 0.004,
   defK: 0.003,
   defenseStyle: 0.015,
@@ -26,7 +28,7 @@ export const K = {
   foulThree: 0.03,
   andOne: 0.45,
   orebBase: 0.24,
-  usageExp: 2.0,
+  usageExp: 2.4,
   threeStyle: 1.25,
 }
 
@@ -62,7 +64,7 @@ export function simGame(
       const p = players[id]
       const r = p.ratings
       const scoring = Math.max(r.ins, r.mid, r.three) * 0.5 + ((r.ins + r.mid + r.three) / 3) * 0.2 + r.handle * 0.1 + computeOvr(r, p.pos) * 0.2
-      usage[id] = Math.pow(scoring / 60, K.usageExp)
+      usage[id] = Math.pow(scoring / K.pivot, K.usageExp)
       box[id] = {
         playerId: id, teamId: team.id, gs: lu.starters.includes(id), min: 0, pts: 0, oreb: 0, dreb: 0, ast: 0, stl: 0,
         blk: 0, tov: 0, pf: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, pm: 0,
@@ -114,7 +116,7 @@ export function simGame(
   }
 
   const freeThrows = (off: Side, shooter: string, n: number): boolean => {
-    const pct = 0.48 + R(shooter).ft * 0.0045
+    const pct = 0.43 + R(shooter).ft * 0.0045
     let lastMade = true
     for (let i = 0; i < n; i++) {
       box[shooter].fta++
@@ -134,7 +136,7 @@ export function simGame(
     // Turnover
     const handler = rng.weighted(o, (id) => usage[id] * R(id).handle)
     const hr = R(handler)
-    const tovP = K.tovBase + (mean(d, (id) => R(id).stl) - 60) * 0.0015 - ((hr.handle + hr.iq) / 2 - 60) * 0.0015
+    const tovP = K.tovBase + (mean(d, (id) => R(id).stl) - K.pivot) * 0.0015 - ((hr.handle + hr.iq) / 2 - K.pivot) * 0.0015
     if (rng.chance(tovP)) {
       box[handler].tov++
       if (rng.chance(K.stealShare)) box[rng.weighted(d, (id) => R(id).stl ** 2)].stl++
@@ -148,10 +150,10 @@ export function simGame(
       const type = rng.weighted(['rim', 'mid', 'three'] as const, (t) => (t === 'rim' ? wRim : t === 'mid' ? wMid : wThree))
       const perD = mean(d, (id) => R(id).perD), intD = mean(d, (id) => R(id).intD)
       let p =
-        type === 'rim' ? K.rimBase + (r.ins - 60) * K.shooterK - (intD - 60) * K.defK
-        : type === 'mid' ? K.midBase + (r.mid - 60) * K.shooterK - (perD - 60) * K.defK
-        : K.threeBase + (r.three - 60) * K.shooterK - (perD - 60) * K.defK * 0.67
-      p += ((r.iq + r.ath) / 2 - 60) * 0.001
+        type === 'rim' ? K.rimBase + (r.ins - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK
+        : type === 'mid' ? K.midBase + (r.mid - K.pivot) * K.shooterK - (perD - K.pivot) * K.defK
+        : K.threeBase + (r.three - K.pivot) * K.shooterK - (perD - K.pivot) * K.defK * 0.67
+      p += ((r.iq + r.ath) / 2 - K.pivot) * 0.001
       if (dStyle === 'defense') p -= K.defenseStyle
       if (off === 'home') p += K.home
       const pts = type === 'three' ? 3 : 2
@@ -172,7 +174,7 @@ export function simGame(
       }
       box[shooter].fga++
       if (pts === 3) box[shooter].tpa++
-      const blockP = type === 'rim' ? K.blockRim + (mean(d, (id) => R(id).blk) - 60) * 0.002 : type === 'mid' ? K.blockMid : 0
+      const blockP = type === 'rim' ? K.blockRim + (mean(d, (id) => R(id).blk) - K.pivot) * 0.002 : type === 'mid' ? K.blockMid : 0
       if (blockP > 0 && rng.chance(blockP)) {
         box[rng.weighted(d, (id) => R(id).blk ** 3)].blk++
         if (!rebound(off)) return
