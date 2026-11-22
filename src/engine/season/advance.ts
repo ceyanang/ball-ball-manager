@@ -1,9 +1,13 @@
+import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
 import { rollInjuries, tickInjuries } from '../sim/injury'
 import { addBoxToStatLines } from '../stats/stats'
 import type { Game, League } from '../types'
 import { advancePlayoffs, seedPlayoffs } from './playoffs'
+
+/** In-season rating changes happen every this many days of the regular season. */
+const PROGRESS_EVERY = 10
 
 function playGame(league: League, g: Game, rng: Rng): void {
   const res = simGame(league.teams[g.homeId], league.teams[g.awayId], league.players, league.coaches, rng)
@@ -26,6 +30,7 @@ function stepDay(league: League, rng: Rng): void {
     if (g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null)) playGame(league, g, rng)
   }
   if (league.phase === 'regular') {
+    if (league.day % PROGRESS_EVERY === 0) league.progress.push(...progressTick(league, rng))
     if (!league.games.some((g) => !g.playoff && !g.result)) {
       league.phase = 'playoffs'
       league.playoffs = seedPlayoffs(league)

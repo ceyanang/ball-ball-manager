@@ -3,12 +3,10 @@ import type { League } from '../engine/types'
 
 export interface SaveMeta { id: string; name: string; teamName: string; season: number; updatedAt: number }
 
-export class SaveImportError extends Error {
-  constructor(message: string) {
-    super(message)
-    this.name = 'SaveImportError'
-  }
-}
+import { SaveImportError } from './errors'
+import { migrateLeague } from './migrate'
+
+export { SaveImportError }
 
 let dbp: Promise<IDBPDatabase> | null = null
 const db = () =>
@@ -27,7 +25,7 @@ export async function listSaves(): Promise<SaveMeta[]> {
 export async function loadSave(id: string): Promise<League> {
   const league = (await (await db()).get('leagues', id)) as League | undefined
   if (!league) throw new Error(`No save named "${id}" was found.`)
-  return league
+  return migrateLeague(league)
 }
 
 export async function writeSave(id: string, league: League): Promise<void> {
@@ -59,9 +57,7 @@ export function parseImport(text: string): League {
   }
   if (typeof data !== 'object' || data === null || Array.isArray(data))
     throw new SaveImportError('This file isn’t a Ball Ball Manager save.')
-  const obj = data as Record<string, unknown>
-  if (obj.version !== 1)
-    throw new SaveImportError(`This save is version ${String(obj.version)}, but this app reads version 1 saves.`)
+  const obj = migrateLeague(data) as unknown as Record<string, unknown>
   const missing = REQUIRED.filter((k) => !(k in obj))
   if (missing.length) throw new SaveImportError(`This save is missing data (${missing.join(', ')}), so it can’t be loaded.`)
   const broken = (what: string) => new SaveImportError(`This save is damaged (${what}), so it can’t be loaded.`)

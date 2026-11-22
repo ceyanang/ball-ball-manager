@@ -47,8 +47,10 @@ export interface Series {
   highSeed: number; lowSeed: number; highWins: number; lowWins: number; bestOf: 5 | 7; winnerId: string | null
 }
 export interface PlayoffBracket { season: number; series: Series[]; championId: string | null }
+export interface ProgressEvent { season: number; day: number; playerId: string; teamId: string; from: number; to: number }
 export interface League {
-  version: 1; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 2; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
+  progress: ProgressEvent[]
 }

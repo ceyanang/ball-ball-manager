@@ -32,7 +32,7 @@ describe('import/export', () => {
   it('rejects garbage, wrong versions and missing keys without touching saves', async () => {
     await writeSave('keep', league)
     const before = await listSaves()
-    const bad = ['not json{', JSON.stringify({ ...league, version: 2 }), JSON.stringify({ version: 1, name: 'x' }), '[]', 'null']
+    const bad = ['not json{', JSON.stringify({ ...league, version: 9 }), JSON.stringify({ version: 2, name: 'x' }), '[]', 'null']
     for (const t of bad) {
       expect(() => parseImport(t)).toThrow(SaveImportError)
       try { parseImport(t) } catch (e) { expect((e as Error).message.length).toBeGreaterThan(10) }
@@ -54,5 +54,28 @@ describe('import/export', () => {
     for (const c of cases) {
       expect(() => parseImport(JSON.stringify(c))).toThrow(SaveImportError)
     }
+  })
+})
+
+describe('save versions', () => {
+  const v1 = () => {
+    const l = JSON.parse(JSON.stringify(league))
+    l.version = 1
+    delete l.progress
+    return l
+  }
+  it('loads a v1 save from IndexedDB and migrates it', async () => {
+    await writeSave('old', v1())
+    const l = await loadSave('old')
+    expect(l.version).toBe(2)
+    expect(l.progress).toEqual([])
+  })
+  it('imports a v1 file', () => {
+    const l = parseImport(JSON.stringify(v1()))
+    expect(l.version).toBe(2)
+    expect(l.progress).toEqual([])
+  })
+  it('rejects version 3', () => {
+    expect(() => parseImport(JSON.stringify({ ...league, version: 3 }))).toThrow(SaveImportError)
   })
 })

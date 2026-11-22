@@ -94,7 +94,8 @@ describe('createLeague', () => {
     expect(league.phase).toBe('regular')
     expect(league.day).toBe(1)
     expect(league.season).toBe(1)
-    expect(league.version).toBe(1)
+    expect(league.version).toBe(2)
+    expect(league.progress).toEqual([])
   })
   it('is stacked: most starters 76+, bench averages 70+', () => {
     const starters = Object.values(league.teams).flatMap((t) => t.rotation.starters.map((id) => computeOvr(league.players[id].ratings, league.players[id].pos)))

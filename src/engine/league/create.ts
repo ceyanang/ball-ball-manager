@@ -117,7 +117,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
   const games = generateSchedule(teams, season, rng)
 
   return {
-    version: 1,
+    version: 2,
     name: opts.name,
     seed: opts.seed,
     rng: { ...rng.state },
@@ -131,5 +131,6 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     games,
     statLines: {},
     playoffs: null,
+    progress: [],
   }
 }
