@@ -22,6 +22,7 @@
 - The regular season is 40 games per team, 20 home and 20 away.
 - Roster is at most 15 and at least 10. 12 players are active per game. Rotation = 5 starters + ordered bench + inactives.
 - Playoffs take the top 8 per conference. Rounds 1–3 are best-of-5 and the Finals are best-of-7. Tiebreakers in order: head-to-head, conference record, point differential, then seeded coin flip.
+- Games are 4 quarters of 12 minutes (48 min, 240 player-minutes per team). Overtime periods are 5 minutes each.
 - Ratings are integers 1–99.
 - Use only real-world city names. No real NBA team names, logos, or player names.
 - Use HashRouter. The app is served from `/ball-ball-manager/`, so set Vite `base` to that.
