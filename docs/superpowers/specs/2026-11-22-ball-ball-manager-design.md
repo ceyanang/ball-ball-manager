@@ -170,7 +170,7 @@ is possible later and is out of scope for now.
 - The offseason free agency period runs in "days". Each day the user can make offers, and AI teams make their own signings. Players choose among offers based on money, team quality, and expected role.
 - **Free agents who wait get cheaper** as the days pass **(call)**. At the end of the offseason some unsigned players retire, which keeps the pool from bloating.
 - During the season, any team can sign free agents at any time. These signings are single-day decisions with no bidding war **(call)**.
-- To release a player, his remaining salary stays on the cap until the contract would have expired **(call: simplest honest rule, and it stops abuse)**.
+- **Releasing a player (waivers, user decision):** a released player goes on **waivers for 1 day**. Any AI team may **claim** him if he's worth his contract to them, they have a roster spot, and the cap and reserve rule allow it. A claim moves the **whole contract** to the claiming team, and the releasing team owes nothing. When more than one team wants him, the worst record gets priority. If nobody claims him, his remaining salary stays on the releasing team's cap as **dead money** until the contract would have expired, and he becomes a free agent. There is no stretch provision. AI teams release players too, and the user can claim players off waivers.
 
 ## 14. Trades
 
