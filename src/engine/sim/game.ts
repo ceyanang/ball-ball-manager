@@ -12,21 +12,21 @@ export const K = {
   tovBase: 0.13,
   stealShare: 0.55,
   commonFoul: 0.07,
-  rimBase: 0.56,
+  rimBase: 0.58,
   midBase: 0.38,
   threeBase: 0.32,
   shooterK: 0.004,
   defK: 0.003,
   defenseStyle: 0.015,
   home: 0.008,
-  blockRim: 0.07,
-  blockMid: 0.02,
+  blockRim: 0.11,
+  blockMid: 0.035,
   foulRim: 0.22,
   foulMid: 0.08,
   foulThree: 0.03,
   andOne: 0.45,
   orebBase: 0.24,
-  usageExp: 2.5,
+  usageExp: 2.0,
   threeStyle: 1.25,
 }
 
@@ -106,10 +106,10 @@ export function simGame(
     const o = sides[off].onCourt, d = sides[other(off)].onCourt
     const p = K.orebBase + (mean(o, (id) => R(id).oreb) - mean(d, (id) => R(id).dreb)) * 0.003
     if (rng.chance(p)) {
-      box[rng.weighted(o, (id) => R(id).oreb ** 2)].oreb++
+      box[rng.weighted(o, (id) => R(id).oreb ** 1.5)].oreb++
       return true
     }
-    box[rng.weighted(d, (id) => R(id).dreb ** 2)].dreb++
+    box[rng.weighted(d, (id) => R(id).dreb ** 1.5)].dreb++
     return false
   }
 
@@ -174,7 +174,7 @@ export function simGame(
       if (pts === 3) box[shooter].tpa++
       const blockP = type === 'rim' ? K.blockRim + (mean(d, (id) => R(id).blk) - 60) * 0.002 : type === 'mid' ? K.blockMid : 0
       if (blockP > 0 && rng.chance(blockP)) {
-        box[rng.weighted(d, (id) => R(id).blk ** 2)].blk++
+        box[rng.weighted(d, (id) => R(id).blk ** 3)].blk++
         if (!rebound(off)) return
         continue
       }
@@ -193,7 +193,7 @@ export function simGame(
     const p = type === 'rim' ? 0.5 : type === 'mid' ? 0.6 : 0.8
     if (!rng.chance(p)) return
     const mates = o.filter((id) => id !== shooter)
-    box[rng.weighted(mates, (id) => R(id).pass ** 2)].ast++
+    box[rng.weighted(mates, (id) => R(id).pass ** 4)].ast++
   }
 
   let carry = 0
