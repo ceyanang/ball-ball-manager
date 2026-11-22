@@ -111,3 +111,29 @@ table.stats tfoot td { font-weight: 700; border-top: 2px solid var(--line); }
 .result-chip { display: inline-grid; place-items: center; width: 1.7rem; height: 1.7rem; border-radius: 6px; font-weight: 700; color: #fff; font-size: 0.85rem; text-decoration: none; }
 .result-chip.w { background: var(--win); }
 .result-chip.l { background: var(--loss); }
+
+/* Player rows & rotation editor */
+.pcell { display: flex; align-items: center; gap: 0.55rem; min-width: 0; }
+.pcell .pname { font-weight: 600; white-space: nowrap; }
+.rot-section h3 { margin-bottom: 0.4rem; }
+.rot-actions { display: flex; gap: 0.25rem; justify-content: flex-end; }
+.icon-btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; width: 1.9rem; height: 1.9rem; display: inline-grid; place-items: center; padding: 0; }
+.rot-actions select { font: inherit; font-size: 0.85rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--ink); padding: 0.2rem 0.3rem; }
+.hurt { color: var(--loss); font-weight: 600; white-space: nowrap; }
+.notice { border-left: 4px solid var(--accent); padding: 0.4rem 0.8rem; background: var(--surface-2); border-radius: 6px; }
+
+/* Team & player headers */
+.page-head { display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap; border-radius: 14px; padding: 1.2rem 1.4rem; color: #fff; }
+.page-head .title { font-family: var(--display); font-weight: 900; font-size: 2.4rem; line-height: 0.95; }
+.page-head .sub { opacity: 0.88; }
+.facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem 1rem; margin: 0; }
+.facts dt { color: var(--ink-2); font-size: 0.85rem; }
+.facts dd { margin: 0; font-weight: 600; }
+.ratings { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+.rating-row { display: grid; grid-template-columns: 1fr 2.2rem; align-items: center; gap: 0.5rem; font-size: 0.92rem; }
+.rating-bar { grid-column: 1 / -1; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; margin-top: -0.3rem; }
+.rating-bar span { display: block; height: 100%; background: var(--ink-2); border-radius: 3px; }
+.big-num { font-family: var(--display); font-weight: 900; font-size: 3.2rem; line-height: 0.9; }
+.team-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.6rem; }
+.team-tile { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); text-decoration: none; }
+.team-tile:hover { border-color: var(--ink-2); }

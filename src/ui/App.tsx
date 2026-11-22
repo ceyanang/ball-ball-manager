@@ -4,6 +4,10 @@ import { listSaves } from '../save/db'
 import { FaceGallery } from './FaceGallery'
 import { Shell } from './layout/Shell'
 import { Home } from './screens/Home'
+import { MyTeam } from './screens/MyTeam'
+import { PlayerPage } from './screens/PlayerPage'
+import { TeamPage } from './screens/TeamPage'
+import { TeamsBrowser } from './screens/TeamsBrowser'
 import { NewLeague } from './screens/NewLeague'
 import { Saves } from './screens/Saves'
 import { useStore } from './store'
@@ -19,8 +23,6 @@ function RequireLeague({ children }: { children: React.ReactNode }) {
   if (!league) return <Navigate to="/new" replace state={{ from: loc.pathname }} />
   return <>{children}</>
 }
-
-export const SCREENS: Record<string, React.ReactNode> = {}
 
 export default function App() {
   const load = useStore((s) => s.load)
@@ -40,15 +42,15 @@ export default function App() {
           <Route path="/" element={guarded(<Home />)} />
           <Route path="/new" element={<NewLeague />} />
           <Route path="/saves" element={<Saves />} />
-          <Route path="/my-team" element={guarded(SCREENS.myTeam ?? <Placeholder title="My Team" />)} />
-          <Route path="/team/:id" element={guarded(SCREENS.team ?? <Placeholder title="Team" />)} />
-          <Route path="/teams" element={guarded(SCREENS.teams ?? <Placeholder title="Teams" />)} />
-          <Route path="/player/:id" element={guarded(SCREENS.player ?? <Placeholder title="Player" />)} />
-          <Route path="/schedule" element={guarded(SCREENS.schedule ?? <Placeholder title="Schedule" />)} />
-          <Route path="/game/:id" element={guarded(SCREENS.game ?? <Placeholder title="Box score" />)} />
-          <Route path="/standings" element={guarded(SCREENS.standings ?? <Placeholder title="Standings" />)} />
-          <Route path="/playoffs" element={guarded(SCREENS.playoffs ?? <Placeholder title="Playoffs" />)} />
-          <Route path="/leaders" element={guarded(SCREENS.leaders ?? <Placeholder title="Leaders" />)} />
+          <Route path="/my-team" element={guarded(<MyTeam />)} />
+          <Route path="/team/:id" element={guarded(<TeamPage />)} />
+          <Route path="/teams" element={guarded(<TeamsBrowser />)} />
+          <Route path="/player/:id" element={guarded(<PlayerPage />)} />
+          <Route path="/schedule" element={guarded(<Placeholder title="Schedule" />)} />
+          <Route path="/game/:id" element={guarded(<Placeholder title="Box score" />)} />
+          <Route path="/standings" element={guarded(<Placeholder title="Standings" />)} />
+          <Route path="/playoffs" element={guarded(<Placeholder title="Playoffs" />)} />
+          <Route path="/leaders" element={guarded(<Placeholder title="Leaders" />)} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

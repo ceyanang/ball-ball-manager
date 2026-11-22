@@ -1,0 +1,67 @@
+import { Navigate, useParams } from 'react-router-dom'
+import { computeStandings } from '../../engine/standings'
+import { RosterTable } from '../components/RosterTable'
+import { TeamBadge } from '../components/TeamBadge'
+import { Face } from '../face/Face'
+import { useStore } from '../store'
+import { rankOf, teamStatRows } from '../teamStats'
+import { one, ovrOf, rosterOf, teamFull } from '../util'
+
+const STYLE: Record<string, string> = { pace: 'Fast pace', three: 'Three-point heavy', defense: 'Defense first', balanced: 'Balanced' }
+const ord = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th'}`
+
+export function TeamPage() {
+  const { id } = useParams()
+  const league = useStore((s) => s.league)!
+  const team = id ? league.teams[id] : undefined
+  if (!team) return <Navigate to="/teams" replace />
+  const st = computeStandings(league, league.season)[team.conf]
+  const row = st.find((r) => r.teamId === team.id)!
+  const coach = league.coaches[team.coachId]
+  const roster = rosterOf(league, team.id).sort((a, b) => ovrOf(b) - ovrOf(a))
+  const rows = teamStatRows(league, league.season)
+  const mine = rows.find((r) => r.teamId === team.id)!
+  const stats: [string, string, number][] = [
+    ['Points', one(mine.pts), rankOf(rows, team.id, 'pts')],
+    ['Opp. points', one(mine.opp), rankOf(rows, team.id, 'opp', true)],
+    ['Rebounds', one(mine.reb), rankOf(rows, team.id, 'reb')],
+    ['Assists', one(mine.ast), rankOf(rows, team.id, 'ast')],
+    ['Steals', one(mine.stl), rankOf(rows, team.id, 'stl')],
+    ['Blocks', one(mine.blk), rankOf(rows, team.id, 'blk')],
+    ['Turnovers', one(mine.tov), rankOf(rows, team.id, 'tov', true)],
+    ['FG%', (mine.fgPct * 100).toFixed(1), rankOf(rows, team.id, 'fgPct')],
+    ['3P%', (mine.tpPct * 100).toFixed(1), rankOf(rows, team.id, 'tpPct')],
+    ['FT%', (mine.ftPct * 100).toFixed(1), rankOf(rows, team.id, 'ftPct')],
+  ]
+  return (
+    <div className="stack">
+      <div className="page-head" style={{ background: `linear-gradient(110deg, ${team.colors.primary} 55%, ${team.colors.secondary})` }}>
+        <TeamBadge team={team} size={72} />
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div className="title">{teamFull(team)}</div>
+          <div className="sub">{row.w}–{row.l} · {ord(st.indexOf(row) + 1)} in the {team.conf}</div>
+        </div>
+        <div className="row" style={{ background: 'rgba(0,0,0,0.18)', borderRadius: 12, padding: '0.5rem 0.8rem' }}>
+          <Face seed={coach.faceSeed} age={coach.age} colors={{ primary: '#2a2f3d', secondary: '#ffffff' }} size={48} />
+          <div>
+            <div style={{ fontWeight: 700 }}>Coach {coach.firstName} {coach.lastName}</div>
+            <div className="sub">{STYLE[coach.style]} · {coach.wins}–{coach.losses}</div>
+          </div>
+        </div>
+      </div>
+      <section className="panel stack">
+        <h2>Roster</h2>
+        <RosterTable league={league} players={roster} />
+      </section>
+      <section className="panel stack">
+        <h2>Team stats</h2>
+        <div className="table-wrap">
+          <table className="stats">
+            <thead><tr><th>Per game</th><th>Value</th><th>League rank</th></tr></thead>
+            <tbody>{stats.map(([k, v, r]) => <tr key={k}><td>{k}</td><td>{mine.gp ? v : '—'}</td><td>{mine.gp ? ord(r) : '—'}</td></tr>)}</tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  )
+}
