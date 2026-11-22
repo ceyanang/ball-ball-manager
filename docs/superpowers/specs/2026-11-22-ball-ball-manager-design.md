@@ -140,6 +140,7 @@ is possible later and is out of scope for now.
 
 ## 11. Injuries
 
+- **Injuries are rare (user decision):** a typical team sees only a couple of multi-game injuries a season. Day-to-day knocks are the most common, long injuries are uncommon, and season-ending ones are very rare (a handful league-wide per season).
 - Each player-game has a small injury chance, slightly higher with heavy minutes and low athleticism, and with age.
 - Severity is counted in **games missed (call)**: day-to-day (1–3 games), short (4–10), long (11–25), and season-ending (rest of the season, including playoffs). An injury is shown with a body part and the number of games out. Injuries carry over into the offseason, and any that aren't healed by then continue into the next season.
 - Injured players cannot play. They still count toward the 15-man roster.
@@ -148,7 +149,11 @@ is possible later and is out of scope for now.
 ## 12. Salary cap and contracts
 
 - **Hard cap only (call):** a single number, e.g. $150M. A signing or trade that would put a team over the cap is blocked. The cap is fixed and there is no salary floor.
-- **The one escape hatch (call):** a **minimum-salary contract** and a **team's own draft picks** can always be signed, even over the cap. Without this, a capped-out team could get stuck below 10 players with no way to fix it. This is the only exception.
+- **The cap is absolute.** Nothing ever goes over it: no min-contract or rookie exceptions (user decision).
+- **Roster-fill reserve rule (call, user-approved direction):** a signing, re-signing or trade is legal only if, after it, the team's cap room is at least `(10 − roster size) × minimum salary`. That way a team can always reach 10 players, and no team can ever get stuck. When a move is blocked, the UI explains it, e.g. "This leaves $2M, but you need $3M to fill out 10 players."
+- **The season can't start** if the user's team breaks a roster or cap rule. The user must fix it first, by trading, releasing, or signing, and a fix-it screen shows what's wrong.
+- **Drafted rookies are not auto-signed (call).** After the draft, each pick can be signed at its rookie-scale salary only if the reserve rule allows it. Otherwise the team can trade or release him, and a released rookie goes to the free agent pool.
+- **AI GMs manage money smartly:** they plan cap room ahead for re-signing their core and signing draft picks, avoid long deals for declining veterans, and keep cheap depth. They never need an exception because they obey the same reserve rule.
 - Contracts have a salary per year and a length of 1–5 years. The minimum salary is about $1M and the maximum about $45M **(call: exact numbers tuned by builder so most teams sit near but under the cap)**.
 - **Asking salary** depends on OVR, age, potential, last season's performance (stats vs expectation), and morale. Good seasons raise the ask and bad seasons lower it.
 - **Rookie contracts (call):** fixed by draft slot on a sliding scale. First-round picks get 3 years and second-round picks get 2. They are not negotiable.
