@@ -29,6 +29,11 @@ The owner wants a league that feels stacked: good starters and a real bench. The
    - The OVR chart gains a "Now" point when the current value differs from the season start.
 9. **Dark grey UI** everywhere. It replaces the light theme and is not a toggle. The orange accent stays for actions, and team colours stay on headers **(call)**.
 
+## Owner follow-ups (approved)
+- **2K scale:** a handful of genuine 90+ superstars (about 5–12 league-wide, at least one 93+).
+- **In-season moves depend partly on performance:** guys who outplay their rating are likelier to rise, and guys who underperform are likelier to dip. Moves stay small; major changes happen in the offseason (Milestone 2).
+- **Archetype titles replace prose blurbs:** 2K-style titles such as Sharpshooter, 3&D Wing, 2-Way Slasher, Rim Protector, Floor General and Stretch Big.
+
 ## Non-goals
 Offseason progression, retirements, and the rest of Milestone 2. A light-mode toggle. Changing existing leagues' talent levels.
 

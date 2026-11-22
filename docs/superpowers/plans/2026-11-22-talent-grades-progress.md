@@ -31,7 +31,7 @@
 ## Review Focus
 1. **An existing v1 save on the owner's phone** loads without crashing and gets `progress: []`. Test in Task 4.
 2. **Progress ticks never push a rating above 99 or below 40, or OVR above `pot` on a rise.** Test in Task 4.
-3. **A player with no games yet** gets a ratings-only blurb, never "averaging 0.0 points". Test in Task 5.
+3. **A player with under 50 minutes played** gets neutral performance (perf = 0) in progress ticks, never a divide-by-zero or NaN. Test in Task 4.
 4. **Free agents and the playoffs never trigger progress events.** Test in Task 4.
 5. **An old league (v1 talent levels)** still renders grades and colours for ratings below 40, clamped to the F / dark-red end. Test in Task 1.
 
@@ -61,7 +61,8 @@
   - The default target is `normal(70, 8)` clamped to 50..95.
   - `pot` is clamped to `max(ovr, …)..99`.
 - `createLeague`:
-  - Generates **tiers per team**: 1 lead from `normal(84,4)`, 4 starters from `normal(78,3)`, 7 bench from `normal(71,3)`, and 2 deep-bench from `normal(66,3)`. That's 14 per team, 420 in total.
+  - Generates **tiers per team**: 1 lead from `normal(85,4)`, 4 starters from `normal(78,3)`, 7 bench from `normal(71,3)`, and 2 deep-bench from `normal(66,3)`. That's 14 per team, 420 in total.
+  - **2K-style superstars (owner, follow-up):** 8 of the 30 lead players are drawn from `normal(92,2.5)` clamped to 89..97, so a handful of guys are genuinely 90+.
   - Snake-drafts the players **within each tier** (the existing positional-needs logic applies across the whole build), so the teams stay balanced.
   - Free agents come from `normal(64,2.5)` clamped to 60–68.
 - `salaryForPlayer`:
@@ -75,6 +76,7 @@
     - `≥70% of rotation starters OVR ≥ 76`
     - `mean OVR of bench slots (rotation.bench) ≥ 70`
     - `every free agent 60..68`
+    - `5–12 players with OVR ≥ 90, and at least one ≥ 93` (2K scale)
     - The existing spread, payroll, and balance tests stay as they are.
 - [ ] **Step 2:** `npx vitest run tests/engine/player.test.ts tests/engine/league.test.ts`. Expected: FAIL on the new assertions.
 - [ ] **Step 3:** Implement.
@@ -108,6 +110,7 @@
   - Chance to fall: age ≤ 27: 0.04; 28–30: 0.12; 31–32: 0.25; 33+: 0.40.
   - On a change, pick 2–4 ratings, weighted toward the player's position weights, and move each by 1–2 points in that direction.
   - Clamp ratings to 40..99. On a rise, undo the step if the new OVR would exceed `pot`.
+  - **Performance matters (owner, follow-up):** compare each player's season game score per 36 minutes (min 50 minutes played) with the league average for his OVR band, as `perf = (gsPer36 − expected) / expected` clamped to ±0.5. Multiply the rise chance by `1 + 1.5·perf` and the fall chance by `1 − 1.5·perf`. In-season moves stay small; major changes happen in the offseason (Milestone 2).
   - Tune the probabilities so the spec's season totals hold.
 - In `stepDay`: when `phase === 'regular'` and `league.day % 10 === 0`, after the day's games, push `progressTick` events into `league.progress`.
 - `createLeague` sets `version: 2, progress: []`.
@@ -124,7 +127,9 @@
     - `free agents untouched`: FA ratings deep-equal the pre-season ratings.
     - `no events in playoffs`: every event has `day ≤` the last regular-season day.
     - `events only when OVR changed`: `from !== to` for every event.
+    - `no NaN`: a tick on day 10 with players who have under 50 minutes produces only finite ratings.
     - `deterministic`.
+    - `performance tilts it`: across many seeds, players in the top quartile of per-36 game score rise more on average than the bottom quartile at the same age band.
   - `db.test.ts`:
     - `loads a v1 save from IndexedDB and migrates`: write a league with `version: 1` and no `progress`, then `loadSave` returns `version: 2` with `progress: []`.
     - `imports a v1 file` (same check).
@@ -134,37 +139,50 @@
 - [ ] **Step 4:** Run the full `npm test && npm run typecheck`. Expected: PASS. Update any test that asserted `version: 1`.
 - [ ] **Step 5:** Commit `feat: in-season rating progress and save v2 migration`.
 
-### Task 5: Scouting blurb
-**Files:** Create `src/engine/player/describe.ts`. Test `tests/engine/describe.test.ts`.
+### Task 5: Archetype titles (2K-style)
+**Owner follow-up:** use short archetype titles instead of prose blurbs.
+**Files:** Create `src/engine/player/archetype.ts`. Test `tests/engine/archetype.test.ts`.
 
-**Interfaces — Produces:** `describePlayer(p: Player, stats: StatLine | null): string`, made of 1–3 sentences.
-1. **Archetype line from ratings.** Use the top two skill groups and a weakness, where:
-   - shooting = three/mid
-   - finishing = ins/ath
-   - playmaking = pass/handle
-   - rebounding = oreb/dreb
-   - perimeter D = perD/stl
-   - rim protection = intD/blk
-   - IQ = iq
-
-   Example: "A knockdown shooter who can also run the offense." The weakness is the lowest group, and only if it's < 65: "Defense is a work in progress."
-2. **Season line**, only when `stats && stats.gp > 0`. Example: "Averaging 24.1 points and 6.3 assists this season." Use the two most notable per-game numbers.
-3. **Age/potential flavour:** "Still raw, with a high ceiling." when age ≤ 22 and pot − ovr ≥ 8, or "A savvy veteran." when age ≥ 32.
-
-Template variants are picked with `Rng.fromSeed(p.faceSeed)`, so the text is deterministic per player and never touches the league RNG.
+**Interfaces — Produces:** `archetypeFor(p: Player): string`. It is based on ratings only and is deterministic.
+- Skill groups, each the mean of its ratings:
+  - shooting = three, mid
+  - slashing = ins, ath, handle
+  - playmaking = pass, handle, iq
+  - rebounding = oreb, dreb
+  - perimeter D = perD, stl
+  - rim protection = intD, blk
+  - post = ins, oreb, intD
+- The title comes from the top group, then a secondary group if it is within 6 points of the top one.
+- Single-group titles:
+  - shooting: guards → "Sharpshooter"; bigs → "Stretch Big"
+  - slashing: "Slasher"
+  - playmaking: guards → "Floor General"; forwards → "Point Forward"
+  - rebounding: "Glass Cleaner"
+  - perimeter D: "Lockdown Defender"
+  - rim protection: "Rim Protector"
+  - post: "Post Scorer"; with high ath → "Paint Beast"
+- Combo titles:
+  - shooting + perimeter D → "3&D Wing"
+  - shooting + playmaking → "Playmaking Shooter"
+  - slashing + playmaking → "Shot Creator"
+  - rim protection + rebounding → "Paint Anchor"
+  - shooting + rim protection → "Stretch Rim Protector"
+- **2-Way** (offense group and defense group both ≥ 75 and within 6): prefix "2-Way ", e.g. "2-Way Slasher".
+- Low-rated fallback (all groups < 62): "Role Player".
 
 - [ ] **Step 1: Write failing tests:**
-  - A high-three player (three 92, the rest about 70) mentions shooting: matches `/shoot|range|three|arc/i`.
-  - A high intD/blk center mentions rim protection: `/rim|block|paint|protect/i`.
-  - Low defense (perD, intD, stl and blk all 45) gives a weakness sentence: `/defen/i`.
-  - `stats === null` or `gp === 0` never contains "averaging" or "0.0".
-  - With stats, it contains "Averaging" and a per-game number.
-  - Deterministic for the same player.
-  - Returns 1–3 sentences.
+  - A three-92 guard is "Sharpshooter".
+  - A three-90 + perD-90 wing is "3&D Wing".
+  - An intD-92/blk-92 center is "Rim Protector".
+  - A three-88 center is "Stretch Big".
+  - A slasher (ins/ath/handle about 90) with perD/stl about 88 gets a title starting "2-Way".
+  - A flat 55 player is "Role Player".
+  - Deterministic.
+  - Every generated player in a created league gets a non-empty title from the known list.
 - [ ] **Step 2:** Run. Expected: FAIL.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** Run. Expected: PASS.
-- [ ] **Step 5:** Commit `feat: algorithmic scouting blurbs`.
+- [ ] **Step 5:** Commit `feat: 2K-style archetype titles`.
 
 ### Task 6: UI — dark grey theme, graded ratings, blurb, progress report
 **Files:** Modify `src/ui/theme.css`, `src/ui/screens/PlayerPage.tsx`, `src/ui/screens/Home.tsx`, `src/ui/components/OvrChart.tsx`, `src/ui/components/RosterTable.tsx`, `src/ui/screens/MyTeam.tsx`, `index.html` (theme-color), `vite.config.ts` (manifest colours).
@@ -179,7 +197,7 @@ Behaviour:
   - Each rating row shows the value and its grade. The bar fill uses `ratingColor(v)`.
   - The OVR big number is coloured with `ratingColor` and shows its grade.
   - Potential shows `gradeFor(pot)`.
-  - The blurb (`describePlayer`) sits under the header.
+  - The archetype title (`archetypeFor`) appears as a chip in the header. Roster tables show it as small muted text under the name.
   - "+N this season" (green) or "−N" (red) compares the current OVR with `ratingHistory` for the current season. It is omitted when the change is 0.
 - **OVR chart:** append a "Now" point when the current OVR differs from the last history value.
 - **Roster tables and My Team:** the OVR cell is a small pill coloured by `ratingColor`, with the grade in a tooltip.
