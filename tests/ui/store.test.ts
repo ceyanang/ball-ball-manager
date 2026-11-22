@@ -1,11 +1,10 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createLeague } from '../../src/engine/league/create'
 import type { League } from '../../src/engine/types'
 
 let resolveSim: ((l: League) => void) | null = null
-const runSim = vi.fn((_l: League) => new Promise<League>((r) => (resolveSim = r)))
-vi.mock('../../src/worker/client', () => ({ runSim: (l: League, c: unknown) => runSim(l, c as never) }))
+const runSim = vi.fn((_l: League, _c: unknown) => new Promise<League>((r) => (resolveSim = r)))
+vi.mock('../../src/worker/client', () => ({ runSim: (l: League, c: unknown) => runSim(l, c) }))
 
 const { useStore } = await import('../../src/ui/store')
 
