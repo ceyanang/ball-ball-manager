@@ -2,7 +2,7 @@ import { OT_MIN, QUARTER_MIN, STARTERS } from '../constants'
 import { computeOvr } from '../player/ratings'
 import type { Rng } from '../rng'
 import type { BoxLine, Coach, CoachStyle, GameResult, Player, Team } from '../types'
-import { gameLineup, minutesTargets } from './rotation'
+import { courtPenalties, gameLineup, minutesTargets } from './rotation'
 
 /** Tuning constants (calibrated by the realism tests). */
 export const K = {
@@ -30,6 +30,10 @@ export const K = {
   orebBase: 0.24,
   usageExp: 2.4,
   threeStyle: 1.25,
+  /** Make-probability lost per OVR point of out-of-position cost (C at PG ≈ −6.5%). */
+  oopShot: 0.0025,
+  /** Share of defenders' out-of-position cost taken off their perimeter/interior D. */
+  oopDef: 0.5,
 }
 
 type Side = 'home' | 'away'
@@ -39,6 +43,7 @@ interface Ctx {
   ids: string[]
   starters: string[]
   onCourt: string[]
+  pen: Record<string, number>
   played: Record<string, number>
   target: Record<string, number>
   quarters: number[]
@@ -71,7 +76,7 @@ export function simGame(
       }
     }
     return {
-      team, style: coaches[team.coachId]?.style ?? 'balanced', ids, starters: lu.starters, onCourt: [],
+      team, style: coaches[team.coachId]?.style ?? 'balanced', ids, starters: lu.starters, onCourt: [], pen: {},
       played: Object.fromEntries(ids.map((id) => [id, 0])), target: minutesTargets(lu, players, 0), quarters: [],
     }
   }
@@ -85,6 +90,7 @@ export function simGame(
   const chooseFive = (c: Ctx, forceStarters: boolean) => {
     if (forceStarters) {
       c.onCourt = [...c.starters]
+      c.pen = courtPenalties(c.onCourt, players, true)
       return
     }
     const ranked = [...c.ids].sort((a, b) => {
@@ -92,7 +98,11 @@ export function simGame(
       const rb = c.target[b] - c.played[b] + (c.onCourt.includes(b) ? 1.5 : 0)
       return rb - ra
     })
-    c.onCourt = ranked.slice(0, STARTERS)
+    const next = ranked.slice(0, STARTERS)
+    // Same five as the opening lineup keep their set positions; any other group gets re-slotted by the coach.
+    const same = next.length === c.starters.length && next.every((id) => c.starters.includes(id))
+    c.onCourt = same ? [...c.starters] : next
+    c.pen = courtPenalties(c.onCourt, players, same)
   }
 
   const addPoints = (off: Side, pts: number, shooter: string) => {
@@ -136,7 +146,8 @@ export function simGame(
     // Turnover
     const handler = rng.weighted(o, (id) => usage[id] * R(id).handle)
     const hr = R(handler)
-    const tovP = K.tovBase + (mean(d, (id) => R(id).stl) - K.pivot) * 0.0015 - ((hr.handle + hr.iq) / 2 - K.pivot) * 0.0015
+    const oPen = sides[off].pen, dPen = sides[other(off)].pen
+    const tovP = K.tovBase + (mean(d, (id) => R(id).stl) - K.pivot) * 0.0015 - ((hr.handle + hr.iq) / 2 - K.pivot) * 0.0015 + (oPen[handler] ?? 0) * 0.001
     if (rng.chance(tovP)) {
       box[handler].tov++
       if (rng.chance(K.stealShare)) box[rng.weighted(d, (id) => R(id).stl ** 2)].stl++
@@ -148,12 +159,13 @@ export function simGame(
       const wRim = Math.max(1, r.ins - 20), wMid = Math.max(1, r.mid - 30) * 0.6
       const wThree = Math.max(1, r.three - 35) * 1.4 * (oStyle === 'three' ? K.threeStyle : 1)
       const type = rng.weighted(['rim', 'mid', 'three'] as const, (t) => (t === 'rim' ? wRim : t === 'mid' ? wMid : wThree))
-      const perD = mean(d, (id) => R(id).perD), intD = mean(d, (id) => R(id).intD)
+      const perD = mean(d, (id) => R(id).perD - (dPen[id] ?? 0) * K.oopDef), intD = mean(d, (id) => R(id).intD - (dPen[id] ?? 0) * K.oopDef)
       let p =
         type === 'rim' ? K.rimBase + (r.ins - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK
         : type === 'mid' ? K.midBase + (r.mid - K.pivot) * K.shooterK - (perD - K.pivot) * K.defK
         : K.threeBase + (r.three - K.pivot) * K.shooterK - (perD - K.pivot) * K.defK * 0.67
       p += ((r.iq + r.ath) / 2 - K.pivot) * 0.001
+      p -= (oPen[shooter] ?? 0) * K.oopShot
       if (dStyle === 'defense') p -= K.defenseStyle
       if (off === 'home') p += K.home
       const pts = type === 'three' ? 3 : 2

@@ -6,9 +6,9 @@ const ovr = (p: Player) => computeOvr(p.ratings, p.pos)
 
 /** Starting-five slot order: starters[i] plays SLOTS[i]. */
 export const SLOTS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C']
-const SLOT_IDX: Record<Position, number> = { PG: 0, SG: 1, SF: 2, PF: 3, C: 4 }
+export const SLOT_IDX: Record<Position, number> = { PG: 0, SG: 1, SF: 2, PF: 3, C: 4 }
 /** OVR cost of playing 0..4 spots away from a player's natural position. Adjacent spots are cheap. */
-const OFF_POS_PENALTY = [0, 2.5, 8, 16, 26]
+export const OFF_POS_PENALTY = [0, 2.5, 8, 16, 26]
 
 /** How good `p` is when playing `slot`: their OVR re-weighted for that spot, minus an out-of-position cost. */
 export function slotFit(p: Player, slot: Position): number {
@@ -137,5 +137,37 @@ export function minutesTargets(
     if (!over.length) break
     over.forEach((id) => capped.add(id))
   }
+  return out
+}
+
+const PERMS: number[][] = (() => {
+  const out: number[][] = []
+  const rec = (cur: number[], left: number[]) => {
+    if (!left.length) return void out.push(cur)
+    left.forEach((x, i) => rec([...cur, x], [...left.slice(0, i), ...left.slice(i + 1)]))
+  }
+  rec([], [0, 1, 2, 3, 4])
+  return out
+})()
+
+/**
+ * Out-of-position cost (OVR points) for each player on the floor. `slotted` players are pinned to SLOTS order
+ * (the starting five as the coach set it); otherwise the coach assigns positions to minimise the total cost.
+ */
+export function courtPenalties(ids: string[], players: Record<string, Player>, slotted: boolean): Record<string, number> {
+  const out: Record<string, number> = {}
+  const nat = ids.map((id) => SLOT_IDX[players[id].pos])
+  const cost = (i: number, slot: number) => OFF_POS_PENALTY[Math.abs(nat[i] - slot)]
+  if (slotted || ids.length !== STARTERS) {
+    ids.forEach((id, i) => (out[id] = cost(i, Math.min(i, 4))))
+    return out
+  }
+  let best = PERMS[0], bestV = Infinity
+  for (const perm of PERMS) {
+    let v = 0
+    for (let i = 0; i < 5; i++) v += cost(i, perm[i])
+    if (v < bestV) { bestV = v; best = perm }
+  }
+  ids.forEach((id, i) => (out[id] = cost(i, best[i])))
   return out
 }

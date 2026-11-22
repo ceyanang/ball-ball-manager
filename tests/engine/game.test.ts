@@ -157,3 +157,31 @@ describe('simGame behaviour', () => {
 })
 
 export type { League }
+
+describe('out-of-position play', () => {
+  it('courtPenalties pins slotted starters and lets the coach re-slot other groups', async () => {
+    const { courtPenalties } = await import('../../src/engine/sim/rotation')
+    const a = cloneTeam(75, 'oa', 3, teams[0])
+    const ids = a.team.rotation.starters
+    const reversed = [...ids].reverse() // C at PG ... PG at C
+    expect(Object.values(courtPenalties(ids, a.players, true)).every((v) => v === 0)).toBe(true)
+    expect(courtPenalties(reversed, a.players, true)[reversed[0]]).toBeGreaterThan(20)
+    expect(Object.values(courtPenalties(reversed, a.players, false)).every((v) => v === 0)).toBe(true)
+  })
+  it('a scrambled starting five (bigs at guard, guards at big) loses clearly more often', () => {
+    const a = cloneTeam(75, 'oa', 3, teams[0])
+    const b = cloneTeam(75, 'ob', 4, teams[1])
+    const scrambled: Team = { ...a.team, id: 'oa', rotation: { ...a.team.rotation, starters: [...a.team.rotation.starters].reverse() } }
+    const players = { ...a.players, ...b.players }
+    const margin = (t: Team) => {
+      const rng = Rng.fromSeed(77)
+      let m = 0
+      for (let i = 0; i < 300; i++) {
+        const r = simGame(t, b.team, players, league.coaches, rng)
+        m += r.homeScore - r.awayScore
+      }
+      return m / 300
+    }
+    expect(margin(a.team) - margin(scrambled)).toBeGreaterThan(2)
+  })
+})
