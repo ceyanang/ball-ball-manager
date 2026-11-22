@@ -4,8 +4,8 @@ import '@fontsource/barlow/400'
 import '@fontsource/barlow/600'
 import '@fontsource/big-shoulders-display/700'
 import '@fontsource/big-shoulders-display/900'
-import './index.css'
-import App from './App.tsx'
+
+import App from './ui/App'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
