@@ -1,7 +1,10 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { perGame, playerSeasonStats } from '../../engine/stats/stats'
 import type { League, Ratings, StatLine } from '../../engine/types'
+import { archetypeFor } from '../../engine/player/archetype'
+import { gradeFor } from '../../engine/player/grades'
 import { OvrChart } from '../components/OvrChart'
+import { ratingColor } from '../ratingColor'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
 import { fullName, heightStr, money, one, ovrOf, teamFull } from '../util'
@@ -11,7 +14,6 @@ const GROUPS: [string, [keyof Ratings, string][]][] = [
   ['Defense', [['perD', 'Perimeter defense'], ['intD', 'Interior defense'], ['stl', 'Steals'], ['blk', 'Blocks'], ['dreb', 'Defensive rebounding']]],
   ['Physical', [['ath', 'Athleticism'], ['stam', 'Stamina'], ['iq', 'Basketball IQ']]],
 ]
-const potGrade = (pot: number) => (pot >= 85 ? 'A' : pot >= 78 ? 'B+' : pot >= 72 ? 'B' : pot >= 66 ? 'C+' : pot >= 60 ? 'C' : 'D')
 
 function sumLines(lines: StatLine[]): StatLine | null {
   if (!lines.length) return null
@@ -53,6 +55,9 @@ export function PlayerPage() {
   const team = p.teamId ? league.teams[p.teamId] : null
   const colors = team?.colors ?? { primary: '#5b6378', secondary: '#ffffff' }
   const ovr = ovrOf(p)
+  const seasonStart = p.ratingHistory.find((h) => h.season === league.season)?.ovr ?? ovr
+  const delta = ovr - seasonStart
+  const chartPoints = [...p.ratingHistory.map((h) => ({ label: `S${h.season}`, ovr: h.ovr })), ...(delta !== 0 ? [{ label: 'Now', ovr }] : [])]
   return (
     <div className="stack">
       <div className="page-head" style={{ background: `linear-gradient(110deg, ${colors.primary} 55%, ${colors.secondary})` }}>
@@ -62,11 +67,13 @@ export function PlayerPage() {
         <div style={{ flex: 1, minWidth: 200 }}>
           <div className="title">{fullName(p)}</div>
           <div className="sub">#{p.jersey} · {p.pos} · {team ? teamFull(team) : 'Free agent'}</div>
+          <span className="archetype-chip">{archetypeFor(p)}</span>
           {p.injury && <div style={{ marginTop: '0.4rem', fontWeight: 700 }}>🤕 {p.injury.type} — {p.injury.gamesRemaining >= 999 ? 'out for the season' : `out ${p.injury.gamesRemaining} more game${p.injury.gamesRemaining === 1 ? '' : 's'}`}</div>}
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div className="big-num">{ovr}</div>
-          <div className="sub">Overall · potential {potGrade(p.pot)}</div>
+          <div className="big-num" style={{ color: ratingColor(ovr), textShadow: '0 1px 0 rgba(0,0,0,0.35)', background: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: '0.2rem 0.6rem' }}>{ovr}</div>
+          <div className="sub">Overall {gradeFor(ovr)} · potential {gradeFor(p.pot)}</div>
+          {delta !== 0 && <div className={delta > 0 ? 'delta-up' : 'delta-down'} style={{ color: '#fff' }}>{delta > 0 ? `▲ +${delta}` : `▼ ${delta}`} this season</div>}
         </div>
       </div>
 
@@ -90,8 +97,10 @@ export function PlayerPage() {
               <h3>{g}</h3>
               {keys.map(([k, label]) => (
                 <div key={k} className="rating-row">
-                  <span>{label}</span><strong style={{ textAlign: 'right' }}>{p.ratings[k]}</strong>
-                  <div className="rating-bar" aria-hidden="true"><span style={{ width: `${p.ratings[k]}%` }} /></div>
+                  <span>{label}</span>
+                  <span className="grade">{gradeFor(p.ratings[k])}</span>
+                  <strong style={{ textAlign: 'right' }}>{p.ratings[k]}</strong>
+                  <div className="rating-bar" aria-hidden="true"><span style={{ width: `${Math.max(0, (p.ratings[k] - 40) / 59) * 100}%`, background: ratingColor(p.ratings[k]) }} /></div>
                 </div>
               ))}
             </div>
@@ -101,7 +110,7 @@ export function PlayerPage() {
 
       <section className="panel stack">
         <h2>Overall by season</h2>
-        <OvrChart points={p.ratingHistory} />
+        <OvrChart points={chartPoints} />
       </section>
 
       <section className="panel stack">

@@ -13,8 +13,8 @@ export default defineConfig({
         name: 'Ball Ball Manager',
         short_name: 'BallBall',
         description: 'A small basketball franchise sim with parody teams and lots of stats.',
-        theme_color: '#1a2238',
-        background_color: '#eef1f6',
+        theme_color: '#121314',
+        background_color: '#121314',
         display: 'standalone',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },

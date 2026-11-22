@@ -3,7 +3,7 @@ import { computeStandings } from '../../engine/standings'
 import { Face } from '../face/Face'
 import { TeamBadge } from '../components/TeamBadge'
 import { useStore } from '../store'
-import { didWin, fullName, nextGame, one, pct, rosterOf, seasonLine, teamFull, teamGames } from '../util'
+import { didWin, fullName, nextGame, one, ovrOf, pct, rosterOf, seasonLine, teamFull, teamGames } from '../util'
 
 export function Home() {
   const league = useStore((s) => s.league)!
@@ -21,6 +21,21 @@ export function Home() {
     .filter((x) => x.line)
     .sort((a, b) => b.line!.pg.pts - a.line!.pg.pts)
     .slice(0, 4)
+
+  const myEvents = league.progress.filter((e) => e.season === league.season && e.teamId === team.id).slice(-8).reverse()
+  const movers = Object.values(league.players)
+    .filter((p) => p.teamId)
+    .map((p) => ({ p, d: ovrOf(p) - (p.ratingHistory.find((h) => h.season === league.season)?.ovr ?? ovrOf(p)) }))
+    .filter((x) => x.d !== 0)
+    .sort((a, b) => b.d - a.d)
+  const risers = movers.slice(0, 3)
+  const fallers = movers.filter((x) => x.d < 0).slice(-3).reverse()
+  const moverRow = ({ p, d }: { p: (typeof movers)[number]['p']; d: number }) => (
+    <li key={p.id}>
+      <Link className="link" to={`/player/${p.id}`}>{fullName(p)} <span className="muted">{league.teams[p.teamId!].abbrev}</span></Link>
+      <span className={d > 0 ? 'delta-up' : 'delta-down'}>{d > 0 ? `+${d}` : d} → {ovrOf(p)}</span>
+    </li>
+  )
 
   return (
     <div className="stack">
@@ -91,6 +106,38 @@ export function Home() {
           </div>
         </section>
       </div>
+
+      <section className="panel stack">
+        <h2>Progress report</h2>
+        {myEvents.length === 0 && movers.length === 0 ? (
+          <p className="muted" style={{ margin: 0 }}>Ratings update every 10 days of the season.</p>
+        ) : (
+          <div className="grid-2">
+            <div className="stack" style={{ gap: '0.5rem' }}>
+              <h3>{team.name}</h3>
+              {myEvents.length ? (
+                <ul className="progress-list">
+                  {myEvents.map((e, i) => {
+                    const p = league.players[e.playerId]
+                    const up = e.to > e.from
+                    return (
+                      <li key={i}>
+                        <Link className="link" to={`/player/${p.id}`}>{up ? '📈' : '📉'} {fullName(p)}</Link>
+                        <span className={up ? 'delta-up' : 'delta-down'}>{e.from} → {e.to}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : <span className="muted">No changes on your roster yet.</span>}
+            </div>
+            <div className="stack" style={{ gap: '0.5rem' }}>
+              <h3>Around the league</h3>
+              <ul className="progress-list">{risers.map(moverRow)}</ul>
+              {fallers.length > 0 && <ul className="progress-list">{fallers.map(moverRow)}</ul>}
+            </div>
+          </div>
+        )}
+      </section>
 
       <section className="panel stack">
         <h2>Top performers</h2>

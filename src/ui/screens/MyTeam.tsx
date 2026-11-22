@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { autoRotation, validateRotation } from '../../engine/sim/rotation'
 import type { Player, Rotation } from '../../engine/types'
+import { archetypeFor } from '../../engine/player/archetype'
+import { OvrPill } from '../components/OvrPill'
 import { PlayerCell } from '../components/PlayerCell'
 import { moveInRotation, type Section } from '../rotationEdit'
 import { useStore } from '../store'
@@ -33,8 +35,8 @@ export function MyTeam() {
     const line = seasonLine(league, p)
     return (
       <tr key={p.id}>
-        <td><PlayerCell league={league} p={p} /></td>
-        <td>{p.pos}</td><td>{p.age}</td><td><strong>{ovrOf(p)}</strong></td>
+        <td><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
+        <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} /></td>
         <td>{line ? `${one(line.pg.pts)} / ${one(line.pg.reb)} / ${one(line.pg.ast)}` : '—'}</td>
         <td>{p.contract ? `${money(p.contract.salary)} · ${p.contract.expires - league.season + 1}y` : '—'}</td>
         <td>
