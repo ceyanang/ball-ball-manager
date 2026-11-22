@@ -6,6 +6,8 @@ export interface SaveMeta { id: string; name: string; teamName: string; season: 
 import { SaveImportError } from './errors'
 import { migrateLeague } from './migrate'
 import { refreshAiRotations } from '../engine/season/advance'
+import { startOffseason } from '../engine/gm/offseason'
+import { Rng } from '../engine/rng'
 
 export { SaveImportError }
 
@@ -81,8 +83,12 @@ export function parseImport(text: string): League {
   return reslotAiRotations(l)
 }
 
-/** CPU depth charts are position-slotted (PG, SG, SF, PF, C); older saves sorted starters by OVR. Idempotent. */
+/**
+ * Post-load fix-ups (idempotent): CPU depth charts are position-slotted (older saves sorted starters by OVR),
+ * and a pre-GM-layer save that already finished its season gets its offseason started.
+ */
 function reslotAiRotations(l: League): League {
   refreshAiRotations(l)
+  if (l.phase === 'offseason' && !l.offseason) startOffseason(l, new Rng(l.rng))
   return l
 }

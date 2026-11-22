@@ -18,7 +18,7 @@ const gameScore = (s: StatLine) =>
   s.pts + 0.4 * s.fgm - 0.7 * s.fga - 0.4 * (s.fta - s.ftm) + 0.7 * s.oreb + 0.3 * s.dreb + s.stl + 0.7 * s.ast + 0.7 * s.blk - 0.4 * s.pf - s.tov
 
 /** Per-player performance vs others of a similar OVR this season, in −0.5..0.5 (0 when too few minutes). */
-function performance(league: League): Record<string, number> {
+export function performance(league: League): Record<string, number> {
   const per36: Record<string, number> = {}
   const mins: Record<string, number> = {}
   const gs: Record<string, number> = {}
@@ -74,6 +74,8 @@ export function progressTick(league: League, rng: Rng): ProgressEvent[] {
     const dir = r < up ? 1 : r < up + down ? -1 : 0
     if (!dir) continue
     if (dir > 0 && ovr(p) >= p.pot) continue
+    // The last few points to the 90s and up come slowly.
+    if (dir > 0 && ovr(p) >= 88 && rng.chance(ovr(p) >= 93 ? 0.75 : 0.5)) continue
     const from = ovr(p)
     shift(p, dir * (rng.chance(0.7) ? 1 : 2), rng)
     const to = ovr(p)

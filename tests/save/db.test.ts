@@ -61,21 +61,24 @@ describe('save versions', () => {
   const v1 = () => {
     const l = JSON.parse(JSON.stringify(league))
     l.version = 1
-    delete l.progress
+    for (const k of ['progress', 'picks', 'draft', 'draftRights', 'transactions', 'deadMoney', 'waivers', 'faOffers', 'offseason', 'tradeDeadlineDay']) delete l[k]
     return l
   }
   it('loads a v1 save from IndexedDB and migrates it', async () => {
     await writeSave('old', v1())
     const l = await loadSave('old')
-    expect(l.version).toBe(2)
+    expect(l.version).toBe(3)
     expect(l.progress).toEqual([])
+    expect(l.picks).toHaveLength(120)
+    expect(l.tradeDeadlineDay).toBe(league.tradeDeadlineDay)
   })
   it('imports a v1 file', () => {
     const l = parseImport(JSON.stringify(v1()))
-    expect(l.version).toBe(2)
+    expect(l.version).toBe(3)
     expect(l.progress).toEqual([])
+    expect(l.waivers).toEqual([])
   })
-  it('rejects version 3', () => {
-    expect(() => parseImport(JSON.stringify({ ...league, version: 3 }))).toThrow(SaveImportError)
+  it('rejects version 4', () => {
+    expect(() => parseImport(JSON.stringify({ ...league, version: 4 }))).toThrow(SaveImportError)
   })
 })

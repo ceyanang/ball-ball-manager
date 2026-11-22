@@ -95,3 +95,13 @@ export function generateSchedule(teams: Team[], season: number, rng: Rng): Game[
   }
   return games
 }
+
+/** The trade deadline: the day after every team has played its 20th game. */
+export function tradeDeadline(games: Game[], teams: Team[]): number {
+  let last = 0
+  for (const t of teams) {
+    const days = games.filter((g) => !g.playoff && (g.homeId === t.id || g.awayId === t.id)).map((g) => g.day).sort((a, b) => a - b)
+    last = Math.max(last, days[19] ?? days[days.length - 1] ?? 0)
+  }
+  return last + 1
+}

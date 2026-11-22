@@ -5,7 +5,8 @@ import { PARODY_TEAMS } from '../data/teams'
 import { generatePlayer } from '../player/generate'
 import { computeOvr } from '../player/ratings'
 import { Rng } from '../rng'
-import { generateSchedule } from '../schedule/schedule'
+import { generateSchedule, tradeDeadline } from '../schedule/schedule'
+import { createPicks } from '../gm/draft'
 import { autoRotation } from '../sim/rotation'
 import type { League, Player, Team } from '../types'
 
@@ -133,7 +134,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
   const games = generateSchedule(teams, season, rng)
 
   return {
-    version: 2,
+    version: 3,
     name: opts.name,
     seed: opts.seed,
     rng: { ...rng.state },
@@ -148,5 +149,14 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     statLines: {},
     playoffs: null,
     progress: [],
+    picks: createPicks(teams, [season, season + 1]),
+    draft: null,
+    draftRights: {},
+    transactions: [],
+    deadMoney: [],
+    waivers: [],
+    faOffers: [],
+    offseason: null,
+    tradeDeadlineDay: tradeDeadline(games, teams),
   }
 }

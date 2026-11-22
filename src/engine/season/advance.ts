@@ -2,9 +2,12 @@ import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
 import { autoRotation } from '../sim/rotation'
+import { startOffseason } from '../gm/offseason'
+import { aiFillRosters, processWaivers } from '../gm/roster'
+import { aiTrades } from '../gm/trade'
 import { rollInjuries, tickInjuries } from '../sim/injury'
 import { addBoxToStatLines } from '../stats/stats'
-import type { Game, League, Player } from '../types'
+import type { Game, League, Phase, Player } from '../types'
 import { advancePlayoffs, seedPlayoffs } from './playoffs'
 
 /** In-season rating changes happen every this many days of the regular season. */
@@ -37,7 +40,10 @@ function stepDay(league: League, rng: Rng): void {
   for (const g of league.games) {
     if (g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null)) playGame(league, g, rng)
   }
+  processWaivers(league)
   if (league.phase === 'regular') {
+    if (league.day % 7 === 0 && league.day <= league.tradeDeadlineDay) aiTrades(league, rng, 3)
+    aiFillRosters(league)
     if (league.day % PROGRESS_EVERY === 0) {
       league.progress.push(...progressTick(league, rng))
       refreshAiRotations(league)
@@ -47,7 +53,13 @@ function stepDay(league: League, rng: Rng): void {
       league.playoffs = seedPlayoffs(league)
       advancePlayoffs(league)
     }
-  } else advancePlayoffs(league)
+  } else {
+    advancePlayoffs(league)
+    if ((league.phase as Phase) === 'offseason') {
+      startOffseason(league, rng)
+      return
+    }
+  }
   league.day++
 }
 
@@ -60,11 +72,13 @@ export function simDays(league: League, days: number): League {
   return next
 }
 
-export function simUntil(league: League, target: 'regularEnd' | 'playoffsEnd'): League {
+export function simUntil(league: League, target: 'regularEnd' | 'playoffsEnd' | 'deadline'): League {
   if (league.phase === 'offseason') return league
   const next = structuredClone(league)
   const rng = new Rng(next.rng)
-  const done = () => (target === 'regularEnd' ? next.phase !== 'regular' : next.phase === 'offseason')
+  const done = () =>
+    target === 'deadline' ? next.phase !== 'regular' || next.day >= next.tradeDeadlineDay
+    : target === 'regularEnd' ? next.phase !== 'regular' : next.phase === 'offseason'
   for (let guard = 0; !done() && guard < 1000; guard++) stepDay(next, rng)
   return next
 }
