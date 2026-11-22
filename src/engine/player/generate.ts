@@ -17,13 +17,15 @@ const ARCHETYPE: Record<Position, Offs> = {
 const HEIGHT: Record<Position, number> = { PG: 74, SG: 77, SF: 79, PF: 81, C: 83 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+/** Every individual rating lives in 40..99. */
+export const RATING_MIN = 40
 
 export function generatePlayer(
   rng: Rng,
   opts: { season: number; age?: number; targetOvr?: number; pos?: Position },
 ): Player {
   const pos = opts.pos ?? rng.pick(POSITIONS)
-  const target = opts.targetOvr ?? clamp(Math.round(rng.normal(62, 9)), 40, 92)
+  const target = opts.targetOvr ?? clamp(Math.round(rng.normal(70, 8)), 50, 95)
   const age = opts.age ?? clamp(Math.round(rng.normal(26, 4)), 19, 36)
   const arche = ARCHETYPE[pos]
 
@@ -31,7 +33,7 @@ export function generatePlayer(
   for (const k of RATING_KEYS) raw[k] = target + (arche[k] ?? 0) + rng.normal(0, 8)
   const ratings = {} as Ratings
   const fill = (shift: number) => {
-    for (const k of RATING_KEYS) ratings[k] = clamp(Math.round(raw[k] + shift), 1, 99)
+    for (const k of RATING_KEYS) ratings[k] = clamp(Math.round(raw[k] + shift), RATING_MIN, 99)
   }
   // Shift all ratings until the OVR lands on the target.
   let shift = 0

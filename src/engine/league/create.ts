@@ -11,7 +11,7 @@ import type { League, Player, Team } from '../types'
 
 const PER_TEAM = 14
 const FREE_AGENTS = 25
-const STARS = 6
+const SUPERSTARS = 8
 
 const isG = (p: Player) => p.pos === 'PG' || p.pos === 'SG'
 const isF = (p: Player) => p.pos === 'SF' || p.pos === 'PF'
@@ -39,28 +39,42 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     rotation: { starters: [], bench: [], inactive: [] },
   }))
 
-  // Player pool: default-distribution players plus a handful of stars.
-  const pool: Player[] = []
-  for (let i = 0; i < teams.length * PER_TEAM - STARS; i++) pool.push(generatePlayer(rng, { season }))
-  for (let i = 0; i < STARS; i++)
-    pool.push(generatePlayer(rng, { season, targetOvr: Math.min(95, Math.round(rng.normal(86, 3))) }))
-  pool.sort((a, b) => ovr(b) - ovr(a))
+  // Tiered talent (2K-style): one lead per team (8 of them superstars), 4 starters, 7 bench, 2 deep bench.
+  const make = (n: number, target: () => number) =>
+    Array.from({ length: n }, () => generatePlayer(rng, { season, targetOvr: target() }))
+  const clampT = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(v)))
+  const tiers: Player[][] = [
+    [
+      ...make(1, () => rng.int(94, 97)),
+      ...make(SUPERSTARS - 1, () => clampT(rng.normal(92, 2.5), 89, 97)),
+      ...make(teams.length - SUPERSTARS, () => clampT(rng.normal(85, 4), 78, 88)),
+    ],
+    make(teams.length * 4, () => clampT(rng.normal(78, 3), 70, 88)),
+    make(teams.length * 7, () => clampT(rng.normal(71, 3), 63, 80)),
+    make(teams.length * 2, () => clampT(rng.normal(66, 3), 58, 74)),
+  ]
 
-  // Snake draft with positional needs.
+  // Snake draft within each tier, respecting positional needs.
   const rosters: Player[][] = teams.map(() => [])
-  for (let round = 0; round < PER_TEAM; round++) {
-    const order = round % 2 === 0 ? teams.map((_, i) => i) : teams.map((_, i) => teams.length - 1 - i)
-    for (const ti of order) {
-      const roster = rosters[ti]
-      const needs = unmetNeeds(roster)
-      const needCount = needs.g + needs.f + needs.b
-      const picksLeft = PER_TEAM - roster.length
-      let idx = 0
-      if (needCount > 0 && picksLeft <= needCount + 1) {
-        const j = pool.findIndex((p) => fills(p, needs))
-        if (j >= 0) idx = j
+  let round = 0
+  for (const tier of tiers) {
+    const pool = tier.sort((a, b) => ovr(b) - ovr(a))
+    while (pool.length) {
+      const order = round % 2 === 0 ? teams.map((_, i) => i) : teams.map((_, i) => teams.length - 1 - i)
+      for (const ti of order) {
+        if (!pool.length) break
+        const roster = rosters[ti]
+        const needs = unmetNeeds(roster)
+        const needCount = needs.g + needs.f + needs.b
+        const picksLeft = PER_TEAM - roster.length
+        let idx = 0
+        if (needCount > 0 && picksLeft <= needCount + 1) {
+          const j = pool.findIndex((p) => fills(p, needs))
+          if (j >= 0) idx = j
+        }
+        roster.push(pool.splice(idx, 1)[0])
       }
-      roster.push(pool.splice(idx, 1)[0])
+      round++
     }
   }
 
@@ -84,7 +98,9 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
   })
 
   for (let i = 0; i < FREE_AGENTS; i++) {
-    const p = generatePlayer(rng, { season, targetOvr: Math.max(40, Math.round(rng.normal(52, 6))) })
+    let p: Player
+    do p = generatePlayer(rng, { season, targetOvr: clampT(rng.normal(64, 2.5), 60, 68) })
+    while (ovr(p) < 60 || ovr(p) > 68)
     players[p.id] = p
   }
 

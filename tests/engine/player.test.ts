@@ -37,14 +37,24 @@ describe('generatePlayer', () => {
       }
     }
   })
-  it('default distribution has few stars and a ~62 median', () => {
+  it('default distribution has a ~70 median and some stars', () => {
     const rng = Rng.fromSeed(13)
     const ovrs = Array.from({ length: 2000 }, () => ovr(generatePlayer(rng, { season: 1 }))).sort((a, b) => a - b)
     const stars = ovrs.filter((o) => o >= 85).length / ovrs.length
-    expect(stars).toBeGreaterThanOrEqual(0.003)
-    expect(stars).toBeLessThanOrEqual(0.03)
-    expect(ovrs[1000]).toBeGreaterThanOrEqual(60)
-    expect(ovrs[1000]).toBeLessThanOrEqual(64)
+    expect(stars).toBeGreaterThanOrEqual(0.01)
+    expect(stars).toBeLessThanOrEqual(0.08)
+    expect(ovrs[1000]).toBeGreaterThanOrEqual(68)
+    expect(ovrs[1000]).toBeLessThanOrEqual(72)
+  })
+  it('keeps every rating within 40..99, even for low targets', () => {
+    const rng = Rng.fromSeed(21)
+    for (let i = 0; i < 2000; i++) {
+      const p = generatePlayer(rng, { season: 1, targetOvr: i % 4 === 0 ? 45 : undefined })
+      for (const v of Object.values(p.ratings)) {
+        expect(v).toBeGreaterThanOrEqual(40)
+        expect(v).toBeLessThanOrEqual(99)
+      }
+    }
   })
   it('centers outrebound point guards', () => {
     const rng = Rng.fromSeed(14)
@@ -70,8 +80,8 @@ describe('salaryForPlayer', () => {
     }
   }
   it('maps low OVR to min and elite to max', () => {
-    expect(at(45)).toBe(MIN_SALARY)
-    expect(at(90)).toBe(MAX_SALARY)
+    expect(at(60)).toBe(MIN_SALARY)
+    expect(at(92)).toBe(MAX_SALARY)
   })
   it('is monotone in OVR at age 27', () => {
     let prev = 0

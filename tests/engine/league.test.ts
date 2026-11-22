@@ -96,4 +96,27 @@ describe('createLeague', () => {
     expect(league.season).toBe(1)
     expect(league.version).toBe(1)
   })
+  it('is stacked: most starters 76+, bench averages 70+', () => {
+    const starters = Object.values(league.teams).flatMap((t) => t.rotation.starters.map((id) => computeOvr(league.players[id].ratings, league.players[id].pos)))
+    expect(starters.filter((o) => o >= 76).length / starters.length).toBeGreaterThanOrEqual(0.7)
+    const bench = Object.values(league.teams).flatMap((t) => t.rotation.bench.map((id) => computeOvr(league.players[id].ratings, league.players[id].pos)))
+    expect(bench.reduce((s, x) => s + x, 0) / bench.length).toBeGreaterThanOrEqual(70)
+  })
+  it('keeps free agents between 60 and 68', () => {
+    for (const p of Object.values(league.players).filter((x) => x.teamId === null)) {
+      const o = computeOvr(p.ratings, p.pos)
+      expect(o).toBeGreaterThanOrEqual(60)
+      expect(o).toBeLessThanOrEqual(68)
+    }
+  })
+  it('has a handful of genuine 90+ superstars (2K scale)', () => {
+    for (const seed of [99, 1, 2, 3]) {
+      const l = seed === 99 ? league : createLeague({ seed, userTeamIndex: 0, name: 'x' })
+      const ovrs = Object.values(l.players).map((p) => computeOvr(p.ratings, p.pos))
+      const n90 = ovrs.filter((o) => o >= 90).length
+      expect(n90).toBeGreaterThanOrEqual(5)
+      expect(n90).toBeLessThanOrEqual(12)
+      expect(Math.max(...ovrs)).toBeGreaterThanOrEqual(93)
+    }
+  })
 })
