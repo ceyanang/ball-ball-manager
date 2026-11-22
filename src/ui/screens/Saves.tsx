@@ -5,7 +5,7 @@ import { useStore } from '../store'
 
 export function Saves() {
   const [saves, setSaves] = useState<SaveMeta[]>([])
-  const { saveId, league, load, remove, importFile } = useStore()
+  const { saveId, league, load, remove, importFile, busy } = useStore()
   const navigate = useNavigate()
   const fileRef = useRef<HTMLInputElement>(null)
   const refresh = () => listSaves().then(setSaves)
@@ -25,15 +25,16 @@ export function Saves() {
     <div className="stack">
       <h1>Saves</h1>
       <div className="row" style={{ flexWrap: 'wrap' }}>
-        <button className="btn btn-primary" onClick={() => navigate('/new')}>New league</button>
+        <button className="btn btn-primary" disabled={busy} onClick={() => navigate('/new')}>New league</button>
         <button className="btn" disabled={!league} onClick={download}>Export current league</button>
-        <button className="btn" onClick={() => fileRef.current?.click()}>Import a save file</button>
+        <button className="btn" disabled={busy} onClick={() => fileRef.current?.click()}>Import a save file</button>
         <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={async (e) => {
           const f = e.target.files?.[0]
           e.target.value = ''
           if (f) { await importFile(f); await refresh() }
         }} />
       </div>
+      {busy && <div className="notice">A sim is running. Loading, importing and deleting are paused until it finishes.</div>}
       <div className="panel table-wrap">
         <table className="stats">
           <thead><tr><th>League</th><th className="left">Team</th><th>Season</th><th>Last played</th><th></th></tr></thead>
@@ -46,8 +47,8 @@ export function Saves() {
                 <td>{new Date(s.updatedAt).toLocaleString()}</td>
                 <td>
                   <div className="row" style={{ justifyContent: 'flex-end', gap: '0.4rem' }}>
-                    <button className="btn" disabled={s.id === saveId} onClick={async () => { await load(s.id); navigate('/') }}>{s.id === saveId ? 'Playing' : 'Load'}</button>
-                    <button className="btn btn-danger" onClick={async () => {
+                    <button className="btn" disabled={s.id === saveId || busy} onClick={async () => { await load(s.id); navigate('/') }}>{s.id === saveId ? 'Playing' : 'Load'}</button>
+                    <button className="btn btn-danger" disabled={busy} onClick={async () => {
                       if (confirm(`Delete “${s.name}”? This can’t be undone.`)) { await remove(s.id); await refresh() }
                     }}>Delete</button>
                   </div>

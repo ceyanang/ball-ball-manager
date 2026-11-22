@@ -29,6 +29,7 @@ export const useStore = create<State>((set, get) => ({
   error: null,
 
   async newLeague(opts) {
+    if (get().busy) return
     const league = createLeague(opts)
     const saveId = newId()
     await writeSave(saveId, league)
@@ -36,6 +37,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async load(id) {
+    if (get().busy) return
     try {
       set({ league: await loadSave(id), saveId: id, error: null })
     } catch (e) {
@@ -44,6 +46,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async remove(id) {
+    if (get().busy) return
     await deleteSave(id)
     if (get().saveId === id) set({ saveId: null, league: null })
   },
@@ -52,12 +55,19 @@ export const useStore = create<State>((set, get) => ({
     const { league, busy, saveId } = get()
     if (busy || !league) return
     set({ busy: true, error: null })
+    let next: League
     try {
-      const next = await runSim(league, cmd)
-      set({ league: next })
+      next = await runSim(league, cmd)
+    } catch (e) {
+      set({ error: `The sim stopped unexpectedly: ${(e as Error).message}`, busy: false })
+      return
+    }
+    try {
+      // Only show the result if the same save is still open; always persist it to the save it came from.
+      if (get().saveId === saveId) set({ league: next })
       if (saveId) await writeSave(saveId, next)
     } catch (e) {
-      set({ error: `The sim stopped unexpectedly: ${(e as Error).message}` })
+      set({ error: `The sim finished but couldn’t be saved: ${(e as Error).message}` })
     } finally {
       set({ busy: false })
     }
@@ -78,6 +88,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async importFile(file) {
+    if (get().busy) return
     try {
       const league = parseImport(await file.text())
       const saveId = newId()

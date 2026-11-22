@@ -50,4 +50,37 @@ describe('store', () => {
     expect(useStore.getState().league!.teams[t.id].rotation).toEqual(swapped)
     expect(useStore.getState().error).toBeNull()
   })
+  it('ignores load/new/import/remove while a sim is running', async () => {
+    await useStore.getState().newLeague({ seed: 3, userTeamIndex: 1, name: 'A' })
+    const idA = useStore.getState().saveId!
+    await useStore.getState().newLeague({ seed: 4, userTeamIndex: 2, name: 'B' })
+    const idB = useStore.getState().saveId!
+    await useStore.getState().load(idA)
+    const p = useStore.getState().sim({ type: 'simDays', days: 1 })
+    await useStore.getState().load(idB)
+    await useStore.getState().newLeague({ seed: 5, userTeamIndex: 0, name: 'C' })
+    await useStore.getState().remove(idA)
+    expect(useStore.getState().saveId).toBe(idA)
+    resolveSim!({ ...useStore.getState().league!, day: 9 })
+    await p
+    expect(useStore.getState().league!.name).toBe('A')
+    expect(useStore.getState().league!.day).toBe(9)
+  })
+  it('does not apply a sim result to a different active save', async () => {
+    const { loadSave } = await import('../../src/save/db')
+    await useStore.getState().newLeague({ seed: 3, userTeamIndex: 1, name: 'A' })
+    const idA = useStore.getState().saveId!
+    const leagueA = useStore.getState().league!
+    await useStore.getState().newLeague({ seed: 4, userTeamIndex: 2, name: 'B' })
+    const idB = useStore.getState().saveId!
+    const leagueB = useStore.getState().league!
+    useStore.setState({ saveId: idA, league: leagueA })
+    const p = useStore.getState().sim({ type: 'simDays', days: 1 })
+    useStore.setState({ saveId: idB, league: leagueB }) // switched underneath the sim
+    resolveSim!({ ...leagueA, day: 5 })
+    await p
+    expect(useStore.getState().league!.name).toBe('B')
+    expect((await loadSave(idB)).name).toBe('B')
+    expect((await loadSave(idA)).day).toBe(5)
+  })
 })

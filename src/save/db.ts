@@ -64,7 +64,22 @@ export function parseImport(text: string): League {
     throw new SaveImportError(`This save is version ${String(obj.version)}, but this app reads version 1 saves.`)
   const missing = REQUIRED.filter((k) => !(k in obj))
   if (missing.length) throw new SaveImportError(`This save is missing data (${missing.join(', ')}), so it can’t be loaded.`)
+  const broken = (what: string) => new SaveImportError(`This save is damaged (${what}), so it can’t be loaded.`)
+  const isObj = (v: unknown) => typeof v === 'object' && v !== null && !Array.isArray(v)
+  for (const k of ['teams', 'players', 'coaches', 'statLines', 'rng'] as const) if (!isObj(obj[k])) throw broken(k)
+  if (!Array.isArray(obj.games)) throw broken('games')
+  for (const k of ['day', 'season', 'seed'] as const) if (typeof obj[k] !== 'number') throw broken(k)
+  if (!['regular', 'playoffs', 'offseason'].includes(obj.phase as string)) throw broken('phase')
   const l = obj as unknown as League
-  if (!l.teams[l.userTeamId]) throw new SaveImportError('This save’s team can’t be found, so it can’t be loaded.')
+  if (!isObj(l.teams[l.userTeamId])) throw new SaveImportError('This save’s team can’t be found, so it can’t be loaded.')
+  for (const p of Object.values(l.players))
+    if (!isObj(p) || !isObj(p.ratings) || typeof p.faceSeed !== 'number') throw broken('player data')
+  for (const t of Object.values(l.teams)) {
+    const r = t?.rotation
+    if (!r || ![r.starters, r.bench, r.inactive].every(Array.isArray)) throw broken('rotations')
+    if ([...r.starters, ...r.bench, ...r.inactive].some((id) => !l.players[id])) throw broken('rotations')
+    if (!isObj(l.coaches[t.coachId])) throw broken('coaches')
+  }
+  for (const g of l.games) if (!isObj(g) || !l.teams[g.homeId] || !l.teams[g.awayId]) throw broken('schedule')
   return l
 }

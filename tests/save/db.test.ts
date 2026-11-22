@@ -39,4 +39,20 @@ describe('import/export', () => {
     }
     expect(await listSaves()).toEqual(before)
   })
+  it('rejects structurally broken saves with a clear message', () => {
+    const base = JSON.parse(JSON.stringify(league))
+    const firstPlayer = Object.keys(base.players)[0]
+    const cases = [
+      { ...base, games: null },
+      { ...base, teams: null },
+      { ...base, statLines: [] },
+      { ...base, day: 'x' },
+      { ...base, phase: 'preseason' },
+      { ...base, players: { ...base.players, [firstPlayer]: { ...base.players[firstPlayer], ratings: undefined } } },
+      { ...base, teams: { ...base.teams, [base.userTeamId]: { ...base.teams[base.userTeamId], rotation: { starters: ['p_ghost'], bench: [], inactive: [] } } } },
+    ]
+    for (const c of cases) {
+      expect(() => parseImport(JSON.stringify(c))).toThrow(SaveImportError)
+    }
+  })
 })

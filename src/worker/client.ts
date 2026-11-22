@@ -15,6 +15,14 @@ function getWorker(): Worker {
     if ('error' in e.data) p.reject(new Error(e.data.error))
     else p.resolve(e.data.league)
   }
+  const fail = (msg: string) => {
+    for (const p of pending.values()) p.reject(new Error(msg))
+    pending.clear()
+    worker?.terminate()
+    worker = null
+  }
+  worker.onerror = (e: ErrorEvent | { message?: string }) => fail(`The simulator crashed (${e.message ?? 'unknown error'}). Try again.`)
+  worker.onmessageerror = () => fail('The simulator sent back data the app couldn’t read. Try again.')
   return worker
 }
 

@@ -15,7 +15,10 @@ export function MyTeam() {
   const team = league.teams[league.userTeamId]
   const roster = rosterOf(league, team.id)
   const [draft, setDraft] = useState<Rotation>(team.rotation)
-  useEffect(() => setDraft(team.rotation), [team.rotation])
+  // Sims return a cloned league, so compare by content: only reset the draft when the saved rotation really changed.
+  const savedKey = JSON.stringify(team.rotation)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => setDraft(team.rotation), [savedKey])
   const problems = validateRotation(draft, roster.map((p) => p.id))
   const dirty = JSON.stringify(draft) !== JSON.stringify(team.rotation)
 

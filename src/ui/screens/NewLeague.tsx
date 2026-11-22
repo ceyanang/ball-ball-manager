@@ -14,6 +14,7 @@ export function NewLeague() {
   const [pick, setPick] = useState<number | null>(null)
   const [creating, setCreating] = useState(false)
   const newLeague = useStore((s) => s.newLeague)
+  const busy = useStore((s) => s.busy)
   const navigate = useNavigate()
   const preview = useMemo(() => createLeague({ seed, userTeamIndex: 0, name: 'preview' }), [seed])
   const teams = Object.values(preview.teams)
@@ -35,7 +36,7 @@ export function NewLeague() {
         <label className="field">League name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} /></label>
         <label className="field">Seed<input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value) || 0)} style={{ width: '9rem' }} /></label>
         <button className="btn" onClick={() => { setSeed(randomSeed()); setPick(null) }}>Shuffle league</button>
-        <button className="btn btn-primary" disabled={pick === null || creating} onClick={create}>
+        <button className="btn btn-primary" disabled={pick === null || creating || busy} onClick={create}>
           {pick === null ? 'Pick a team to start' : `Start as the ${teams[pick].name}`}
         </button>
       </div>

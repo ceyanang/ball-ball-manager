@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import { useStore } from '../store'
 import { SimControls } from '../components/SimControls'
 import { TeamBadge } from '../components/TeamBadge'
+import { ErrorBoundary } from '../ErrorBoundary'
 
 const LINKS: [string, string][] = [
   ['/', 'Home'], ['/my-team', 'My Team'], ['/schedule', 'Schedule'], ['/standings', 'Standings'],
@@ -47,7 +48,7 @@ export function Shell() {
             <button className="btn" onClick={clearError}>Dismiss</button>
           </div>
         )}
-        <Outlet />
+        <ErrorBoundary><Outlet /></ErrorBoundary>
       </main>
     </div>
   )
