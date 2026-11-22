@@ -3,7 +3,12 @@ import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-d
 import { listSaves } from '../save/db'
 import { FaceGallery } from './FaceGallery'
 import { Shell } from './layout/Shell'
+import { BoxScore } from './screens/BoxScore'
 import { Home } from './screens/Home'
+import { Leaders } from './screens/Leaders'
+import { Playoffs } from './screens/Playoffs'
+import { Schedule } from './screens/Schedule'
+import { Standings } from './screens/Standings'
 import { MyTeam } from './screens/MyTeam'
 import { PlayerPage } from './screens/PlayerPage'
 import { TeamPage } from './screens/TeamPage'
@@ -12,10 +17,6 @@ import { NewLeague } from './screens/NewLeague'
 import { Saves } from './screens/Saves'
 import { useStore } from './store'
 import './theme.css'
-
-function Placeholder({ title }: { title: string }) {
-  return <div className="panel"><h2>{title}</h2><p className="muted">Coming up next.</p></div>
-}
 
 function RequireLeague({ children }: { children: React.ReactNode }) {
   const league = useStore((s) => s.league)
@@ -46,11 +47,11 @@ export default function App() {
           <Route path="/team/:id" element={guarded(<TeamPage />)} />
           <Route path="/teams" element={guarded(<TeamsBrowser />)} />
           <Route path="/player/:id" element={guarded(<PlayerPage />)} />
-          <Route path="/schedule" element={guarded(<Placeholder title="Schedule" />)} />
-          <Route path="/game/:id" element={guarded(<Placeholder title="Box score" />)} />
-          <Route path="/standings" element={guarded(<Placeholder title="Standings" />)} />
-          <Route path="/playoffs" element={guarded(<Placeholder title="Playoffs" />)} />
-          <Route path="/leaders" element={guarded(<Placeholder title="Leaders" />)} />
+          <Route path="/schedule" element={guarded(<Schedule />)} />
+          <Route path="/game/:id" element={guarded(<BoxScore />)} />
+          <Route path="/standings" element={guarded(<Standings />)} />
+          <Route path="/playoffs" element={guarded(<Playoffs />)} />
+          <Route path="/leaders" element={guarded(<Leaders />)} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

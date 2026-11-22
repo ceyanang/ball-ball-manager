@@ -137,3 +137,33 @@ table.stats tfoot td { font-weight: 700; border-top: 2px solid var(--line); }
 .team-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.6rem; }
 .team-tile { display: flex; align-items: center; gap: 0.7rem; padding: 0.7rem; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); text-decoration: none; }
 .team-tile:hover { border-color: var(--ink-2); }
+
+/* Box score */
+.linescore { display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center; }
+.final-score { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.final-score .pts { font-family: var(--display); font-weight: 900; font-size: 3rem; line-height: 0.9; }
+.final-score .loser { opacity: 0.45; }
+.potg { display: flex; gap: 0.8rem; align-items: center; }
+.dnp td { color: var(--ink-2); }
+
+/* Bracket */
+.bracket { display: grid; grid-template-columns: repeat(7, minmax(122px, 1fr)); gap: 0.45rem; align-items: center; overflow-x: auto; padding-bottom: 0.4rem; }
+.bracket-col { display: flex; flex-direction: column; justify-content: space-around; gap: 0.6rem; height: 100%; }
+.series { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-size: 0.84rem; }
+table.stats tr.last-starter td { border-bottom: 2px solid var(--ink-2); }
+.series .s-row { display: flex; justify-content: space-between; gap: 0.4rem; padding: 0.35rem 0.55rem; }
+.series .s-row + .s-row { border-top: 1px solid var(--line); }
+.series .s-row.won { font-weight: 700; background: color-mix(in srgb, var(--win) 12%, transparent); }
+.series .s-row.out { color: var(--ink-2); }
+.series.tbd { border-style: dashed; color: var(--ink-2); padding: 0.6rem; text-align: center; }
+.champ { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+/* Leaders */
+.leader-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.8rem; }
+.leader-card { text-align: left; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 0.9rem; display: flex; flex-direction: column; gap: 0.45rem; }
+.leader-card[aria-pressed='true'] { border-color: var(--accent); }
+.leader-line { display: grid; grid-template-columns: 1.2rem auto 1fr auto; gap: 0.5rem; align-items: center; }
+.leader-top .val { font-family: var(--display); font-weight: 900; font-size: 1.6rem; }
+.select { font: inherit; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); padding: 0.4rem 0.6rem; }
+.series .s-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.series .s-row strong { flex: none; }
