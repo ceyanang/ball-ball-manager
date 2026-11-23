@@ -1,7 +1,7 @@
 /* Watch mode: full-screen game replay. Court colors are local to this screen. */
 .w-screen {
   --court: #1d3f7a; --court-2: #16305e; --court-line: #2b4f8e;
-  --them-ink: #8fb6ff; --us-ink: #ffa36b; --gold: #ffd23f; --hot: #ffc14d;
+  --them-ink: #8fb6ff; --us-ink: #ffa36b; --hot: #ffc14d;
   min-height: 100dvh; background: var(--bg);
   padding: calc(10px + env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
 }

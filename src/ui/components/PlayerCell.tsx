@@ -11,7 +11,7 @@ export function PlayerCell({ league, p, size = 34, showInjury = true, subtitle }
       <Face seed={p.faceSeed} age={p.age} colors={colors} size={size} title={fullName(p)} />
       <span>
         <Link className="link pname" to={`/player/${p.id}`}>{fullName(p)}</Link>
-        {league.favoritePlayerIds.includes(p.id) && <span className="fav-star" title="Your guy" aria-label="Your guy"> ⭐</span>}
+        {league.favoritePlayerIds.includes(p.id) && <span title="Your guy" aria-label="Your guy"> ⭐</span>}
         {subtitle && <span className="sub">{subtitle}</span>}
       </span>
       {showInjury && p.injury && <span className="hurt" title={p.injury.type}>🤕 {p.injury.gamesRemaining >= 999 ? 'out for season' : `${p.injury.gamesRemaining}g`}</span>}
