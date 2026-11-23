@@ -13,12 +13,11 @@ import { CapBar } from '../components/CapBar'
 import { MinutesPanel, cleanMinutes } from '../components/MinutesPanel'
 import { capSeason } from '../../engine/gm/cap'
 import { releasePlayer } from '../../engine/gm/roster'
-import { fullName, money, one, ovrOf, rosterOf, seasonLine } from '../util'
+import { fullName, money, one, ordinal, ovrOf, rosterOf, seasonLine } from '../util'
 import { useUnsavedGuard } from '../useUnsavedGuard'
 
 const LABEL: Record<Section, string> = { starters: 'Starting five', bench: 'Bench', inactive: 'Inactive' }
 const BENCH_SLOTS = ACTIVE_MAX - STARTERS
-const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] ?? 'th'}`
 
 const keyOf = (t: DropTarget) => ('append' in t ? `${t.section}:+` : `${t.section}:${t.index}`)
 function parseKey(k: string): DropTarget {

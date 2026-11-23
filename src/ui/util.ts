@@ -16,6 +16,9 @@ export function money(k: number): string {
 export const heightStr = (inches: number) => `${Math.floor(inches / 12)}'${inches % 12}"`
 export const pct = (v: number) => (v === 0 ? '.000' : v >= 1 ? '1.000' : v.toFixed(3).replace(/^0/, ''))
 export const one = (v: number) => v.toFixed(1)
+/** Win percentage for a standings row, or "—" before the team has played. */
+export const rowPct = (r: { w: number; l: number; pct: number }) => (r.w + r.l === 0 ? '—' : pct(r.pct))
+export const ordinal = (n: number) => `${n}${['th', 'st', 'nd', 'rd'][n % 100 > 10 && n % 100 < 14 ? 0 : n % 10] ?? 'th'}`
 
 export function teamOvr(l: League, teamId: string): number {
   const top = rosterOf(l, teamId).map(ovrOf).sort((a, b) => b - a).slice(0, 8)
