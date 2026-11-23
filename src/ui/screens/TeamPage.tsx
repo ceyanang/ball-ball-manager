@@ -4,6 +4,7 @@ import { RosterTable } from '../components/RosterTable'
 import { TeamBadge } from '../components/TeamBadge'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
+import { RecordTable } from './History'
 import { rankOf, teamStatRows } from '../teamStats'
 import { one, ovrOf, rosterOf, teamFull } from '../util'
 
@@ -53,6 +54,33 @@ export function TeamPage() {
         <h2>Roster</h2>
         <RosterTable league={league} players={roster} />
       </section>
+      {league.history.length > 0 && (
+        <section className="panel stack">
+          <h2>Season by season</h2>
+          <div className="table-wrap">
+            <table className="stats">
+              <thead><tr><th>Season</th><th>W</th><th>L</th><th className="left">Result</th></tr></thead>
+              <tbody>{[...league.history].reverse().map((h) => {
+                const r = h.standings.find((x) => x.teamId === team.id)
+                if (!r) return null
+                const confRank = h.standings.filter((x) => x.conf === r.conf).indexOf(r) + 1
+                return <tr key={h.season}><td>{h.season}</td><td>{r.w}</td><td>{r.l}</td><td className="left">{h.championId === team.id ? '🏆 Champions' : h.runnerUpId === team.id ? '🥈 Lost Finals' : `${ord(confRank)} in the ${r.conf}`}</td></tr>
+              })}</tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      <section className="panel stack">
+        <h2>Franchise records</h2>
+        <h3>Single game</h3>
+        <RecordTable league={league} book={league.records.teams[team.id]} scope="game" />
+        <h3>Single season</h3>
+        <RecordTable league={league} book={league.records.teams[team.id]} scope="season" />
+        <h3>Career with the {team.name}</h3>
+        <RecordTable league={league} book={league.records.teams[team.id]} scope="career" />
+      </section>
+
       <section className="panel stack">
         <h2>Team stats</h2>
         <div className="table-wrap">

@@ -5,6 +5,7 @@ import { FA_DAYS, offerResign, resignChance } from '../../engine/gm/roster'
 import { askSalary, askYears } from '../../engine/gm/value'
 import type { OffseasonStep } from '../../engine/types'
 import { CapBar } from '../components/CapBar'
+import { AwardsCeremony } from '../components/Stories'
 import { OfferForm } from '../components/OfferForm'
 import { OvrPill } from '../components/OvrPill'
 import { PlayerCell } from '../components/PlayerCell'
@@ -12,10 +13,10 @@ import { useStore } from '../store'
 import { fullName, money, ovrOf } from '../util'
 
 const STEPS: [OffseasonStep, string][] = [
-  ['recap', 'Recap'], ['lottery', 'Lottery'], ['draft', 'Draft'], ['resign', 'Re-sign'], ['freeAgency', 'Free agency'], ['ready', 'New season'],
+  ['awards', 'Awards'], ['recap', 'Recap'], ['lottery', 'Lottery'], ['draft', 'Draft'], ['resign', 'Re-sign'], ['freeAgency', 'Free agency'], ['ready', 'New season'],
 ]
 const NEXT: Record<OffseasonStep, string> = {
-  recap: 'On to the lottery', lottery: 'Start the draft', draft: 'Finish the draft', resign: 'Open free agency',
+  awards: 'On to the season recap', recap: 'On to the lottery', lottery: 'Start the draft', draft: 'Finish the draft', resign: 'Open free agency',
   freeAgency: 'Sim the rest of free agency', ready: 'Start the new season',
 }
 
@@ -43,6 +44,16 @@ export function Offseason() {
       <ol className="stepper">
         {STEPS.map(([s, label], i) => <li key={s} className={i < idx ? 'done' : i === idx ? 'now' : ''}>{label}</li>)}
       </ol>
+
+      {os.step === 'awards' && (() => {
+        const a = league.awards.find((x) => x.season === league.season)
+        return a ? (
+          <section className="panel stack">
+            <h2>🎤 Season {league.season} awards</h2>
+            <AwardsCeremony league={league} a={a} />
+          </section>
+        ) : <p className="muted">No awards this season.</p>
+      })()}
 
       {os.step === 'recap' && (
         <div className="grid-2">
@@ -74,6 +85,9 @@ export function Offseason() {
               </ul>
             ) : <p className="muted">No notable retirements.</p>}
             <span className="muted">{r.retired.length} players retired in all.</span>
+            {league.hof.some((h) => h.season === league.season) && (
+              <p className="notice" style={{ margin: 0 }}>🎖️ Hall of Fame: {league.hof.filter((h) => h.season === league.season).map((h) => fullName(league.players[h.playerId])).join(', ')}</p>
+            )}
           </section>
           <section className="panel stack">
             <h2>📋 Coaching changes</h2>

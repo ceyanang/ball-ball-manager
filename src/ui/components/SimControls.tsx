@@ -19,7 +19,7 @@ export function SimControls() {
   if (!league) return null
   if (league.phase === 'offseason') {
     const step = league.offseason?.step
-    const label: Record<string, string> = { recap: 'Recap', lottery: 'Lottery', draft: 'Draft', resign: 'Re-signing', freeAgency: `Free agency day ${league.offseason?.faDay}`, ready: 'Ready to start' }
+    const label: Record<string, string> = { awards: 'Awards', recap: 'Recap', lottery: 'Lottery', draft: 'Draft', resign: 'Re-signing', freeAgency: `Free agency day ${league.offseason?.faDay}`, ready: 'Ready to start' }
     return (
       <div className="sim-controls">
         <span className="muted">{step ? label[step] : ''}</span>

@@ -20,6 +20,10 @@ import { Trade } from './screens/Trade'
 import { FreeAgents } from './screens/FreeAgents'
 import { Draft } from './screens/Draft'
 import { Offseason } from './screens/Offseason'
+import { Inbox } from './screens/Inbox'
+import { Highlights } from './screens/Highlights'
+import { Social } from './screens/Social'
+import { History } from './screens/History'
 import { useStore } from './store'
 import './theme.css'
 
@@ -62,6 +66,10 @@ export default function App() {
           <Route path="/free-agents" element={guarded(<FreeAgents />)} />
           <Route path="/draft" element={guarded(<Draft />)} />
           <Route path="/offseason" element={guarded(<Offseason />)} />
+          <Route path="/inbox" element={guarded(<Inbox />)} />
+          <Route path="/highlights" element={guarded(<Highlights />)} />
+          <Route path="/social" element={guarded(<Social />)} />
+          <Route path="/history" element={guarded(<History />)} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

@@ -4,6 +4,8 @@ import type { League, Ratings, StatLine } from '../../engine/types'
 import { archetypeFor } from '../../engine/player/archetype'
 import { gradeFor } from '../../engine/player/grades'
 import { OvrChart } from '../components/OvrChart'
+import { playerAwards } from '../../engine/stories/awards'
+import { fanOf } from '../../engine/stories/sentiment'
 import { ratingColor } from '../ratingColor'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
@@ -58,6 +60,11 @@ export function PlayerPage() {
   const ovr = ovrOf(p)
   const seasonStart = p.ratingHistory.find((h) => h.season === league.season)?.ovr ?? ovr
   const delta = ovr - seasonStart
+  const awards = playerAwards(league, p.id)
+  const hof = league.hof.find((h) => h.playerId === p.id)
+  const highs = league.careerHighs[p.id]
+  const moves = league.transactions.filter((t) => t.playerIds.includes(p.id)).slice(-12).reverse()
+  const fans = fanOf(league, p.id)
   const chartPoints = [...p.ratingHistory.map((h) => ({ label: `S${h.season}`, ovr: h.ovr })), ...(delta !== 0 ? [{ label: 'Now', ovr }] : [])]
   return (
     <div className="stack">
@@ -69,6 +76,7 @@ export function PlayerPage() {
           <div className="title">{fullName(p)}</div>
           <div className="sub">#{p.jersey} · {p.pos} · {team ? teamFull(team) : p.retired ? 'Retired' : league.draftRights[p.id] ? `Draft rights: ${league.teams[league.draftRights[p.id]].name}` : 'Free agent'}</div>
           <span className="archetype-chip">{archetypeFor(p)}</span>
+          {hof && <span className="archetype-chip hof-chip">🎖️ Hall of Fame · S{hof.season}</span>}
           {p.injury && <div style={{ marginTop: '0.4rem', fontWeight: 700 }}>🤕 {p.injury.type} — {p.injury.gamesRemaining >= 999 ? 'out for the season' : `out ${p.injury.gamesRemaining} more game${p.injury.gamesRemaining === 1 ? '' : 's'}`}</div>}
         </div>
         <div style={{ textAlign: 'center' }}>
@@ -94,9 +102,19 @@ export function PlayerPage() {
           <div><dt>College</dt><dd>{p.college}</dd></div>
           <div><dt>Team</dt><dd>{team ? <Link className="link" to={`/team/${team.id}`}>{teamFull(team)}</Link> : 'Free agent'}</dd></div>
           <div><dt>Contract</dt><dd>{p.contract ? `${money(p.contract.salary)} through season ${p.contract.expires}` : 'None'}</dd></div>
+          {!p.retired && <div><dt>Morale</dt><dd>{p.morale >= 70 ? '😄' : p.morale >= 45 ? '🙂' : p.morale >= 30 ? '😕' : '😠'} {p.morale}</dd></div>}
+          {!p.retired && <div><dt>Fans</dt><dd>{fans > 25 ? '🔥 Loved' : fans < -25 ? '🥶 Getting roasted' : '😐 Neutral'} ({fans > 0 ? '+' : ''}{fans})</dd></div>}
+          {highs && <div><dt>Career highs</dt><dd>{highs.pts} pts · {highs.reb} reb · {highs.ast} ast</dd></div>}
           <div><dt>Draft</dt><dd>{p.draft ? `Season ${p.draft.season}, round ${p.draft.round}, pick ${p.draft.pick}` : p.ratingHistory[0].season > 1 ? 'Undrafted' : 'Original roster'}</dd></div>
         </dl>
       </section>
+
+      {awards.length > 0 && (
+        <section className="panel stack">
+          <h2>🏅 Awards</h2>
+          <div className="chips">{awards.map((a, i) => <span key={i} className="chip on" style={{ cursor: 'default' }}>S{a.season} · {a.label}</span>)}</div>
+        </section>
+      )}
 
       <section className="panel stack">
         <h2>Ratings</h2>
@@ -128,6 +146,13 @@ export function PlayerPage() {
         <h2>Playoffs</h2>
         {seasonsTable(league, p.id, true)}
       </section>
+
+      {moves.length > 0 && (
+        <section className="panel stack">
+          <h2>Transactions</h2>
+          <ul className="tx-list">{moves.map((t, i) => <li key={i}><span className="muted">S{t.season}{t.phase === 'offseason' ? ' offseason' : ` · day ${t.day}`}:</span> {t.text}</li>)}</ul>
+        </section>
+      )}
     </div>
   )
 }

@@ -75,7 +75,8 @@ export const useStore = create<State>((set, get) => ({
     }
     try {
       // Only show the result if the same save is still open; always persist it to the save it came from.
-      if (get().saveId === saveId) set({ league: next })
+      const openOffers = (l: League) => l.inbox.filter((i) => i.offer?.status === 'open').length
+      if (get().saveId === saveId) set({ league: next, notice: openOffers(next) > openOffers(league) ? '📞 A team just called with a trade offer. Check your inbox — the sim paused so you can answer.' : null })
       if (saveId) await writeSave(saveId, next)
     } catch (e) {
       set({ error: `The sim finished but couldn’t be saved: ${(e as Error).message}` })

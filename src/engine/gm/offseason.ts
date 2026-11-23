@@ -11,6 +11,7 @@ import { finishDraft, draftUntilUser, setupDraft } from './draft'
 import { FA_DAYS, addFreeAgentBatch, aiFillRosters, aiResign, aiTrimRosters, freeAgencyDay, processWaivers, releaseExpired } from './roster'
 import { aiTrades } from './trade'
 import { strengthOrder } from './value'
+import { afterOffseason, onNewSeason, onOffseasonStart, onRetired } from '../stories/hooks'
 
 /** Offseason rating change: growth toward potential when young, decline with age, always some variance. */
 function progressPlayer(p: Player, rng: Rng, coachDev: number, minutes: number): void {
@@ -128,11 +129,13 @@ export function startOffseason(l: League, rng: Rng): void {
     p.injury = null
     if (teamId) refreshRotation(l, teamId)
   }
+  onRetired(l, report.retired.map((r) => r.playerId))
   coachingCarousel(l, rng, report)
   processWaivers(l)
   l.faOffers = []
   setupDraft(l, rng)
-  l.offseason = { step: 'recap', faDay: 0, report, resignTries: {} }
+  l.offseason = { step: 'awards', faDay: 0, report, resignTries: {} }
+  onOffseasonStart(l)
 }
 
 /** Moves the offseason forward one step. Each step finishes its own business first. */
@@ -140,6 +143,9 @@ export function advanceOffseason(l: League, rng: Rng): void {
   const os = l.offseason
   if (l.phase !== 'offseason' || !os) throw new GmError('The offseason has not started.')
   switch (os.step) {
+    case 'awards':
+      os.step = 'recap'
+      return
     case 'recap':
       os.step = 'lottery'
       return
@@ -173,6 +179,7 @@ export function simFreeAgency(l: League, rng: Rng, days: number): void {
   const os = l.offseason
   if (!os || os.step !== 'freeAgency') throw new GmError('Free agency is not open.')
   for (let i = 0; i < days && os.step === 'freeAgency'; i++) {
+    const newsFrom = l.news.length, txFrom = l.transactions.length
     freeAgencyDay(l, rng)
     processWaivers(l)
     if (os.faDay % 7 === 0) aiTrades(l, rng, 3)
@@ -181,6 +188,7 @@ export function simFreeAgency(l: League, rng: Rng, days: number): void {
       aiFillRosters(l)
       os.step = 'ready'
     }
+    afterOffseason(l, newsFrom, txFrom, true)
   }
 }
 
@@ -203,14 +211,19 @@ export function startNewSeason(l: League, rng: Rng): void {
     .filter((p) => !p.teamId && !p.retired && !l.draft?.prospects.includes(p.id))
     .sort((a, b) => ovr(b) - ovr(a))
   const played = new Set(Object.values(l.statLines).map((s) => s.playerId))
+  const quit: string[] = []
   unsigned.forEach((p, i) => {
     // Beyond the best ~60 the pool thins out hard; old or fringe players are likeliest to quit.
     const c = i >= 60 ? 0.85 : p.age >= 31 || ovr(p) < 60 ? 0.4 : 0.05
     if (!rng.chance(c)) return
     // Someone who never played a league game leaves no history worth keeping.
     if (!played.has(p.id)) delete l.players[p.id]
-    else p.retired = true
+    else {
+      p.retired = true
+      quit.push(p.id)
+    }
   })
+  onRetired(l, quit)
   l.season++
   l.phase = 'regular'
   l.day = 1
@@ -228,6 +241,7 @@ export function startNewSeason(l: League, rng: Rng): void {
   l.tradeDeadlineDay = tradeDeadline(games, teams)
   l.deadMoney = l.deadMoney.filter((d) => d.expires >= l.season)
   for (const t of teams) refreshRotation(l, t.id)
+  onNewSeason(l)
 }
 
 /** The user swaps coaches (offseason only): the old one returns to the pool. */

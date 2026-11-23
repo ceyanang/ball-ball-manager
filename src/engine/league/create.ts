@@ -7,6 +7,7 @@ import { computeOvr } from '../player/ratings'
 import { Rng } from '../rng'
 import { generateSchedule, tradeDeadline } from '../schedule/schedule'
 import { createPicks } from '../gm/draft'
+import { emptyStories } from '../stories/state'
 import { autoRotation } from '../sim/rotation'
 import type { League, Player, Team } from '../types'
 
@@ -134,7 +135,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
   const games = generateSchedule(teams, season, rng)
 
   return {
-    version: 3,
+    version: 4,
     name: opts.name,
     seed: opts.seed,
     rng: { ...rng.state },
@@ -158,5 +159,6 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     faOffers: [],
     offseason: null,
     tradeDeadlineDay: tradeDeadline(games, teams),
+    ...emptyStories(),
   }
 }

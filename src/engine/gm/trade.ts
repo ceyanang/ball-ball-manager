@@ -1,9 +1,9 @@
 import type { Rng } from '../rng'
-import type { League, Player } from '../types'
+import type { League, Player, TradeAsset } from '../types'
 import { GmError, capProblem, capSeason, committed, log, pname, refreshRotation, tname, tradesOpen } from './cap'
 import { type Mode, pickValue, playerValue, teamMode } from './value'
 
-export type Asset = { kind: 'player'; id: string } | { kind: 'pick'; id: string }
+export type Asset = TradeAsset
 export interface Trade { a: string; b: string; aGives: Asset[]; bGives: Asset[] }
 export interface Verdict { ok: boolean; reason: string; got: number; gave: number }
 

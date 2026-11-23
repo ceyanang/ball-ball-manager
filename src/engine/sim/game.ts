@@ -34,6 +34,8 @@ export const K = {
   oopShot: 0.0025,
   /** Share of defenders' out-of-position cost taken off their perimeter/interior D. */
   oopDef: 0.5,
+  /** Make-probability per morale point away from 60 (≈ ±1.6% at the extremes). */
+  morale: 0.0004,
 }
 
 type Side = 'home' | 'away'
@@ -105,8 +107,16 @@ export function simGame(
     c.pen = courtPenalties(c.onCourt, players, same)
   }
 
-  const addPoints = (off: Side, pts: number, shooter: string) => {
+  // Story tracking only (no RNG): the last lead change and each side's biggest deficit.
+  let possNo = 0, periodNo = 0, lastStint = false
+  type LeadChange = { side: Side; shooter: string; period: number; lastStint: boolean; poss: number; shot: boolean }
+  const lead: { last: LeadChange | null } = { last: null }
+  const maxDeficit: Record<Side, number> = { home: 0, away: 0 }
+  const addPoints = (off: Side, pts: number, shooter: string, shot = true) => {
+    const wasAhead = score[off] > score[other(off)]
     score[off] += pts
+    if (!wasAhead && score[off] > score[other(off)]) lead.last = { side: off, shooter, period: periodNo, lastStint, poss: possNo, shot }
+    maxDeficit[other(off)] = Math.max(maxDeficit[other(off)], score[off] - score[other(off)])
     box[shooter].pts += pts
     const oc = sides[off]
     oc.quarters[oc.quarters.length - 1] += pts
@@ -133,7 +143,7 @@ export function simGame(
       lastMade = rng.chance(pct)
       if (lastMade) {
         box[shooter].ftm++
-        addPoints(off, 1, shooter)
+        addPoints(off, 1, shooter, false)
       }
     }
     return lastMade
@@ -166,6 +176,7 @@ export function simGame(
         : K.threeBase + (r.three - K.pivot) * K.shooterK - (perD - K.pivot) * K.defK * 0.67
       p += ((r.iq + r.ath) / 2 - K.pivot) * 0.001
       p -= (oPen[shooter] ?? 0) * K.oopShot
+      p += ((players[shooter].morale ?? 60) - 60) * K.morale
       if (dStyle === 'defense') p -= K.defenseStyle
       if (off === 'home') p += K.home
       const pts = type === 'three' ? 3 : 2
@@ -215,13 +226,16 @@ export function simGame(
   const runPeriod = (isPeriodStart: boolean, stints: number[]) => {
     sides.home.quarters.push(0)
     sides.away.quarters.push(0)
+    periodNo++
     stints.forEach((sl, i) => {
+      lastStint = i === stints.length - 1
       for (const s of ['home', 'away'] as Side[]) chooseFive(sides[s], isPeriodStart && i === 0)
       for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].onCourt) sides[s].played[id] += sl
       carry += (2 * poss48 * sl) / 48
       const n = Math.floor(carry)
       carry -= n
       for (let k = 0; k < n; k++) {
+        possNo++
         possession(offense)
         offense = other(offense)
       }
@@ -247,6 +261,12 @@ export function simGame(
     b.pts + 0.4 * b.fgm - 0.7 * b.fga - 0.4 * (b.fta - b.ftm) + 0.7 * b.oreb + 0.3 * b.dreb + b.stl + 0.7 * b.ast + 0.7 * b.blk - 0.4 * b.pf - b.tov
   const potg = lines.reduce((best, b) => (gameScore(b) > gameScore(best) ? b : best), lines[0]).playerId
 
+  const winner: Side = score.home > score.away ? 'home' : 'away'
+  const ll = lead.last
+  const clutch = ll && ll.side === winner && ll.period === periodNo && ll.lastStint
+    ? { playerId: ll.shooter, buzzer: ll.shot && ll.poss === possNo }
+    : null
+
   return {
     homeScore: score.home,
     awayScore: score.away,
@@ -254,5 +274,7 @@ export function simGame(
     ot,
     box: lines,
     potg,
+    clutch,
+    comeback: maxDeficit[winner],
   }
 }

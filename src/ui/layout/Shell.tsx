@@ -5,8 +5,8 @@ import { TeamBadge } from '../components/TeamBadge'
 import { ErrorBoundary } from '../ErrorBoundary'
 
 const LINKS: [string, string][] = [
-  ['/', 'Home'], ['/my-team', 'My Team'], ['/office', 'Front Office'], ['/schedule', 'Schedule'], ['/standings', 'Standings'],
-  ['/leaders', 'Leaders'], ['/teams', 'Teams'], ['/saves', 'Saves'],
+  ['/', 'Home'], ['/inbox', 'Inbox'], ['/my-team', 'My Team'], ['/office', 'Front Office'], ['/schedule', 'Schedule'], ['/standings', 'Standings'],
+  ['/leaders', 'Leaders'], ['/highlights', 'Highlights'], ['/social', 'Social'], ['/history', 'History'], ['/teams', 'Teams'], ['/saves', 'Saves'],
 ]
 
 export function Shell() {
@@ -16,13 +16,14 @@ export function Shell() {
   const notice = useStore((s) => s.notice)
   const clearNotice = useStore((s) => s.clearNotice)
   const team = league ? league.teams[league.userTeamId] : null
+  const unread = league ? league.inbox.filter((i) => !i.read && !i.dismissed).length : 0
   return (
     <div className="shell">
       <aside className="side">
         <div className="wordmark">Ball Ball<br /><span>Manager</span></div>
         <nav className="nav" aria-label="Main">
           {(league?.phase === 'offseason' ? [['/offseason', 'Offseason'] as [string, string], ...LINKS] : LINKS).map(([to, label]) => (
-            <NavLink key={to} to={to} end={to === '/'}>{label}</NavLink>
+            <NavLink key={to} to={to} end={to === '/'}>{label}{to === '/inbox' && unread > 0 && <span className="nav-count" aria-label={`${unread} unread`}>{unread}</span>}</NavLink>
           ))}
         </nav>
         {team && (

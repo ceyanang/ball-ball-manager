@@ -8,7 +8,7 @@ self.onmessage = (e: MessageEvent<SimRequest>) => {
   try {
     res = {
       id,
-      league: cmd.type === 'simDays' ? simDays(league, cmd.days) : cmd.type === 'simUntil' ? simUntil(league, cmd.target) : offseasonStep(league, cmd),
+      league: cmd.type === 'simDays' ? simDays(league, cmd.days, { stopOnOffer: true }) : cmd.type === 'simUntil' ? simUntil(league, cmd.target, { stopOnOffer: true }) : offseasonStep(league, cmd),
     }
   } catch (err) {
     res = { id, error: err instanceof Error ? err.message : String(err) }

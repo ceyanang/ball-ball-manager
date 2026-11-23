@@ -36,6 +36,10 @@ export interface BoxLine {
 export interface GameResult {
   homeScore: number; awayScore: number; quarters: { home: number[]; away: number[] }
   ot: number; box: BoxLine[]; potg: string
+  /** Go-ahead score for the winner in the final minute of the last period (buzzer: on the final possession). */
+  clutch?: { playerId: string; buzzer: boolean } | null
+  /** The winner's largest deficit during the game. */
+  comeback?: number
 }
 export interface Game {
   id: string; season: number; day: number; homeId: string; awayId: string
@@ -63,7 +67,7 @@ export interface DraftState {
   /** Hidden scouting noise per prospect: shown OVR is a range around the truth, POT a fuzzy grade. */
   scout: Record<string, { ovrLo: number; ovrHi: number; pot: number }>
 }
-export type OffseasonStep = 'recap' | 'lottery' | 'draft' | 'resign' | 'freeAgency' | 'ready'
+export type OffseasonStep = 'awards' | 'recap' | 'lottery' | 'draft' | 'resign' | 'freeAgency' | 'ready'
 export interface OffseasonReport {
   retired: { playerId: string; teamId: string | null; age: number; ovr: number }[]
   changes: { playerId: string; teamId: string | null; from: number; to: number }[]
@@ -74,8 +78,53 @@ export interface OffseasonState {
   /** Rejected re-sign offers per player; at 3 he walks. */
   resignTries: Record<string, number>
 }
+export type TradeAsset = { kind: 'player'; id: string } | { kind: 'pick'; id: string }
+
+export type NewsKind =
+  | 'bigGame' | 'tripleDouble' | 'nearTriple' | 'gameWinner' | 'rookie' | 'careerHigh' | 'record' | 'streak'
+  | 'comeback' | 'overtime' | 'injury' | 'series' | 'champion' | 'award' | 'hof'
+export interface NewsItem {
+  id: string; season: number; day: number; playoffs: boolean; kind: NewsKind; emoji: string; title: string; text: string
+  playerIds: string[]; teamIds: string[]; gameId?: string; weight: number
+}
+export type PersonaId = 'insider' | 'stats' | 'hater' | 'superfan'
+export type PostAuthor =
+  | { kind: 'fan'; handle: string; name: string; seed: number; teamId: string | null }
+  | { kind: 'persona'; id: PersonaId }
+  | { kind: 'player'; playerId: string }
+export interface Post {
+  id: string; season: number; day: number; author: PostAuthor; text: string; likes: number; reposts: number
+  playerIds: string[]; teamIds: string[]; gameId?: string; tone: 'hype' | 'roast' | 'neutral'
+}
+export type InboxKind = 'trade' | 'coach' | 'contract' | 'morale' | 'tradeRequest' | 'roster' | 'freeAgent' | 'expiring' | 'injury' | 'award'
+export interface TradeOffer { teamId: string; theyGive: TradeAsset[]; youGive: TradeAsset[]; status: 'open' | 'accepted' | 'declined' | 'expired' }
+export interface InboxItem {
+  id: string; season: number; day: number; phase: Phase; kind: InboxKind
+  /** Dedupe key: the same key is never pinged twice. */
+  key: string; title: string; body: string; link?: string; read: boolean; dismissed: boolean; offer?: TradeOffer
+}
+export type RecordStat = 'pts' | 'reb' | 'ast' | 'stl' | 'blk' | 'tpm'
+export type RecordScope = 'game' | 'season' | 'career'
+export interface RecordHolder { value: number; playerId: string; teamId: string; season: number; gameId?: string }
+export interface RecordEntry extends RecordHolder { prev: RecordHolder | null }
+export type RecordBook = Record<RecordScope, Partial<Record<RecordStat, RecordEntry>>>
+export interface Records { league: RecordBook; teams: Record<string, RecordBook> }
+export interface SeasonAwards {
+  season: number; championId: string | null; championRoster: string[]
+  mvp: string | null; dpoy: string | null; roy: string | null; smoy: string | null; mip: string | null
+  coy: { coachId: string; teamId: string } | null; finalsMvp: string | null
+  allLeague: string[][]; allDefense: string[][]; allRookie: string[]
+}
+export interface SeasonHistory {
+  season: number; championId: string | null; runnerUpId: string | null; finals: string
+  standings: { teamId: string; w: number; l: number; conf: Conference }[]
+  leaders: { stat: string; playerId: string; teamId: string; value: number }[]
+}
+export interface HofEntry { playerId: string; season: number; score: number }
+export interface CareerHigh { gp: number; pts: number; reb: number; ast: number }
+
 export interface League {
-  version: 3; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 4; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]
@@ -85,4 +134,11 @@ export interface League {
   transactions: Transaction[]; deadMoney: DeadMoney[]; waivers: Waiver[]; faOffers: FaOffer[]
   offseason: OffseasonState | null
   tradeDeadlineDay: number
+  news: NewsItem[]; social: Post[]; inbox: InboxItem[]
+  awards: SeasonAwards[]; history: SeasonHistory[]; records: Records; hof: HofEntry[]
+  /** Fan sentiment, −100..100. */
+  fans: { players: Record<string, number>; teams: Record<string, number> }
+  careerHighs: Record<string, CareerHigh>
+  /** Counter for story ids. */
+  storySeq: number
 }

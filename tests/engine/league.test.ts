@@ -94,7 +94,7 @@ describe('createLeague', () => {
     expect(league.phase).toBe('regular')
     expect(league.day).toBe(1)
     expect(league.season).toBe(1)
-    expect(league.version).toBe(3)
+    expect(league.version).toBe(4)
     expect(league.progress).toEqual([])
   })
   it('is stacked: most starters 76+, bench averages 70+', () => {

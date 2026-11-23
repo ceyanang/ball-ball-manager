@@ -109,13 +109,15 @@ describe('full offseason cycle', () => {
   it('plays two seasons end to end with legal rosters, a draft, free agency and a new schedule', { timeout: 60_000 }, () => {
     let l = simUntil(fresh(), 'playoffsEnd')
     expect(l.phase).toBe('offseason')
-    expect(l.offseason!.step).toBe('recap')
+    expect(l.offseason!.step).toBe('awards')
     expect(l.draft!.prospects).toHaveLength(70)
     expect(l.draft!.lottery).toHaveLength(14)
     expect(new Set(l.draft!.lottery.map((e) => e.pick)).size).toBe(14)
     // Only the top LOTTERY_DRAWS can jump; everyone else slides at most that many spots.
     for (const e of l.draft!.lottery) expect(e.pick).toBeLessThanOrEqual(Math.max(LOTTERY_DRAWS, e.preSlot + LOTTERY_DRAWS))
     const rng = new Rng(l.rng)
+    advanceOffseason(l, rng) // → recap
+    expect(l.offseason!.step).toBe('recap')
     advanceOffseason(l, rng) // → lottery
     advanceOffseason(l, rng) // → draft, CPU picks up to the user
     expect(l.offseason!.step).toBe('draft')

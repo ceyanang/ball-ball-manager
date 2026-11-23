@@ -9,6 +9,7 @@ import { rollInjuries, tickInjuries } from '../sim/injury'
 import { addBoxToStatLines } from '../stats/stats'
 import type { Game, League, Phase, Player } from '../types'
 import { advancePlayoffs, seedPlayoffs } from './playoffs'
+import { afterDay, afterGame, afterOffseason, onInjury, onRegularSeasonEnd, onReturn, onSeasonEnd, onSeriesDecided } from '../stories/hooks'
 
 /** In-season rating changes happen every this many days of the regular season. */
 const PROGRESS_EVERY = 10
@@ -17,14 +18,20 @@ function playGame(league: League, g: Game, rng: Rng): void {
   const res = simGame(league.teams[g.homeId], league.teams[g.awayId], league.players, league.coaches, rng)
   g.result = res
   addBoxToStatLines(league.statLines, g)
+  const hurt = Object.values(league.players).filter((p) => p.injury && (p.teamId === g.homeId || p.teamId === g.awayId)).map((p) => p.id)
   tickInjuries([g.homeId, g.awayId], league.players)
-  for (const { playerId, injury } of rollInjuries(res, league.players, rng)) league.players[playerId].injury = injury
+  for (const id of hurt) if (!league.players[id].injury) onReturn(league, id)
+  for (const { playerId, injury } of rollInjuries(res, league.players, rng)) {
+    league.players[playerId].injury = injury
+    onInjury(league, playerId, injury)
+  }
   if (!g.playoff) {
     const homeWon = res.homeScore > res.awayScore
     const hc = league.coaches[league.teams[g.homeId].coachId]
     const ac = league.coaches[league.teams[g.awayId].coachId]
     if (homeWon) { hc.wins++; ac.losses++ } else { hc.losses++; ac.wins++ }
   }
+  afterGame(league, g)
 }
 
 /** CPU coaches re-pick their depth charts as ratings move. The user's rotation is theirs to manage. */
@@ -34,11 +41,16 @@ export function refreshAiRotations(league: League): void {
   for (const t of Object.values(league.teams)) if (t.id !== league.userTeamId && byTeam[t.id]) t.rotation = autoRotation(byTeam[t.id])
 }
 
-/** Mutates `league`: plays the current day and advances the calendar. */
-function stepDay(league: League, rng: Rng): void {
-  if (league.phase === 'offseason') return
+/** Mutates `league`: plays the current day and advances the calendar. Returns true when the user should look (a trade offer). */
+function stepDay(league: League, rng: Rng): boolean {
+  if (league.phase === 'offseason') return false
+  const newsFrom = league.news.length, txFrom = league.transactions.length
+  const played: Game[] = []
   for (const g of league.games) {
-    if (g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null)) playGame(league, g, rng)
+    if (g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null)) {
+      playGame(league, g, rng)
+      played.push(g)
+    }
   }
   processWaivers(league)
   if (league.phase === 'regular') {
@@ -49,37 +61,48 @@ function stepDay(league: League, rng: Rng): void {
       refreshAiRotations(league)
     }
     if (!league.games.some((g) => !g.playoff && !g.result)) {
+      onRegularSeasonEnd(league)
       league.phase = 'playoffs'
       league.playoffs = seedPlayoffs(league)
       advancePlayoffs(league)
     }
   } else {
+    const decided = new Set(league.playoffs?.series.filter((x) => x.winnerId).map((x) => x.id))
     advancePlayoffs(league)
+    onSeriesDecided(league, (league.playoffs?.series ?? []).filter((x) => x.winnerId && !decided.has(x.id)).map((x) => x.id))
     if ((league.phase as Phase) === 'offseason') {
+      onSeasonEnd(league)
       startOffseason(league, rng)
-      return
+      afterDay(league, played, newsFrom, txFrom)
+      return false
     }
   }
+  const offer = afterDay(league, played, newsFrom, txFrom)
   league.day++
+  return offer
 }
 
-export function simDays(league: League, days: number): League {
+/** `stopOnOffer`: pause when a CPU team sends the user a trade offer (the app does; scripts and tests don't). */
+export interface SimOpts { stopOnOffer?: boolean }
+
+export function simDays(league: League, days: number, opts: SimOpts = {}): League {
   if (league.phase === 'offseason') return league
   const next = structuredClone(league)
   const rng = new Rng(next.rng)
   const phase = next.phase
-  for (let i = 0; i < days && next.phase === phase; i++) stepDay(next, rng)
+  for (let i = 0; i < days && next.phase === phase; i++) if (stepDay(next, rng) && opts.stopOnOffer) break
   return next
 }
 
-export function simUntil(league: League, target: 'regularEnd' | 'playoffsEnd' | 'deadline'): League {
+export function simUntil(league: League, target: 'regularEnd' | 'playoffsEnd' | 'deadline', opts: SimOpts = {}): League {
   if (league.phase === 'offseason') return league
   const next = structuredClone(league)
   const rng = new Rng(next.rng)
   const done = () =>
     target === 'deadline' ? next.phase !== 'regular' || next.day >= next.tradeDeadlineDay
     : target === 'regularEnd' ? next.phase !== 'regular' : next.phase === 'offseason'
-  for (let guard = 0; !done() && guard < 1000; guard++) stepDay(next, rng)
+  // A trade offer for the user pauses the sim so they can answer it.
+  for (let guard = 0; !done() && guard < 1000; guard++) if (stepDay(next, rng) && opts.stopOnOffer) break
   return next
 }
 
@@ -87,7 +110,11 @@ export function simUntil(league: League, target: 'regularEnd' | 'playoffsEnd' | 
 export function offseasonStep(league: League, cmd: { type: 'offseason' } | { type: 'faDays'; days: number }): League {
   const next = structuredClone(league)
   const rng = new Rng(next.rng)
+  const newsFrom = next.news.length, txFrom = next.transactions.length
+  // Free-agency days post their own stories day by day.
+  const faStep = cmd.type === 'faDays' || next.offseason?.step === 'freeAgency'
   if (cmd.type === 'offseason') advanceOffseason(next, rng)
   else simFreeAgency(next, rng, cmd.days)
+  if (!faStep) afterOffseason(next, newsFrom, txFrom, false)
   return next
 }

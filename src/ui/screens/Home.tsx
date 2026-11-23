@@ -3,6 +3,7 @@ import { computeStandings } from '../../engine/standings'
 import { Face } from '../face/Face'
 import { TeamBadge } from '../components/TeamBadge'
 import { GameDayHero } from '../components/GameDay'
+import { NewsCard } from '../components/Stories'
 import { useStore } from '../store'
 import { didWin, fullName, nextGame, one, ovrOf, pct, rosterOf, seasonLine, teamFull, teamGames } from '../util'
 
@@ -23,6 +24,16 @@ export function Home() {
     .map((p) => ({ p, line: seasonLine(league, p) }))
     .filter((x) => x.line)
     .sort((a, b) => b.line!.pg.pts - a.line!.pg.pts)
+    .slice(0, 4)
+
+  const unreadItems = league.inbox.filter((i) => !i.read && !i.dismissed)
+  const unread = unreadItems.length
+  const inboxTop = [...unreadItems].reverse().sort((a, b) => Number(b.offer?.status === 'open') - Number(a.offer?.status === 'open')).slice(0, 4)
+  // The last couple of days' best moments, the user's team first.
+  const recentDay = league.news.length ? league.news[league.news.length - 1].day : 0
+  const topNews = league.news
+    .filter((n) => n.season === league.season && n.day >= recentDay - 2)
+    .sort((a, b) => Number(b.teamIds.includes(team.id)) - Number(a.teamIds.includes(team.id)) || b.weight - a.weight)
     .slice(0, 4)
 
   const myEvents = league.progress.filter((e) => e.season === league.season && e.teamId === team.id).slice(-8).reverse()
@@ -63,11 +74,23 @@ export function Home() {
       {league.phase === 'offseason' && league.offseason && (
         <Link to="/offseason" className="offseason-banner">
           <span className="gd-chip">🗓️ Offseason</span>
-          <span><strong>{{ recap: 'Season recap is in', lottery: 'The draft lottery is ready', draft: 'It’s draft day', resign: 'Time to re-sign your players', freeAgency: `Free agency · day ${league.offseason.faDay}`, ready: `Season ${league.season + 1} is ready to tip off` }[league.offseason.step]}</strong></span>
+          <span><strong>{{ awards: 'The awards ceremony is on 🎤', recap: 'Season recap is in', lottery: 'The draft lottery is ready', draft: 'It’s draft day', resign: 'Time to re-sign your players', freeAgency: `Free agency · day ${league.offseason.faDay}`, ready: `Season ${league.season + 1} is ready to tip off` }[league.offseason.step]}</strong></span>
           <span className="muted">Continue →</span>
         </Link>
       )}
       {gameDay && <GameDayHero league={league} game={gameDay} team={team} records={records} />}
+
+      {inboxTop.length > 0 && (
+        <section className="panel stack" style={{ gap: '0.5rem' }}>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <h2>📬 Inbox <span className="count-pill">{unread}</span></h2>
+            <Link to="/inbox" className="link muted">Open inbox</Link>
+          </div>
+          <ul className="progress-list">
+            {inboxTop.map((i) => <li key={i.id}><Link className="link" to="/inbox"><strong>{i.title}</strong></Link>{i.offer?.status === 'open' && <span className="gd-chip">Offer</span>}</li>)}
+          </ul>
+        </section>
+      )}
 
       <div className="grid-2">
         <section className="panel stack">
@@ -118,6 +141,16 @@ export function Home() {
           </div>
         </section>
       </div>
+
+      {topNews.length > 0 && (
+        <section className="panel stack">
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+            <h2>⚡ Latest highlights</h2>
+            <Link to="/highlights" className="link muted">All highlights</Link>
+          </div>
+          <div className="stack" style={{ gap: '0.5rem' }}>{topNews.map((n) => <NewsCard key={n.id} league={league} n={n} />)}</div>
+        </section>
+      )}
 
       <section className="panel stack">
         <h2>Progress report</h2>
