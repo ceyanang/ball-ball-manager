@@ -148,16 +148,20 @@ describe('let the coach run the rotation', () => {
     expect(after.starters).not.toEqual(bad.starters)
   })
 
-  it('a hand-set plan survives a day; a roster move resets only a now-broken plan', () => {
+  it('a hand-set plan survives a day; a roster move rescales it to 240', () => {
     const l = structuredClone(league)
     const t = l.teams[l.userTeamId]
-    t.rotation = { ...t.rotation, minutes: suggestedMinutes(t.rotation, l.players) }
+    const { auto: _auto, ...manual } = t.rotation
+    t.rotation = { ...manual, minutes: suggestedMinutes(t.rotation, l.players) }
     const next = simDays(l, 1)
     expect(next.teams[next.userTeamId].rotation.minutes).toEqual(t.rotation.minutes)
-    // Cut a bench player: the plan no longer totals 240, so it falls back to the coach's suggestions.
+    // Cut a bench player: the plan is rescaled over who is left, so it still totals 240.
     const gone = t.rotation.bench[0]
     l.players[gone].teamId = null
     refreshRotation(l, l.userTeamId)
-    expect(l.teams[l.userTeamId].rotation.minutes).toBeUndefined()
+    const after = l.teams[l.userTeamId].rotation
+    expect(after.minutes).toBeDefined()
+    expect(after.minutes![gone]).toBeUndefined()
+    expect(validateMinutes(after)).toEqual([])
   })
 })

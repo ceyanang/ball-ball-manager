@@ -1,6 +1,6 @@
 import { ACTIVE_MAX, MIN_SALARY, ROSTER_MAX, ROSTER_MIN, SALARY_CAP, STARTERS } from '../constants'
 import { computeOvr } from '../player/ratings'
-import { autoRotation, coachRotation } from '../sim/rotation'
+import { autoRotation, coachRotation, rescaleMinutes } from '../sim/rotation'
 import type { League, Player, Rotation, TxType } from '../types'
 
 export const ovr = (p: Player) => computeOvr(p.ratings, p.pos)
@@ -51,22 +51,39 @@ export function log(l: League, type: TxType, teamIds: string[], playerIds: strin
 export const pname = (p: Player) => `${p.firstName} ${p.lastName}`
 export const tname = (l: League, teamId: string) => l.teams[teamId].name
 
-/** Keeps the user's order, drops departed players and slots newcomers onto the bench (or inactive when full). */
+/**
+ * Keeps the user's order and starters, drops departed players and slots newcomers into the bench by OVR (so a star
+ * signing sits at the top of the bench, never buried at the end). A minutes plan is kept: newcomers get the coach's
+ * share for their bench spot and the whole plan is rescaled to 240.
+ */
 export function syncRotation(rot: Rotation, roster: Player[]): Rotation {
-  const ids = new Set(roster.map((p) => p.id))
-  const keep = (xs: string[]) => xs.filter((id) => ids.has(id))
+  const byId: Record<string, Player> = Object.fromEntries(roster.map((p) => [p.id, p]))
+  const keep = (xs: string[]) => xs.filter((id) => byId[id])
   const next: Rotation = { starters: keep(rot.starters), bench: keep(rot.bench), inactive: keep(rot.inactive) }
   if (rot.auto) next.auto = true
   const listed = new Set([...next.starters, ...next.bench, ...next.inactive])
-  const fresh = roster.filter((p) => !listed.has(p.id)).sort((a, b) => ovr(b) - ovr(a)).map((p) => p.id)
-  for (const id of fresh) (next.starters.length + next.bench.length < ACTIVE_MAX ? next.bench : next.inactive).push(id)
+  const fresh = roster.filter((p) => !listed.has(p.id)).sort((a, b) => ovr(b) - ovr(a))
+  for (const p of fresh) {
+    const at = next.bench.findIndex((id) => ovr(byId[id]) < ovr(p))
+    if (at >= 0) next.bench.splice(at, 0, p.id)
+    else if (next.starters.length + next.bench.length < ACTIVE_MAX) next.bench.push(p.id)
+    else next.inactive.push(p.id)
+  }
   while (next.starters.length < STARTERS && (next.bench.length || next.inactive.length))
     next.starters.push((next.bench.length ? next.bench : next.inactive).shift()!)
   while (next.starters.length + next.bench.length > ACTIVE_MAX) next.inactive.unshift(next.bench.pop()!)
-  // A roster move breaks a minutes plan's total, so the plan goes back to the coach's suggestions.
-  const same = rot.minutes && [...next.starters, ...next.bench].every((id) => [...rot.starters, ...rot.bench].includes(id))
-    && next.starters.length + next.bench.length === rot.starters.length + rot.bench.length
-  if (rot.minutes && same) next.minutes = { ...rot.minutes }
+  if (rot.minutes) {
+    const wasActive = new Set([...rot.starters, ...rot.bench])
+    const active = [...next.starters, ...next.bench]
+    const same = active.length === wasActive.size && active.every((id) => wasActive.has(id))
+    if (same) next.minutes = { ...rot.minutes }
+    else {
+      // Only players who were active keep their planned minutes; everyone else gets the default for his spot.
+      const plan: Record<string, number> = {}
+      for (const id of active) if (wasActive.has(id) && rot.minutes[id] !== undefined) plan[id] = rot.minutes[id]
+      next.minutes = rescaleMinutes(next, byId, plan)
+    }
+  }
   return next
 }
 

@@ -1,6 +1,7 @@
 import type { Rng } from '../rng'
 import type { League, Player, TradeAsset } from '../types'
-import { GmError, capProblem, capSeason, committed, log, pname, refreshRotation, tname, tradesOpen } from './cap'
+import { STARTERS } from '../constants'
+import { GmError, capProblem, capSeason, committed, log, pname, refreshRotation, teamPlayers, tname, tradesOpen } from './cap'
 import { type Mode, pickValue, playerValue, teamMode } from './value'
 
 export type Asset = TradeAsset
@@ -22,7 +23,11 @@ export function assetLabel(l: League, a: Asset): string {
 }
 
 function owns(l: League, teamId: string, a: Asset): boolean {
-  if (a.kind === 'pick') return l.picks.some((p) => p.id === a.id && p.ownerId === teamId)
+  if (a.kind === 'pick') {
+    // A pick whose draft slot has already been used is spent.
+    if (l.draft?.order.some((s) => s.pickId === a.id && s.playerId)) return false
+    return l.picks.some((p) => p.id === a.id && p.ownerId === teamId)
+  }
   const p = l.players[a.id]
   return !!p && p.teamId === teamId && !!p.contract && p.contract.expires >= capSeason(l)
 }
@@ -36,6 +41,9 @@ export function tradeProblem(l: League, t: Trade): string | null {
   for (const a of t.bGives) if (!owns(l, t.b, a)) return `${assetLabel(l, a)} can't be traded by ${tname(l, t.b)}.`
   const sa = salaryOf(l, t.aGives), sb = salaryOf(l, t.bGives)
   const na = playersIn(t.aGives), nb = playersIn(t.bGives)
+  if (l.phase !== 'offseason')
+    for (const [id, out, inn] of [[t.a, na, nb], [t.b, nb, na]] as const)
+      if (teamPlayers(l, id).length - out + inn < STARTERS) return `${tname(l, id)} would have fewer than ${STARTERS} players to play games.`
   const pa = capProblem(l, t.a, { addSalary: sb, addCount: nb, removeSalary: sa, removeCount: na }, `For ${tname(l, t.a)}, this`)
   if (pa) return pa
   return capProblem(l, t.b, { addSalary: sa, addCount: na, removeSalary: sb, removeCount: nb }, `For ${tname(l, t.b)}, this`)
@@ -76,7 +84,11 @@ export function executeTrade(l: League, t: Trade): void {
   const move = (assets: Asset[], to: string) => {
     for (const a of assets) {
       if (a.kind === 'player') l.players[a.id].teamId = to
-      else l.picks.find((p) => p.id === a.id)!.ownerId = to
+      else {
+        l.picks.find((p) => p.id === a.id)!.ownerId = to
+        // Once the order is set, the slot follows the pick to its new owner.
+        for (const s of l.draft?.order ?? []) if (s.pickId === a.id && !s.playerId) s.teamId = to
+      }
     }
   }
   move(t.aGives, t.b)

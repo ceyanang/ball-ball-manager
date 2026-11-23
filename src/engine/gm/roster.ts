@@ -1,4 +1,4 @@
-import { MIN_SALARY, ROSTER_MAX, ROSTER_MIN, SALARY_CAP } from '../constants'
+import { MAX_SALARY, MIN_SALARY, ROSTER_MAX, ROSTER_MIN, SALARY_CAP, STARTERS } from '../constants'
 import { generatePlayer } from '../player/generate'
 import type { Rng } from '../rng'
 import type { League, Player } from '../types'
@@ -21,6 +21,8 @@ export function releasePlayer(l: League, playerId: string): void {
   const p = l.players[playerId]
   if (!p?.teamId) throw new GmError('That player is not on a team.')
   const teamId = p.teamId
+  if (l.phase !== 'offseason' && teamPlayers(l, teamId).length <= STARTERS)
+    throw new GmError(`${tname(l, teamId)} need at least ${STARTERS} players to play games. Sign someone first.`)
   if (!p.contract || p.contract.expires < capSeason(l)) {
     p.teamId = null
     p.contract = null
@@ -90,11 +92,21 @@ function sign(l: League, teamId: string, p: Player, salary: number, years: numbe
 
 function checkOffer(salary: number, years: number): void {
   if (!Number.isFinite(salary) || salary < MIN_SALARY) throw new GmError(`Offers start at the ${money(MIN_SALARY)} minimum.`)
+  if (salary > MAX_SALARY) throw new GmError(`No contract can pay more than the ${money(MAX_SALARY)} max.`)
+  if (!Number.isInteger(salary)) throw new GmError('Salaries are in whole thousands of dollars.')
   if (!Number.isInteger(years) || years < 1 || years > 5) throw new GmError('Contracts run 1 to 5 years.')
 }
 
+/** Extra pay a free agent wants for each year a deal is longer or shorter than he would like. */
+export const YEARS_PREMIUM = 0.06
+/** Multiplier on a free agent's ask for a deal of `years` (1 at his preferred length). */
+export const yearsFactor = (p: Player, years: number) => 1 + YEARS_PREMIUM * Math.abs(years - askYears(p))
+/** The least he takes for a deal of `years`: `margin` of his ask, priced for the length (never more than the max). */
+const floorFor = (p: Player, ask: number, years: number, margin: number) => Math.min(MAX_SALARY, ask * margin * yearsFactor(p, years))
+
 /**
- * The user (or AI) offers a free agent a deal. In season he decides on the spot (yes at ≥90% of his ask).
+ * The user (or AI) offers a free agent a deal. In season he decides on the spot (yes at ≥90% of his ask,
+ * which rises 6% for each year the deal is off his preferred length).
  * During offseason free agency the offer is lodged and he decides on the next free-agency day.
  */
 export function offerFreeAgent(l: League, teamId: string, playerId: string, salary: number, years: number): 'signed' | 'pending' | 'rejected' {
@@ -114,7 +126,7 @@ export function offerFreeAgent(l: League, teamId: string, playerId: string, sala
     }
     if (step !== 'ready') throw new GmError('Free agency opens after the re-signing period.')
   }
-  if (salary < currentAsk(l, p) * 0.9) return 'rejected'
+  if (salary < floorFor(p, currentAsk(l, p), years, 0.9)) return 'rejected'
   sign(l, teamId, p, salary, years)
   return 'signed'
 }
@@ -160,7 +172,7 @@ function resolveOffers(l: League, ask: Map<string, number>): void {
       .filter((o) => o.playerId === id && !capProblem(l, o.teamId, { addSalary: o.salary, addCount: 1 }))
       .sort((a, b) => offerScore(l, p, b, rank) - offerScore(l, p, a, rank))
     const best = offers[0]
-    if (best && best.salary >= (ask.get(id) ?? currentAsk(l, p)) * 0.97) sign(l, best.teamId, p, best.salary, best.years)
+    if (best && best.salary >= floorFor(p, ask.get(id) ?? currentAsk(l, p), best.years, 0.97)) sign(l, best.teamId, p, best.salary, best.years)
   }
   // Offers that can no longer be honoured (cap/roster changed) quietly lapse.
   l.faOffers = l.faOffers.filter((o) => isFreeAgent(l, l.players[o.playerId]) && !capProblem(l, o.teamId, { addSalary: o.salary, addCount: 1 }))
@@ -199,10 +211,27 @@ export function fillRoster(l: League, teamId: string, target = AI_ROSTER_TARGET,
 
 /** CPU teams under the target sign the best free agent they can afford (in season: immediately at his ask). */
 export function aiFillRosters(l: League, target = AI_ROSTER_TARGET): void {
+  ensurePlayable(l)
   const short = Object.keys(l.teams).filter((id) => id !== l.userTeamId && committed(l, id).length < target)
   if (!short.length) return
   const perf = formOf(l)
   for (const teamId of short) fillRoster(l, teamId, target, perf)
+}
+
+/**
+ * Safety net for the season: any team (the user's included) that somehow can't field five gets minimum-salary
+ * free agents, so a game day never crashes. Normal play never needs it (releases and trades refuse to go below five).
+ */
+export function ensurePlayable(l: League): void {
+  if (l.phase === 'offseason') return
+  for (const teamId of Object.keys(l.teams)) {
+    if (teamPlayers(l, teamId).length >= STARTERS) continue
+    const pool = Object.values(l.players).filter((p) => isFreeAgent(l, p)).sort((a, b) => ovr(b) - ovr(a))
+    for (const p of pool) {
+      if (teamPlayers(l, teamId).length >= STARTERS) break
+      sign(l, teamId, p, MIN_SALARY, 1)
+    }
+  }
 }
 
 /** CPU teams over the limit release their least valuable players. */
@@ -255,6 +284,12 @@ export function resignChance(l: League, p: Player, salary: number, years: number
   return Math.max(0, Math.min(0.97, c))
 }
 
+/** Whether a CPU team wants to keep one of its expiring players (a rotation player, or young with upside). */
+export function aiWantsResign(l: League, teamId: string, p: Player): boolean {
+  const ninth = committed(l, teamId).map(ovr).sort((a, b) => b - a)[8] ?? 0
+  return p.age <= 33 && (ovr(p) >= ninth || (p.age <= 24 && p.pot >= 70))
+}
+
 /** CPU teams decide on their own expiring players at the end of the re-signing period. */
 export function aiResign(l: League, rng: Rng): void {
   for (const teamId of Object.keys(l.teams)) {
@@ -265,9 +300,18 @@ export function aiResign(l: League, rng: Rng): void {
       .sort((a, b) => playerValue(l, b, mode) - playerValue(l, a, mode))
     for (const p of expiring) {
       const salary = askSalary(l, p)
-      const ninth = committed(l, teamId).map(ovr).sort((a, b) => b - a)[8] ?? 0
-      const wanted = p.age <= 33 && (ovr(p) >= ninth || (p.age <= 24 && p.pot >= 70))
-      if (!wanted || capProblem(l, teamId, { addSalary: salary, addCount: 1 }) || !rng.chance(0.85)) continue
+      if (!aiWantsResign(l, teamId, p)) continue
+      let cut: Player | null = null
+      if (capProblem(l, teamId, { addSalary: salary, addCount: 1 })) {
+        // A full roster shouldn't cost a team a player it wants: cut its least valuable man if that makes room.
+        const worst = committed(l, teamId).sort((a, b) => playerValue(l, a, mode) - playerValue(l, b, mode))[0]
+        const fits = worst && playerValue(l, worst, mode) < playerValue(l, p, mode)
+          && !capProblem(l, teamId, { addSalary: salary, addCount: 1, removeCount: 1 })
+        if (!fits) continue
+        cut = worst
+      }
+      if (!rng.chance(0.85)) continue
+      if (cut) releasePlayer(l, cut.id)
       sign(l, teamId, p, salary, askYears(p), 'resign')
     }
   }

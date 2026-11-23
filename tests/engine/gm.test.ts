@@ -5,7 +5,7 @@ import { autoPick, currentSlot, LOTTERY_DRAWS } from '../../src/engine/gm/draft'
 import { advanceOffseason, seasonStartProblem } from '../../src/engine/gm/offseason'
 import { claimWaiver, currentAsk, fillRoster, offerFreeAgent, processWaivers, releasePlayer } from '../../src/engine/gm/roster'
 import { aiVerdict, findOffers, proposeTrade, suggestPackage, type Asset } from '../../src/engine/gm/trade'
-import { playerValue } from '../../src/engine/gm/value'
+import { askYears, playerValue } from '../../src/engine/gm/value'
 import { createLeague } from '../../src/engine/league/create'
 import { Rng } from '../../src/engine/rng'
 import { simDays, simUntil } from '../../src/engine/season/advance'
@@ -126,7 +126,7 @@ describe('waivers and free agents', () => {
       ?? (() => { const p = l.players[committed(l, user(l))[0]?.id ?? best(l, user(l))[0].id]; p.teamId = null; p.contract = null; return p })()
     const before = committed(l, user(l)).length
     const ask = Math.max(currentAsk(l, fa), 1_000)
-    expect(offerFreeAgent(l, user(l), fa.id, ask, 1)).toBe('signed')
+    expect(offerFreeAgent(l, user(l), fa.id, ask, askYears(fa))).toBe('signed')
     expect(l.players[fa.id].teamId).toBe(user(l))
     expect(committed(l, user(l)).length).toBe(before + 1)
   })

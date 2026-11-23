@@ -1,9 +1,9 @@
-import { MIN_SALARY, ROSTER_MAX, ROSTER_MIN, SALARY_CAP } from '../constants'
+import { MAX_SALARY, MIN_SALARY, ROSTER_MAX, ROSTER_MIN, SALARY_CAP } from '../constants'
 import type { Rng } from '../rng'
 import type { League, Player } from '../types'
 import { GmError, isFreeAgent, ovr, payroll, pname, teamPlayers } from './cap'
 import { needLevels, needRank, needThresholds, slotsOf, type NeedLevel, type Slot } from './needs'
-import { AI_ROSTER_TARGET, currentAsk, offerFreeAgent, offerResign } from './roster'
+import { AI_ROSTER_TARGET, currentAsk, offerFreeAgent, offerResign, yearsFactor } from './roster'
 import { askSalary, askYears, formOf, playerValue, teamMode } from './value'
 
 export interface AutoMove {
@@ -69,6 +69,9 @@ export function planAuto(l: League): AutoMove[] {
   const perf = formOf(l)
   const fas = Object.values(l.players).filter((p) => isFreeAgent(l, p))
   const ask = new Map(fas.map((p) => [p.id, currentAsk(l, p, perf)]))
+  // Short deals cost a little more than his ask (he'd prefer longer); pay it so the offer lands.
+  const yearsOf = (p: Player) => Math.min(2, askYears(p))
+  const priceOf = (p: Player) => Math.min(MAX_SALARY, Math.ceil((ask.get(p.id)! * yearsFactor(p, yearsOf(p))) / 100) * 100)
   const taken = new Set<string>()
   for (let guard = 0; guard < ROSTER_MAX; guard++) {
     if (n >= AI_ROSTER_TARGET) break
@@ -76,7 +79,7 @@ export function planAuto(l: League): AutoMove[] {
     const worst = Math.min(...Object.values(lv).map((x) => needRank[x]))
     // Past the 10-man floor only sign someone if a red/yellow spot is left to fix.
     if (n >= ROSTER_MIN && worst >= needRank.green) break
-    const cands = fas.filter((p) => !taken.has(p.id) && fits(ask.get(p.id)!))
+    const cands = fas.filter((p) => !taken.has(p.id) && fits(priceOf(p)))
     if (!cands.length) break
     const score = (p: Player) => playerValue(l, p, mode) * mult[lv[p.pos]]
     const pick = cands.sort((a, b) => score(b) - score(a))[0]
@@ -85,7 +88,7 @@ export function planAuto(l: League): AutoMove[] {
     if (n >= ROSTER_MIN && needRank[after] <= needRank[lvl]) break
     taken.add(pick.id)
     const why = n < ROSTER_MIN ? (lvl === 'red' ? 'fills a red position' : 'roster to 10') : lvl === 'red' ? 'fixes a red position' : 'shores up a thin spot'
-    add(pick, 'sign', ask.get(pick.id)!, Math.min(2, askYears(pick)), why)
+    add(pick, 'sign', priceOf(pick), yearsOf(pick), why)
   }
   return moves
 }
