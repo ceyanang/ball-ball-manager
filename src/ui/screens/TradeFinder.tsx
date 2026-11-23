@@ -3,21 +3,20 @@ import { rejectionText, tradeLabel } from '../tradeText'
 import { Link } from 'react-router-dom'
 import { tradesOpen } from '../../engine/gm/cap'
 import { assetsValue, findOffers, proposeTrade, tradeableAssets, type Asset, type Offer } from '../../engine/gm/trade'
-import { projectedSlot, teamMode } from '../../engine/gm/value'
-import { archetypeFor } from '../../engine/player/archetype'
-import { OvrPill } from '../components/OvrPill'
+import { teamMode } from '../../engine/gm/value'
 import { TeamBadge } from '../components/TeamBadge'
-import { Face } from '../face/Face'
 import { useStore } from '../store'
-import { fullName, money, ovrOf, teamFull } from '../util'
+import { money, teamFull } from '../util'
+import { OfferAssets } from '../components/OfferAssets'
 import { AssetList } from './Trade'
+import { FindPlayer } from './FindPlayer'
 
 const key = (a: Asset) => `${a.kind}:${a.id}`
 
 type Want = 'any' | 'players' | 'young' | 'picks'
 const WANTS: [Want, string][] = [['any', 'Anything'], ['players', 'Players'], ['young', 'Young (≤25)'], ['picks', 'Picks']]
 
-export function TradeFinder() {
+function ShopMode() {
   const league = useStore((s) => s.league)!
   const act = useStore((s) => s.act)
   const me = league.userTeamId
@@ -30,14 +29,6 @@ export function TradeFinder() {
   const offered = myAssets.filter((a) => give.has(key(a)))
   // A finished trade (or a sim) changes the league, so old offers go stale.
   useEffect(() => setOffers(null), [league])
-
-  if (!tradesOpen(league))
-    return (
-      <div className="stack">
-        <h1>Trade finder</h1>
-        <p className="notice">{league.phase === 'playoffs' ? 'Trades are closed during the playoffs. They reopen after the Finals.' : 'The trade deadline has passed. Trades reopen after the Finals.'}</p>
-      </div>
-    )
 
   const toggle = (a: Asset) => {
     const n = new Set(give)
@@ -71,10 +62,6 @@ export function TradeFinder() {
 
   return (
     <div className="stack">
-      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <h1>Trade finder</h1>
-        <Link to="/trade" className="btn">Trade builder →</Link>
-      </div>
       <p className="muted" style={{ margin: 0, maxWidth: '72ch' }}>
         Pick one player or a package to shop around. Every team answers with the best deal they'd actually say yes to, ranked by what it's worth to you.
       </p>
@@ -114,32 +101,7 @@ export function TradeFinder() {
                       </div>
                       <span className={`offer-grade ${cls}`}>{label}</span>
                     </div>
-                    {o.gives.map((a) => {
-                      if (a.kind === 'pick') {
-                        const pk = league.picks.find((p) => p.id === a.id)!
-                        return (
-                          <div key={a.id} className="asset pick">
-                            <span className="pick-chip">R{pk.round}</span>
-                            <span className="asset-main">
-                              <span className="asset-name">{tradeLabel(league, a)}</span>
-                              <span className="asset-sub">Projected #{projectedSlot(league, pk)} in round {pk.round}</span>
-                            </span>
-                          </div>
-                        )
-                      }
-                      const p = league.players[a.id]
-                      return (
-                        <div key={a.id} className="asset">
-                          <Face seed={p.faceSeed} age={p.age} colors={t.colors} size={30} />
-                          <span className="asset-main">
-                            <Link to={`/player/${p.id}`} className="asset-name">{fullName(p)}{p.injury ? ' 🤕' : ''}</Link>
-                            <span className="asset-sub">{p.pos} · {p.age}y · {archetypeFor(p)}</span>
-                          </span>
-                          <span className="asset-money">{p.contract ? money(p.contract.salary) : ''}</span>
-                          <OvrPill value={ovrOf(p)} pot={p.pot} />
-                        </div>
-                      )
-                    })}
+                    <OfferAssets league={league} assets={o.gives} colors={t.colors} />
                     <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
                       <span className="muted" style={{ fontSize: '0.8rem' }}>Salary in {money(inn)} · out {money(salary(offered))}</span>
                       <div className="row">
@@ -154,6 +116,32 @@ export function TradeFinder() {
           )}
         </section>
       </div>
+    </div>
+  )
+}
+
+type Mode = 'shop' | 'find'
+
+export function TradeFinder() {
+  const league = useStore((s) => s.league)!
+  const [mode, setMode] = useState<Mode>('shop')
+  return (
+    <div className="stack">
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <h1>Trade finder</h1>
+        <Link to="/trade" className="btn">Trade builder →</Link>
+      </div>
+      {!tradesOpen(league) ? (
+        <p className="notice">{league.phase === 'playoffs' ? 'Trades are closed during the playoffs. They reopen after the Finals.' : 'The trade deadline has passed. Trades reopen after the Finals.'}</p>
+      ) : (
+        <>
+          <div className="seg" role="group" aria-label="Finder mode">
+            <button className="btn" aria-pressed={mode === 'shop'} onClick={() => setMode('shop')}>Shop my guys</button>
+            <button className="btn" aria-pressed={mode === 'find'} onClick={() => setMode('find')}>Find a player</button>
+          </div>
+          {mode === 'shop' ? <ShopMode /> : <FindPlayer />}
+        </>
+      )}
     </div>
   )
 }
