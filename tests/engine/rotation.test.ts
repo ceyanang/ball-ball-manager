@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createLeague } from '../../src/engine/league/create'
-import { autoRotation, bestStartingFive, gameLineup, minutesTargets, slotFit, validateRotation } from '../../src/engine/sim/rotation'
+import { autoRotation, bestStartingFive, gameLineup, lineupPenalties, minutesTargets, slotFit, validateRotation } from '../../src/engine/sim/rotation'
 import { generatePlayer } from '../../src/engine/player/generate'
 import { Rng } from '../../src/engine/rng'
 import type { Position } from '../../src/engine/types'
@@ -117,5 +117,24 @@ describe('minutesTargets', () => {
     expect(avg(lu.starters)).toBeGreaterThan(avg(lu.bench))
     for (const v of Object.values(m)) expect(v).toBeLessThanOrEqual(48)
     for (const id of lu.starters) expect(m[id]).toBeGreaterThanOrEqual(26)
+  })
+})
+
+describe('lineupPenalties', () => {
+  const rng = Rng.fromSeed(3)
+  const mk = (id: string, pos: Position) => { const p = generatePlayer(rng, { season: 1, targetOvr: 75, pos, age: 27 }); p.id = id; return p }
+  const pl: Record<string, Player> = {}
+  for (const [id, pos] of [['pg', 'PG'], ['sg', 'SG'], ['sf', 'SF'], ['pf', 'PF'], ['c', 'C'], ['bc', 'C']] as [string, Position][]) pl[id] = mk(id, pos)
+
+  it('re-slots a mixed group optimally, so a C wearing the SG card is not penalised', () => {
+    const pen = lineupPenalties(['pg', 'bc', 'sf', 'pf', 'sg'], ['pg', 'sg', 'sf', 'pf', 'c'], pl)
+    expect(Object.values(pen).every((v) => v <= 2.5)).toBe(true)
+  })
+
+  it('keeps the coach-set slots while all five starters are on the floor, in any card order', () => {
+    const scrambled = ['c', 'pf', 'sf', 'sg', 'pg']
+    const pen = lineupPenalties(['pg', 'sg', 'sf', 'pf', 'c'], scrambled, pl)
+    expect(pen.c).toBeGreaterThan(20)
+    expect(pen.pg).toBeGreaterThan(20)
   })
 })

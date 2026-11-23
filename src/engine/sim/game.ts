@@ -3,8 +3,8 @@ import { computeOvr } from '../player/ratings'
 import type { Rng } from '../rng'
 import type { BoxLine, Coach, CoachStyle, GameResult, Player, Team } from '../types'
 import type { PlayEvent, Side } from './playlog'
-import { courtPenalties, gameLineup, minutesTargets, SLOTS, slotFit } from './rotation'
-import { chooseSubs, SUB } from './subs'
+import { gameLineup, lineupPenalties, minutesTargets } from './rotation'
+import { chooseSubs, isBlowout, returnStarterSwaps, SUB } from './subs'
 
 /** Tuning constants (calibrated by the realism tests). */
 export const K = {
@@ -50,6 +50,8 @@ interface Ctx {
   played: Record<string, number>
   /** Consecutive game-minutes each player has been on the floor (0 when sitting). */
   stint: Record<string, number>
+  /** A blowout has started and the starters have not all come back yet. */
+  blowoutSeen: boolean
   target: Record<string, number>
   quarters: number[]
 }
@@ -83,7 +85,7 @@ export function simGame(
     }
     return {
       team, style: coaches[team.coachId]?.style ?? 'balanced', ids, starters: lu.starters, onCourt: [], pen: {},
-      played: Object.fromEntries(ids.map((id) => [id, 0])), stint: Object.fromEntries(ids.map((id) => [id, 0])), target: minutesTargets(lu, players, 0), quarters: [],
+      played: Object.fromEntries(ids.map((id) => [id, 0])), stint: Object.fromEntries(ids.map((id) => [id, 0])), blowoutSeen: false, target: minutesTargets(lu, players, 0), quarters: [],
     }
   }
   const sides: Record<Side, Ctx> = { home: makeSide(home), away: makeSide(away) }
@@ -112,39 +114,31 @@ export function simGame(
   }
   const emitScore = (e: { k: 'fg'; side: Side; player: string; made: boolean; three: boolean } | { k: 'ft'; side: Side; player: string; made: boolean }) =>
     emit({ ...e, home: score.home, away: score.away })
-  /** Second-half tip: each sitting starter replaces the non-starter whose slot he fits best (logged as subs). */
-  const returnStarters = (side: Side) => {
-    const c = sides[side]
-    for (const id of c.starters) {
-      if (c.onCourt.includes(id)) continue
-      let slot = -1
-      c.onCourt.forEach((cur, k) => {
-        if (c.starters.includes(cur)) return
-        if (slot < 0 || slotFit(players[id], SLOTS[k]) > slotFit(players[id], SLOTS[slot])) slot = k
-      })
-      if (slot < 0) break
-      emit({ k: 'sub', side, out: c.onCourt[slot], in: id, slot })
-      c.onCourt[slot] = id
-    }
-    c.pen = courtPenalties(c.onCourt, players, true)
-  }
-  /** The coach's per-minute swaps (no RNG), then re-slot the out-of-position costs. */
-  const subStep = (side: Side, minuteInPeriod: number, periodMinutes: number) => {
-    const c = sides[side]
-    if (c.onCourt.length !== STARTERS) return
-    const swaps = chooseSubs({
-      period: periodNo, minuteInPeriod, periodMinutes, elapsed, gameMinutes: 48 + OT_MIN * ot,
-      margin: score[side] - score[other(side)], onCourt: c.onCourt, sitting: c.ids.filter((id) => !c.onCourt.includes(id)),
-      stint: c.stint, played: c.played, target: c.target, starters: c.starters, players,
-    })
+  const refreshPen = (c: Ctx) => { c.pen = lineupPenalties(c.onCourt, c.starters, players) }
+  /** Apply swaps (logging each one) and refresh the out-of-position costs. */
+  const applySwaps = (side: Side, swaps: { slot: number; out: string; in: string }[]) => {
     if (!swaps.length) return
+    const c = sides[side]
     const next = [...c.onCourt]
     for (const w of swaps) {
       next[w.slot] = w.in
       emit({ k: 'sub', side, out: w.out, in: w.in, slot: w.slot })
     }
     c.onCourt = next
-    c.pen = courtPenalties(c.onCourt, players, true)
+    refreshPen(c)
+  }
+  /** The coach's per-minute swaps (no RNG). */
+  const subStep = (side: Side, minuteInPeriod: number, periodMinutes: number) => {
+    const c = sides[side]
+    if (c.onCourt.length !== STARTERS) return
+    const margin = score[side] - score[other(side)]
+    if (isBlowout(periodNo, Math.abs(margin))) c.blowoutSeen = true
+    applySwaps(side, chooseSubs({
+      period: periodNo, minuteInPeriod, periodMinutes, elapsed, gameMinutes: 48 + OT_MIN * ot, margin, onCourt: c.onCourt,
+      sitting: c.ids.filter((id) => !c.onCourt.includes(id)), stint: c.stint, played: c.played, target: c.target,
+      starters: c.starters, players, blowoutSeen: c.blowoutSeen,
+    }))
+    if (c.blowoutSeen && Math.abs(margin) < SUB.blowoutReturn && c.starters.every((id) => c.onCourt.includes(id))) c.blowoutSeen = false
   }
 
   const addPoints = (off: Side, pts: number, shooter: string, shot = true) => {
@@ -288,11 +282,12 @@ export function simGame(
         const c = sides[s]
         if (periodNo === 1 && i === 0) {
           c.onCourt = [...c.starters]
-          c.pen = courtPenalties(c.onCourt, players, true)
+          refreshPen(c)
           emit({ k: 'lineup', side: s, players: [...c.onCourt] })
         } else if (opening && i === 0) {
           // Second-half tip: the starters return unless the game is already decided.
-          if (Math.abs(score.home - score.away) < SUB.blowoutQ3) returnStarters(s)
+          if (isBlowout(3, Math.abs(score.home - score.away))) c.blowoutSeen = true
+          else applySwaps(s, returnStarterSwaps(c.onCourt, c.starters, players))
         } else subStep(s, i, stints.length)
       }
       for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].onCourt) sides[s].played[id] += sl

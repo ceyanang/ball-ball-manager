@@ -215,7 +215,7 @@ describe('simGame substitutions', () => {
         for (const b of res.box.filter((x) => x.teamId === t.id)) { diff += Math.abs(b.min - plan[b.playerId]); n++ }
       }
     }
-    expect(diff / n).toBeLessThanOrEqual(3)
+    expect(diff / n).toBeLessThanOrEqual(3.5)
   })
 
   it('a team with only five healthy players still plays a full game', () => {

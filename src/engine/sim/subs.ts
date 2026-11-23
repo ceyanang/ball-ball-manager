@@ -1,3 +1,4 @@
+import { STARTERS } from '../constants'
 import type { Player } from '../types'
 import { OFF_POS_PENALTY, SLOT_IDX, SLOTS, slotFit } from './rotation'
 
@@ -15,6 +16,8 @@ export interface SubInput {
   target: Record<string, number>
   starters: string[]
   players: Record<string, Player>
+  /** A blowout has started and the starters have not all come back yet. */
+  blowoutSeen: boolean
 }
 export interface Swap { slot: number; out: string; in: string }
 
@@ -32,8 +35,8 @@ export const SUB = {
   allowBase: 7,
   allowStam: 6,
   /** Blowout: |margin| to start resting starters in Q3 / Q4+, and the margin under which they return. */
-  blowoutQ3: 25,
-  blowoutQ4: 20,
+  blowoutQ3: 28,
+  blowoutQ4: 24,
   blowoutReturn: 12,
   blowoutShove: 6,
   /** Clutch: last minutes of Q4/OT within this margin → no resting swaps. */
@@ -41,6 +44,29 @@ export const SUB = {
   clutchMargin: 8,
   /** A swap's score cost is the out-of-position penalty divided by this. */
   posCost: 4,
+}
+
+/** Is the game decided enough (this late) that the coach rests the starters? */
+export const isBlowout = (period: number, lead: number): boolean =>
+  period === 3 ? lead >= SUB.blowoutQ3 : period >= 4 && lead >= SUB.blowoutQ4
+
+/** Each sitting starter replaces the non-starter whose slot he fits best (up to `max` swaps). */
+export function returnStarterSwaps(onCourt: string[], starters: string[], players: Record<string, Player>, max = STARTERS): Swap[] {
+  const court = [...onCourt]
+  const swaps: Swap[] = []
+  for (const id of starters) {
+    if (swaps.length >= max) break
+    if (court.includes(id) || !players[id]) continue
+    let slot = -1
+    court.forEach((cur, k) => {
+      if (starters.includes(cur)) return
+      if (slot < 0 || slotFit(players[id], SLOTS[k]) > slotFit(players[id], SLOTS[slot])) slot = k
+    })
+    if (slot < 0) break
+    swaps.push({ slot, out: court[slot], in: id })
+    court[slot] = id
+  }
+  return swaps
 }
 
 /**
@@ -51,13 +77,16 @@ export function chooseSubs(i: SubInput): Swap[] {
   if (!i.sitting.length) return []
   const remaining = i.periodMinutes - i.minuteInPeriod
   const lead = Math.abs(i.margin)
-  if (i.period >= 4 && remaining <= SUB.clutchMinutes && lead <= SUB.clutchMargin) return []
+  // Late and close (any overtime minute too): the starters play the finish, no resting.
+  if (lead <= SUB.clutchMargin && (i.period >= 5 || (i.period === 4 && remaining <= SUB.clutchMinutes))) {
+    return returnStarterSwaps(i.onCourt, i.starters, i.players)
+  }
 
   const share = i.gameMinutes > 0 ? i.elapsed / i.gameMinutes : 0
   const ahead = (id: string) => (i.played[id] ?? 0) - (i.target[id] ?? 0) * share
   const isStarter = (id: string) => i.starters.includes(id)
-  const rest = i.period === 3 ? lead >= SUB.blowoutQ3 : i.period >= 4 && lead >= SUB.blowoutQ4
-  const comeback = i.period >= 3 && lead < SUB.blowoutReturn
+  const rest = isBlowout(i.period, lead)
+  const comeback = i.blowoutSeen && i.period >= 3 && lead < SUB.blowoutReturn
 
   const outScore = (id: string) => {
     const stam = i.players[id]?.ratings.stam ?? 50
@@ -70,6 +99,8 @@ export function chooseSubs(i: SubInput): Swap[] {
     return s
   }
   const inScore = (id: string) => {
+    // A starter who has been rested for the blowout stays out; he only returns once the game tightens.
+    if (rest && isStarter(id)) return -Infinity
     let s = -ahead(id)
     if (rest && !isStarter(id)) s += SUB.blowoutShove / 2
     if (comeback && isStarter(id)) s += SUB.blowoutShove

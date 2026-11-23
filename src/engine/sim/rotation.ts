@@ -171,3 +171,12 @@ export function courtPenalties(ids: string[], players: Record<string, Player>, s
   ids.forEach((id, i) => (out[id] = cost(i, best[i])))
   return out
 }
+
+/**
+ * Out-of-position costs for whoever is on the floor. While all five starters are out there the coach's set positions
+ * (the starters' order) apply; any other group is re-slotted by the coach to minimise the total cost.
+ */
+export function lineupPenalties(onCourt: string[], starters: string[], players: Record<string, Player>): Record<string, number> {
+  const same = onCourt.length === STARTERS && starters.length === STARTERS && starters.every((id) => onCourt.includes(id))
+  return same ? courtPenalties(starters, players, true) : courtPenalties(onCourt, players, false)
+}

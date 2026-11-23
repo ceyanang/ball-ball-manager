@@ -31,7 +31,7 @@ function base(over: Partial<SubInput> = {}): SubInput {
   for (const id of Object.keys(target)) if (!starters.includes(id)) stint[id] = 0
   return {
     period: 2, minuteInPeriod: 0, periodMinutes: 12, elapsed, gameMinutes, margin: 0,
-    onCourt: starters, sitting: BENCH.map(([id]) => id), stint, played, target, starters, players, ...over,
+    onCourt: starters, sitting: BENCH.map(([id]) => id), stint, played, target, starters, players, blowoutSeen: false, ...over,
   }
 }
 
@@ -84,13 +84,13 @@ describe('chooseSubs', () => {
   })
 
   it('blowout rests starters, and brings them back when the margin falls under 12', () => {
-    const rest = chooseSubs(base({ period: 4, minuteInPeriod: 4, margin: 22, elapsed: 36 }))
+    const rest = chooseSubs(base({ period: 4, minuteInPeriod: 4, margin: 26, elapsed: 36 }))
     expect(rest.length).toBeGreaterThan(0)
     for (const s of rest) {
       expect(STARTERS.map(([id]) => id)).toContain(s.out)
       expect(s.in.startsWith('b')).toBe(true)
     }
-    const swapped = base({ period: 4, minuteInPeriod: 4, margin: 8, elapsed: 36 })
+    const swapped = base({ period: 4, minuteInPeriod: 4, margin: 8, elapsed: 36, blowoutSeen: true })
     swapped.onCourt = ['b0', 'b1', 'b2', 'b3', 'b4']
     swapped.sitting = ['s0', 's1', 's2', 's3', 's4', 'b5', 'b6']
     const back = chooseSubs(swapped)
@@ -124,5 +124,39 @@ describe('chooseSubs', () => {
     const a = chooseSubs(i), b = chooseSubs(i)
     expect(a).toEqual(b)
     for (const s of a) expect(Math.abs(SLOT_IDX[players[s.in].pos] - s.slot)).toBeLessThanOrEqual(1)
+  })
+
+  it('a rested blowout never swaps one starter for another', () => {
+    const i = base({ period: 4, minuteInPeriod: 4, margin: 26, elapsed: 36, blowoutSeen: true })
+    i.onCourt = ['s0', 'b1', 'b2', 'b3', 'b4']
+    i.sitting = ['s1', 's2', 's3', 's4', 'b0', 'b5', 'b6']
+    rested(i)
+    const swaps = chooseSubs(i)
+    expect(swaps.length).toBeGreaterThan(0)
+    for (const w of swaps) expect(w.in.startsWith('b')).toBe(true)
+  })
+
+  it('a close game that was never a blowout does not shove bench players out', () => {
+    const i = base({ period: 4, minuteInPeriod: 5, margin: 5, elapsed: 41 })
+    i.onCourt = ['b0', 'b1', 'b2', 'b3', 'b4']
+    i.sitting = ['s0', 's1', 's2', 's3', 's4', 'b5', 'b6']
+    for (const id of i.onCourt) i.stint[id] = 3
+    expect(chooseSubs(i)).toEqual([])
+  })
+
+  it('clutch brings the starters back in and keeps them there', () => {
+    const i = base({ period: 4, minuteInPeriod: 9, margin: 5, elapsed: 45 })
+    i.onCourt = ['b0', 's1', 's2', 'b3', 's4']
+    i.sitting = ['s0', 's3', 'b1', 'b2', 'b4', 'b5', 'b6']
+    const swaps = chooseSubs(i)
+    expect(swaps.map((w) => w.in).sort()).toEqual(['s0', 's3'])
+    expect(swaps.map((w) => w.out).sort()).toEqual(['b0', 'b3'])
+  })
+
+  it('overtime tip in a tied game does not rest starters', () => {
+    const i = base({ period: 5, minuteInPeriod: 0, periodMinutes: 5, margin: 0, elapsed: 48, gameMinutes: 53 })
+    for (const id of i.onCourt) { i.stint[id] = 14; i.played[id] = 34 }
+    rested(i)
+    expect(chooseSubs(i)).toEqual([])
   })
 })
