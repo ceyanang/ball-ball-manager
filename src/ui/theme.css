@@ -274,6 +274,15 @@ table.stats tr.last-starter td { border-bottom: 2px solid var(--ink-2); }
 .tx-tag.draft { background: #5a3f8a; color: #e8dcff; }
 .field select { font: inherit; padding: 0.5rem 0.7rem; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .trade-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1rem; }
+.offer-list { display: flex; flex-direction: column; gap: 0.7rem; max-height: 640px; overflow-y: auto; }
+.offer { display: flex; flex-direction: column; gap: 0.4rem; padding: 0.7rem; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); }
+.offer .asset { cursor: default; }
+.offer .asset-name { color: var(--ink); text-decoration: none; }
+.offer-grade { font-size: 0.75rem; font-weight: 800; padding: 0.15rem 0.55rem; border-radius: 999px; white-space: nowrap; }
+.offer-grade.good { color: var(--win); background: color-mix(in srgb, var(--win) 16%, transparent); }
+.offer-grade.fair { color: var(--gold); background: color-mix(in srgb, var(--gold) 16%, transparent); }
+.offer-grade.poor { color: var(--loss); background: color-mix(in srgb, var(--loss) 16%, transparent); }
+@media (max-width: 720px) { .offer-list { max-height: none; } }
 .asset-list { display: flex; flex-direction: column; gap: 0.3rem; max-height: 520px; overflow-y: auto; }
 .asset { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.5rem; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; min-width: 0; }
 .asset.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--surface-2)); }

@@ -27,7 +27,7 @@ export const SIDEBAR: NavItem[] = [HOME, INBOX, ROSTER, ROTATIONS, OFFICE, SCHED
 export const TABS: (NavItem & { match: string[] })[] = [
   { ...HOME, match: ['/'] },
   { ...ROSTER, label: 'Team', match: ['/roster', '/my-team'] },
-  { ...OFFICE, label: 'Office', match: ['/office', '/trade', '/free-agents', '/draft'] },
+  { ...OFFICE, label: 'Office', match: ['/office', '/trade', '/trade-finder', '/free-agents', '/draft'] },
   { ...INBOX, match: ['/inbox'] },
 ]
 

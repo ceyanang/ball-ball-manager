@@ -4,7 +4,7 @@ import { capProblem, committed, isFreeAgent, ovr, payroll, tradesOpen } from '..
 import { autoPick, currentSlot, LOTTERY_DRAWS } from '../../src/engine/gm/draft'
 import { advanceOffseason, seasonStartProblem } from '../../src/engine/gm/offseason'
 import { claimWaiver, currentAsk, fillRoster, offerFreeAgent, processWaivers, releasePlayer } from '../../src/engine/gm/roster'
-import { aiVerdict, proposeTrade, suggestPackage, type Asset } from '../../src/engine/gm/trade'
+import { aiVerdict, findOffers, proposeTrade, suggestPackage, type Asset } from '../../src/engine/gm/trade'
 import { playerValue } from '../../src/engine/gm/value'
 import { createLeague } from '../../src/engine/league/create'
 import { Rng } from '../../src/engine/rng'
@@ -60,6 +60,21 @@ describe('trades', () => {
       expect(validateRotation(l.teams[id].rotation, ids)).toEqual([])
     }
     expect(l.transactions.at(-1)!.type).toBe('trade')
+  })
+  it('trade finder returns legal offers the CPU accepts, best first', () => {
+    const l = fresh()
+    const mine = best(l, user(l))[1]
+    const t0 = performance.now()
+    const offers = findOffers(l, user(l), [P(mine.id)])
+    expect(performance.now() - t0).toBeLessThan(1500)
+    expect(offers.length).toBeGreaterThan(0)
+    for (let i = 1; i < offers.length; i++) expect(offers[i - 1].value).toBeGreaterThanOrEqual(offers[i].value)
+    const picksOnly = findOffers(l, user(l), [P(mine.id)], { want: (a) => a.kind === 'pick' })
+    for (const o of picksOnly) expect(o.gives.every((a) => a.kind === 'pick')).toBe(true)
+    const top = offers[0]
+    const v = proposeTrade(l, { a: user(l), b: top.teamId, aGives: [P(mine.id)], bGives: top.gives })
+    expect(v.ok).toBe(true)
+    expect(l.players[mine.id].teamId).toBe(top.teamId)
   })
   it('values young high-potential players more for rebuilders, and closes at the deadline', () => {
     const l = fresh()

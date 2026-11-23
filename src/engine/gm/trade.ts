@@ -161,3 +161,43 @@ export function aiTrades(l: League, rng: Rng, attempts: number): number {
   }
   return made
 }
+
+export interface Offer { teamId: string; gives: Asset[]; value: number }
+export interface FindOptions { want?: (a: Asset) => boolean }
+
+/**
+ * Trade finder: for each other team, the best return (by `fromTeam`'s own valuation) that the team
+ * would accept for `offered`. Tries singles, pairs and triples among each team's most useful pieces.
+ * Sorted best offer first; teams with nothing that works are left out.
+ */
+export function findOffers(l: League, fromTeam: string, offered: Asset[], opts: FindOptions = {}): Offer[] {
+  if (!offered.length || !tradesOpen(l)) return []
+  const myMode = teamMode(l, fromTeam)
+  const offers: Offer[] = []
+  for (const teamId of Object.keys(l.teams)) {
+    if (teamId === fromTeam) continue
+    const pool = tradeableAssets(l, teamId)
+      .filter((a) => !opts.want || opts.want(a))
+      .map((a) => ({ a, v: packageValue(l, fromTeam, [a], offered, myMode) }))
+      .filter((x) => x.v > 0)
+      .sort((x, y) => y.v - x.v)
+      .slice(0, 10)
+    const combos: { give: Asset[]; v: number }[] = []
+    for (let i = 0; i < pool.length; i++) {
+      combos.push({ give: [pool[i].a], v: pool[i].v })
+      for (let j = i + 1; j < pool.length; j++) {
+        combos.push({ give: [pool[i].a, pool[j].a], v: pool[i].v + pool[j].v })
+        for (let k = j + 1; k < Math.min(8, pool.length); k++)
+          combos.push({ give: [pool[i].a, pool[j].a, pool[k].a], v: pool[i].v + pool[j].v + pool[k].v })
+      }
+    }
+    combos.sort((x, y) => y.v - x.v)
+    for (const c of combos) {
+      if (!aiVerdict(l, teamId, offered, c.give).ok) continue
+      if (tradeProblem(l, { a: fromTeam, b: teamId, aGives: offered, bGives: c.give })) continue
+      offers.push({ teamId, gives: c.give, value: packageValue(l, fromTeam, c.give, offered, myMode) })
+      break
+    }
+  }
+  return offers.sort((x, y) => y.value - x.value)
+}

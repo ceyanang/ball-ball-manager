@@ -18,6 +18,7 @@ import { NewLeague } from './screens/NewLeague'
 import { Saves } from './screens/Saves'
 import { FrontOffice } from './screens/FrontOffice'
 import { Trade } from './screens/Trade'
+import { TradeFinder } from './screens/TradeFinder'
 import { FreeAgents } from './screens/FreeAgents'
 import { Draft } from './screens/Draft'
 import { Offseason } from './screens/Offseason'
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/leaders" element={guarded(<Leaders />)} />
           <Route path="/office" element={guarded(<FrontOffice />)} />
           <Route path="/trade" element={guarded(<Trade />)} />
+          <Route path="/trade-finder" element={guarded(<TradeFinder />)} />
           <Route path="/free-agents" element={guarded(<FreeAgents />)} />
           <Route path="/draft" element={guarded(<Draft />)} />
           <Route path="/offseason" element={guarded(<Offseason />)} />

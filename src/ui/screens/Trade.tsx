@@ -15,7 +15,7 @@ import { fullName, money, ovrOf, teamFull } from '../util'
 
 const key = (a: Asset) => `${a.kind}:${a.id}`
 
-function AssetList({ league, teamId, assets, picked, toggle, pos, q }: {
+export function AssetList({ league, teamId, assets, picked, toggle, pos, q }: {
   league: League; teamId: string; assets: Asset[]; picked: Set<string>; toggle: (a: Asset) => void; pos: PosFilter; q: string
 }) {
   const team = league.teams[teamId]
@@ -69,8 +69,10 @@ export function Trade() {
   const me = league.userTeamId
   const others = Object.values(league.teams).filter((t) => t.id !== me).sort((a, b) => a.city.localeCompare(b.city))
   const [partner, setPartner] = useState(params.get('team') && params.get('team') !== me ? params.get('team')! : others[0].id)
-  const [give, setGive] = useState<Set<string>>(new Set())
-  const [get, setGet] = useState<Set<string>>(() => new Set(params.get('get') ? [`player:${params.get('get')}`] : []))
+  // ?get=<playerId> targets one player; ?gets=/gives= carry full asset keys (kind:id, comma-separated) from the trade finder.
+  const keys = (name: string) => (params.get(name) ?? '').split(',').filter(Boolean)
+  const [give, setGive] = useState<Set<string>>(() => new Set(keys('gives')))
+  const [get, setGet] = useState<Set<string>>(() => new Set([...keys('gets'), ...keys('get').map((id) => `player:${id}`)]))
   const [hint, setHint] = useState<string | null>(null)
   const [pos, setPos] = useState<PosFilter>('All')
   const [q, setQ] = useState('')

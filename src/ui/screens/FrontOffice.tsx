@@ -23,6 +23,7 @@ export function FrontOffice() {
 
   const cards: [string, string, string, boolean][] = [
     ['/trade', '🔄 Trade', open ? 'Build a deal or ask what it would take.' : deadlineNote, true],
+    ['/trade-finder', '🔎 Trade finder', open ? 'Shop your players and see what teams offer.' : deadlineNote, open],
     ['/free-agents', '✍️ Free agents', 'Sign players and claim waivers.', true],
     ['/draft', '🎓 Draft', league.draft ? 'Lottery, big board and draft room.' : 'Opens after the season.', !!league.draft],
     ['/offseason', '🗓️ Offseason', league.phase === 'offseason' ? 'Pick up where you left off.' : 'Starts after the Finals.', league.phase === 'offseason'],
