@@ -126,3 +126,5 @@
   100% { transform: none; opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) { .w-card.swap { animation: none; } }
+.w-sub { background: rgba(255,255,255,0.05); border-radius: 6px; padding-left: 14px; }
+.w-bench-toggle { color: var(--ink-2); text-decoration: none; cursor: pointer; }

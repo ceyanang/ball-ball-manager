@@ -11,6 +11,7 @@ import {
   advanceTo, beatsAverage, benchLine, clockText, describePlays, describeSub, elapsedFraction, eventCards, finalState, initState, isHot,
   periodCount, periodLabel, periodMs, shotDelays, shotMs, sittingIds, standout, type ReplayState,
 } from './replay'
+import { recapRows } from './recap'
 import { WatchCard } from './WatchCard'
 import { WatchPlayerSheet } from './WatchPlayerSheet'
 import './watch.css'
@@ -330,12 +331,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     const sp = sid ? m.players[sid] : null
     const avg = sid ? m.ppg[sid] ?? null : null
     const standoutText = sp ? `👀 Standout: ${fullName(sp)}, ${lineOf(sid!).pts} pts${avg !== null ? ` (avg ${avg.toFixed(1)})` : ''}` : null
-    const rows: RecapRow[] = []
-    for (const side of [m.userSide, m.oppSide]) {
-      const team = m.teamOf[side]
-      for (const id of m.starters[side]) rows.push({ key: id, name: m.players[id]?.lastName ?? '?', playerId: id, team, fav: favs.has(id), line: lineOf(id) })
-      rows.push({ key: `bench-${side}`, name: `${team.abbrev} bench`, playerId: null, team, fav: false, line: benchLine(rs, m.bench[side]) })
-    }
+    const rows: RecapRow[] = [m.userSide, m.oppSide].flatMap((side) => recapRows(rs, { starters: m.starters[side], bench: m.bench[side] }, m.teamOf[side], m.players, favs))
     return (
       <QuarterBreak
         title={title}
