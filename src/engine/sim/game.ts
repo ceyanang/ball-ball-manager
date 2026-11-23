@@ -3,6 +3,7 @@ import { computeOvr } from '../player/ratings'
 import type { Rng } from '../rng'
 import type { BoxLine, Coach, CoachStyle, GameResult, Player, Team } from '../types'
 import type { PlayEvent, Side } from './playlog'
+import type { GameMods } from '../events/mods'
 import { gameLineup, lineupPenalties, minutesTargets, SLOTS, slotFit } from './rotation'
 import { chooseSubs, isBlowout, returnStarterSwaps, SUB } from './subs'
 
@@ -38,6 +39,8 @@ export const K = {
   oopDef: 0.5,
   /** Make-probability per morale point away from 60 (≈ ±1.6% at the extremes). */
   morale: 0.0004,
+  /** Make-probability per team-chemistry point away from 50 (≈ ±2% at the extremes). */
+  chemistry: 0.0004,
   /** Make-probability the trailing offense gains per point behind (capped at `rubberCap` points): pressing, the leader coasting. */
   rubber: 0.0035,
   rubberCap: 25,
@@ -105,11 +108,14 @@ const mean = (ids: string[], f: (id: string) => number) => ids.reduce((s, id) =>
 export function simGame(
   home: Team,
   away: Team,
-  players: Record<string, Player>,
+  playersIn: Record<string, Player>,
   coaches: Record<string, Coach>,
   rng: Rng,
   log?: PlayEvent[],
+  mods?: GameMods,
 ): GameResult {
+  // A rested player is treated as unavailable for this game only (a copy; the league's player is untouched).
+  const players = mods?.sit.length ? { ...playersIn, ...Object.fromEntries(mods.sit.filter((id) => playersIn[id]).map((id) => [id, { ...playersIn[id], injury: playersIn[id].injury ?? { type: 'Rest', gamesRemaining: 1, severity: 'dtd' as const } }])) } : playersIn
   for (const t of [home, away]) {
     const n = new Set([...t.rotation.starters, ...t.rotation.bench, ...t.rotation.inactive].filter((id) => players[id])).size
     if (n < STARTERS) throw new Error(`${t.name} has fewer than ${STARTERS} players and cannot play a game (has ${n}).`)
@@ -131,7 +137,7 @@ export function simGame(
       const r = p.ratings
       const scoring = Math.max(r.ins, r.mid, r.three) * 0.5 + ((r.ins + r.mid + r.three) / 3) * 0.2 + r.handle * 0.1 + computeOvr(r, p.pos) * 0.2
       usage[id] = Math.pow(scoring / K.pivot, K.usageExp)
-      energy[id] = 100
+      energy[id] = Math.max(0, 100 + Math.min(0, mods?.energy[id] ?? 0))
       heat[id] = 0
       box[id] = {
         playerId: id, teamId: team.id, gs: lu.starters.includes(id), min: 0, pts: 0, oreb: 0, dreb: 0, ast: 0, stl: 0,
@@ -293,7 +299,7 @@ export function simGame(
       const wRim = Math.max(1, r.ins - 20), wMid = Math.max(1, r.mid - 30) * 0.6
       const wThree = Math.max(1, r.three - 35) * 1.4 * (oStyle === 'three' ? K.threeStyle : 1)
       const type = rng.weighted(['rim', 'mid', 'three'] as const, (t) => (t === 'rim' ? wRim : t === 'mid' ? wMid : wThree))
-      const dCost = (id: string) => (dPen[id] ?? 0) * K.oopDef + tired(id) * FATIGUE.def
+      const dCost = (id: string) => (dPen[id] ?? 0) * K.oopDef + tired(id) * FATIGUE.def - (mods?.defense[id] ?? 0)
       const perD = mean(d, (id) => R(id).perD - dCost(id)), intD = mean(d, (id) => R(id).intD - dCost(id))
       let p =
         type === 'rim' ? K.rimBase + (r.ins - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK
@@ -303,6 +309,7 @@ export function simGame(
       p -= (oPen[shooter] ?? 0) * K.oopShot
       p -= fatigueCost(tired(shooter)) * FATIGUE.shot
       p += ((players[shooter].morale ?? 60) - 60) * K.morale
+      p += (mods?.shooting[shooter] ?? 0) * 0.01 + ((mods?.chemistry[sides[off].team.id] ?? 50) - 50) * K.chemistry
       if (dStyle === 'defense') p -= K.defenseStyle
       if (off === 'home') p += K.home
       p += Math.min(K.rubberCap, Math.max(0, score[other(off)] - score[off])) * K.rubber
@@ -386,7 +393,7 @@ export function simGame(
       for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) sides[s].stint[id] = sides[s].onCourt.includes(id) ? sides[s].stint[id] + sl : 0
       for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) {
         energy[id] = sides[s].onCourt.includes(id)
-          ? Math.max(0, energy[id] - drainPerMinute(players[id], heat[id] >= FATIGUE.hotHeat) * sl)
+          ? Math.max(0, energy[id] - drainPerMinute(players[id], heat[id] >= FATIGUE.hotHeat) * (1 - Math.max(0, mods?.energy[id] ?? 0) / 100) * sl)
           : Math.min(100, energy[id] + FATIGUE.bench * sl)
       }
       elapsed += sl

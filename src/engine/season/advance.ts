@@ -10,6 +10,7 @@ import { aiTrades } from '../gm/trade'
 import { rollInjuries, tickInjuries } from '../sim/injury'
 import { addBoxToStatLines } from '../stats/stats'
 import type { Game, League, Phase, Player, Series } from '../types'
+import { buildMods, tickEffects } from '../events/mods'
 import { advancePlayoffs, seedPlayoffs } from './playoffs'
 import { pruneTraining } from '../gm/training'
 import { afterDay, afterGame, onBreakout, afterOffseason, onInjury, onRegularSeasonEnd, onReturn, onSeasonEnd, onSeriesDecided } from '../stories/hooks'
@@ -23,7 +24,8 @@ interface Capture { teamId: string; out: WatchCapture | null }
 
 function playGame(league: League, g: Game, rng: Rng, capture?: Capture): void {
   const log: PlayEvent[] | undefined = capture && (g.homeId === capture.teamId || g.awayId === capture.teamId) ? [] : undefined
-  const res = simGame(league.teams[g.homeId], league.teams[g.awayId], league.players, league.coaches, rng, log)
+  const res = simGame(league.teams[g.homeId], league.teams[g.awayId], league.players, league.coaches, rng, log, buildMods(league, g))
+  if (g.homeId === league.userTeamId || g.awayId === league.userTeamId) tickEffects(league)
   if (log && capture) capture.out = { gameId: g.id, log }
   g.result = res
   addBoxToStatLines(league.statLines, g)
