@@ -15,6 +15,7 @@ import { useStore } from '../store'
 import { POSITIONS, filterPlayers, type PosFilter } from '../playerFilter'
 import { fullName, money, ovrOf, teamFull } from '../util'
 import { rejectionText, tradeLabel } from '../tradeText'
+import { Help } from '../components/Help'
 
 const key = (a: Asset) => `${a.kind}:${a.id}`
 
@@ -189,7 +190,7 @@ export function Trade() {
 
       <div className="trade-grid">
         <section className="panel stack">
-          <div className="row"><TeamBadge team={league.teams[me]} size={32} /><h2>You send</h2></div>
+          <div className="row"><TeamBadge team={league.teams[me]} size={32} /><h2>You send</h2><Help topics={['pot', 'need']} /></div>
           <AssetList league={league} teamId={me} assets={myAssets} picked={give} toggle={toggle(give, setGive)} pos={pos} q={q} />
         </section>
         <section className="panel stack">

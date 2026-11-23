@@ -21,6 +21,7 @@ import { recapRows } from './recap'
 import { WatchCard } from './WatchCard'
 import { WatchPlayerSheet } from './WatchPlayerSheet'
 import './watch.css'
+import { Help } from '../components/Help'
 
 type Phase = 'play' | 'break' | 'final'
 type ShotKind = 'made' | 'miss' | 'blocked'
@@ -383,6 +384,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
         <div className="w-top">
           <span className="w-meta">🏀 {m.meta}</span>
           <span className="row">
+            <Help topics={['tiers']} label="What do the card colours mean?" />
             <button className="btn" aria-pressed={audio.muted} aria-label={audio.muted ? 'Unmute sound' : 'Mute sound'} onClick={() => setSettings({ muted: !audio.muted })}>{audio.muted ? '🔇' : '🔊'}</button>
             {phase !== 'final' && <button className="btn" onClick={() => setConfirmExit(true)}>Exit</button>}
           </span>

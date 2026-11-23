@@ -13,6 +13,7 @@ import { OvrPill } from '../components/OvrPill'
 import { PlayerCell } from '../components/PlayerCell'
 import { useStore } from '../store'
 import { fullName, money, ovrOf } from '../util'
+import { Help } from '../components/Help'
 
 const POS = ['All', 'PG', 'SG', 'SF', 'PF', 'C']
 
@@ -97,7 +98,7 @@ export function FreeAgents() {
 
       <section className="panel stack">
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <h2>Available</h2>
+          <h2>Available <Help topics={['pot', 'need']} /></h2>
           <div className="seg">{POS.map((x) => <button key={x} className="btn" aria-pressed={pos === x} onClick={() => setPos(x)}>{x}</button>)}</div>
         </div>
         <div className="table-wrap">

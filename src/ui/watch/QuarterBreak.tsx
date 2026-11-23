@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Team } from '../../engine/types'
 import type { LiveLine } from './replay'
+import { Help } from '../components/Help'
 
 export interface RecapRow {
   key: string
@@ -72,7 +73,7 @@ export function QuarterBreak({ title, scoreText, leader, standout, rows, button,
           )
         })}
       </div>
-      <div className="w-hint">Tap a name for his full line · tap a bench row for everyone who didn’t start</div>
+      <div className="w-hint">Tap a name for his full line · tap a bench row for everyone who didn’t start <Help topics={['energy', 'tiers']} /></div>
       <div className="w-break-actions">
         {onBoxScore && <button className="btn w-next" onClick={onBoxScore}>Full box score</button>}
         <button ref={next} className="btn btn-primary w-next" onClick={onButton}>{button}</button>

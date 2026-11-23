@@ -15,6 +15,7 @@ import { capSeason } from '../../engine/gm/cap'
 import { releasePlayer } from '../../engine/gm/roster'
 import { fullName, money, one, ordinal, ovrOf, rosterOf, seasonLine } from '../util'
 import { useUnsavedGuard } from '../useUnsavedGuard'
+import { Help } from '../components/Help'
 
 const LABEL: Record<Section, string> = { starters: 'Starting five', bench: 'Bench', inactive: 'Inactive' }
 const BENCH_SLOTS = ACTIVE_MAX - STARTERS
@@ -198,7 +199,7 @@ export function MyTeam() {
       {problems.length > 0 && <div className="notice" role="status">{problems.join(' ')}</div>}
 
       <section className="panel rot-section">
-        <h3>{LABEL.starters}</h3>
+        <h3>{LABEL.starters} <Help topics={['pot', 'sta']} /></h3>
         <div className="rot-grid starters">
           {draft.starters.map((id, i) => card(league.players[id], { section: 'starters', index: i }, SLOTS[i] ?? '—'))}
         </div>
