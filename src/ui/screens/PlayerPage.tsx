@@ -50,8 +50,10 @@ function seasonsTable(league: League, playerId: string, playoffs: boolean) {
 export function PlayerPage() {
   const { id } = useParams()
   const league = useStore((s) => s.league)!
+  const toggleFavorite = useStore((s) => s.toggleFavorite)
   const p = id ? league.players[id] : undefined
   if (!p) return <Navigate to="/" replace />
+  const fav = league.favoritePlayerIds.includes(p.id)
   const team = p.teamId ? league.teams[p.teamId] : null
   const colors = team?.colors ?? { primary: '#5b6378', secondary: '#ffffff' }
   const ovr = ovrOf(p)
@@ -74,6 +76,9 @@ export function PlayerPage() {
           <div className="sub">#{p.jersey} · {p.pos} · {team ? teamFull(team) : p.retired ? 'Retired' : league.draftRights[p.id] ? `Draft rights: ${league.teams[league.draftRights[p.id]].name}` : 'Free agent'}</div>
           <span className="archetype-chip">{archetypeFor(p)}</span>
           {hof && <span className="archetype-chip hof-chip">🎖️ Hall of Fame · S{hof.season}</span>}
+          <div style={{ marginTop: '0.5rem' }}>
+            <button className="btn" onClick={() => toggleFavorite(p.id)} aria-pressed={fav} style={fav ? { borderColor: 'var(--gold)' } : undefined}>{fav ? '⭐ Your guy' : '☆ Favorite'}</button>
+          </div>
           {p.injury && <div style={{ marginTop: '0.4rem', fontWeight: 700 }}>🤕 {p.injury.type} — {p.injury.gamesRemaining >= 999 ? 'out for the season' : `out ${p.injury.gamesRemaining} more game${p.injury.gamesRemaining === 1 ? '' : 's'}`}</div>}
         </div>
         <div style={{ textAlign: 'center' }}>
