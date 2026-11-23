@@ -10,6 +10,10 @@ export type PlayEvent = Base & (
   | { k: 'stl'; side: Side; player: string }
   | { k: 'blk'; side: Side; player: string }
   | { k: 'tov'; side: Side; player: string }
+  /** Opening five (slot order PG, SG, SF, PF, C) for each side, logged at the start of period 1. */
+  | { k: 'lineup'; side: Side; players: string[] }
+  /** A coach's swap: `in` replaces `out` in lineup slot `slot`. */
+  | { k: 'sub'; side: Side; out: string; in: string; slot: number }
   | { k: 'periodEnd'; min: Record<string, number>; pm: Record<string, number> })
 
 export interface LogBoxLine {
@@ -23,7 +27,7 @@ const blank = (): LogBoxLine => ({ pts: 0, oreb: 0, dreb: 0, ast: 0, stl: 0, blk
 export function boxFromLog(log: PlayEvent[]): Record<string, LogBoxLine> {
   const box: Record<string, LogBoxLine> = {}
   for (const e of log) {
-    if (e.k === 'periodEnd') continue
+    if (e.k === 'periodEnd' || e.k === 'lineup' || e.k === 'sub') continue
     const b = (box[e.player] ??= blank())
     if (e.k === 'fg') {
       b.fga++

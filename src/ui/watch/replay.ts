@@ -56,6 +56,9 @@ function apply(lines: Record<string, LiveLine>, e: PlayEvent) {
       l[e.off ? 'oreb' : 'dreb']++
       break
     }
+    case 'lineup':
+    case 'sub':
+      break
     case 'periodEnd':
       for (const id of new Set([...Object.keys(e.min), ...Object.keys(e.pm)])) {
         const l = line(id)
@@ -142,7 +145,7 @@ export function describePlays(events: PlayEvent[], last: (id: string) => string)
   type Play = { head: PlayEvent; ast?: string; blk?: string; reb?: { id: string; off: boolean }; stl?: string; ft: { m: number; a: number; who: string } | null }
   let cur: Play | null = null
   for (const e of events) {
-    if (e.k === 'periodEnd') continue
+    if (e.k === 'periodEnd' || e.k === 'lineup' || e.k === 'sub') continue
     if (e.k === 'fg' || e.k === 'tov') cur = { head: e, ft: null }
     else if (e.k === 'ft') {
       const andOne = cur?.head.k === 'fg' && cur.head.made && cur.head.player === e.player && !cur.reb

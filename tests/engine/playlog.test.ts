@@ -82,3 +82,18 @@ describe('simGame play log', () => {
     }
   })
 })
+
+describe('lineup and sub events', () => {
+  it('boxFromLog and quartersFromLog ignore lineup and sub events', () => {
+    const log: PlayEvent[] = [
+      { k: 'lineup', side: 'home', players: ['a', 'b', 'c', 'd', 'e'], period: 1, t: 0 },
+      { k: 'sub', side: 'home', out: 'b', in: 'f', slot: 1, period: 1, t: 0.2 },
+      { k: 'fg', side: 'home', player: 'a', made: true, three: false, home: 2, away: 0, period: 1, t: 0.5 },
+      { k: 'periodEnd', min: {}, pm: {}, period: 1, t: 1 },
+    ]
+    const box = boxFromLog(log)
+    expect(Object.keys(box)).toEqual(['a'])
+    expect(box.a).toMatchObject({ pts: 2, fgm: 1, fga: 1, ast: 0, tov: 0 })
+    expect(quartersFromLog(log)).toEqual({ home: [2], away: [0] })
+  })
+})
