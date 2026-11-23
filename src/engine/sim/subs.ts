@@ -18,6 +18,10 @@ export interface SubInput {
   players: Record<string, Player>
   /** A blowout has started and the starters have not all come back yet. */
   blowoutSeen: boolean
+  /** In-game energy 0–100 per player (missing → fresh). */
+  energy?: Record<string, number>
+  /** The GM planned these players for 0 minutes: they never check in (coach's decision), not even in garbage time. */
+  dnp?: string[]
 }
 export interface Swap { slot: number; out: string; in: string }
 
@@ -44,6 +48,12 @@ export const SUB = {
   clutchMargin: 8,
   /** A swap's score cost is the out-of-position penalty divided by this. */
   posCost: 4,
+  /** Energy under which a player on the floor wants a breather, and the points per energy under it. */
+  tiredOut: 55,
+  tiredOutScale: 4,
+  /** Energy under which a sitter is not ready to go back in yet, and the points per energy under it. */
+  tiredIn: 60,
+  tiredInScale: 5,
 }
 
 /** Is the game decided enough (this late) that the coach rests the starters? */
@@ -94,14 +104,16 @@ export function chooseSubs(i: SubInput): Swap[] {
     const shoved = (rest && isStarter(id)) || (comeback && !isStarter(id))
     if ((i.stint[id] ?? 0) < SUB.minStint && !shoved) return -Infinity
     let s = Math.max(0, (i.stint[id] ?? 0) - allow) + Math.max(0, ahead(id) - SUB.aheadSlack)
+    s += Math.max(0, SUB.tiredOut - (i.energy?.[id] ?? 100)) / SUB.tiredOutScale
     if (rest && isStarter(id)) s += SUB.blowoutShove
     if (comeback && !isStarter(id)) s += SUB.blowoutShove / 2
     return s
   }
   const inScore = (id: string) => {
+    if (i.dnp?.includes(id)) return -Infinity
     // A starter who has been rested for the blowout stays out; he only returns once the game tightens.
     if (rest && isStarter(id)) return -Infinity
-    let s = -ahead(id)
+    let s = -ahead(id) - Math.max(0, SUB.tiredIn - (i.energy?.[id] ?? 100)) / SUB.tiredInScale
     if (rest && !isStarter(id)) s += SUB.blowoutShove / 2
     if (comeback && isStarter(id)) s += SUB.blowoutShove
     return s >= SUB.minOwed ? s : -Infinity

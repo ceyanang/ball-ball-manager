@@ -14,7 +14,7 @@ export function recapRows(
   favs: Set<string>,
 ): RecapRow[] {
   const row = (id: string): RecapRow => ({
-    key: id, name: players[id]?.lastName ?? '?', playerId: id, team, fav: favs.has(id), line: benchLine(rs, [id]),
+    key: id, name: players[id]?.lastName ?? '?', playerId: id, team, fav: favs.has(id), line: benchLine(rs, [id]), energy: rs.lines[id]?.energy,
   })
   return [
     ...side.starters.map(row),

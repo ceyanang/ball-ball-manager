@@ -40,6 +40,38 @@ export const K = {
   morale: 0.0004,
 }
 
+/**
+ * In-game energy (0–100). Everyone tips off fresh; minutes on the floor drain it (slower with a high stamina
+ * rating, and slower again while a player is hot), the bench and the breaks refill it. Below `line` a tired
+ * player shoots, handles and defends worse, so riding the starters 44 minutes costs you late.
+ */
+export const FATIGUE = {
+  /** Energy lost per minute on the floor at 0 stamina; a 99-stamina player loses `drain·(1 − stamRelief)`. */
+  drain: 4.5,
+  stamRelief: 0.5,
+  /** Drain multiplier while hot. */
+  hotDrain: 0.65,
+  /** Made-minus-missed shot streak that counts as hot. */
+  hotHeat: 3,
+  /** Energy regained per minute on the bench, at a quarter break, and at halftime. */
+  bench: 6,
+  quarterBreak: 8,
+  halftime: 25,
+  /** Fatigue starts to cost below this energy. */
+  line: 65,
+  /** Make-probability lost per point of energy under the line. */
+  shot: 0.003,
+  /** Defensive rating lost per point under the line. */
+  def: 1.3,
+  /** Turnover probability added per point under the line. */
+  tov: 0.0012,
+}
+
+/** Energy lost by `p` over one minute on the floor. */
+export function drainPerMinute(p: Player, hot: boolean): number {
+  return FATIGUE.drain * (1 - FATIGUE.stamRelief * (p.ratings.stam / 99)) * (hot ? FATIGUE.hotDrain : 1)
+}
+
 interface Ctx {
   team: Team
   style: CoachStyle
@@ -53,6 +85,8 @@ interface Ctx {
   /** A blowout has started and the starters have not all come back yet. */
   blowoutSeen: boolean
   target: Record<string, number>
+  /** The GM's minutes plan, if the depth chart has one. */
+  plan?: Record<string, number>
   quarters: number[]
 }
 
@@ -69,6 +103,11 @@ export function simGame(
   const R = (id: string) => players[id].ratings
   const usage: Record<string, number> = {}
   const box: Record<string, BoxLine> = {}
+  /** Energy 0–100 and the hot streak (made minus missed shots, 0..5) per player. */
+  const energy: Record<string, number> = {}
+  const heat: Record<string, number> = {}
+  const tired = (id: string) => Math.max(0, FATIGUE.line - (energy[id] ?? 100))
+  const shotHeat = (id: string, made: boolean) => { heat[id] = Math.max(0, Math.min(5, (heat[id] ?? 0) + (made ? 1 : -1))) }
 
   const makeSide = (team: Team): Ctx => {
     const lu = gameLineup(team, players)
@@ -78,6 +117,8 @@ export function simGame(
       const r = p.ratings
       const scoring = Math.max(r.ins, r.mid, r.three) * 0.5 + ((r.ins + r.mid + r.three) / 3) * 0.2 + r.handle * 0.1 + computeOvr(r, p.pos) * 0.2
       usage[id] = Math.pow(scoring / K.pivot, K.usageExp)
+      energy[id] = 100
+      heat[id] = 0
       box[id] = {
         playerId: id, teamId: team.id, gs: lu.starters.includes(id), min: 0, pts: 0, oreb: 0, dreb: 0, ast: 0, stl: 0,
         blk: 0, tov: 0, pf: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, pm: 0,
@@ -85,7 +126,7 @@ export function simGame(
     }
     return {
       team, style: coaches[team.coachId]?.style ?? 'balanced', ids, starters: lu.starters, onCourt: [], pen: {},
-      played: Object.fromEntries(ids.map((id) => [id, 0])), stint: Object.fromEntries(ids.map((id) => [id, 0])), blowoutSeen: false, target: minutesTargets(lu, players, 0), quarters: [],
+      played: Object.fromEntries(ids.map((id) => [id, 0])), stint: Object.fromEntries(ids.map((id) => [id, 0])), blowoutSeen: false, plan: team.rotation.minutes, target: minutesTargets(lu, players, 0, team.rotation.minutes), quarters: [],
     }
   }
   const sides: Record<Side, Ctx> = { home: makeSide(home), away: makeSide(away) }
@@ -112,8 +153,10 @@ export function simGame(
     log.push(ev)
     pending.push({ e: ev, idx: possInPeriod })
   }
-  const emitScore = (e: { k: 'fg'; side: Side; player: string; made: boolean; three: boolean } | { k: 'ft'; side: Side; player: string; made: boolean }) =>
+  const emitScore = (e: { k: 'fg'; side: Side; player: string; made: boolean; three: boolean } | { k: 'ft'; side: Side; player: string; made: boolean }) => {
+    if (e.k === 'fg') shotHeat(e.player, e.made)
     emit({ ...e, home: score.home, away: score.away })
+  }
   const refreshPen = (c: Ctx) => { c.pen = lineupPenalties(c.onCourt, c.starters, players) }
   /** Apply swaps (logging each one) and refresh the out-of-position costs. */
   const applySwaps = (side: Side, swaps: { slot: number; out: string; in: string }[]) => {
@@ -136,7 +179,8 @@ export function simGame(
     applySwaps(side, chooseSubs({
       period: periodNo, minuteInPeriod, periodMinutes, elapsed, gameMinutes: 48 + OT_MIN * ot, margin, onCourt: c.onCourt,
       sitting: c.ids.filter((id) => !c.onCourt.includes(id)), stint: c.stint, played: c.played, target: c.target,
-      starters: c.starters, players, blowoutSeen: c.blowoutSeen,
+      starters: c.starters, players, blowoutSeen: c.blowoutSeen, energy,
+      dnp: c.plan ? c.ids.filter((id) => c.plan![id] === 0 && !c.starters.includes(id)) : undefined,
     }))
     if (c.blowoutSeen && Math.abs(margin) < SUB.blowoutReturn && c.starters.every((id) => c.onCourt.includes(id))) c.blowoutSeen = false
   }
@@ -191,7 +235,7 @@ export function simGame(
     const handler = rng.weighted(o, (id) => usage[id] * R(id).handle)
     const hr = R(handler)
     const oPen = sides[off].pen, dPen = sides[other(off)].pen
-    const tovP = K.tovBase + (mean(d, (id) => R(id).stl) - K.pivot) * 0.0015 - ((hr.handle + hr.iq) / 2 - K.pivot) * 0.0015 + (oPen[handler] ?? 0) * 0.001
+    const tovP = K.tovBase + (mean(d, (id) => R(id).stl) - K.pivot) * 0.0015 - ((hr.handle + hr.iq) / 2 - K.pivot) * 0.0015 + (oPen[handler] ?? 0) * 0.001 + tired(handler) * FATIGUE.tov
     if (rng.chance(tovP)) {
       box[handler].tov++
       emit({ k: 'tov', side: off, player: handler })
@@ -208,13 +252,15 @@ export function simGame(
       const wRim = Math.max(1, r.ins - 20), wMid = Math.max(1, r.mid - 30) * 0.6
       const wThree = Math.max(1, r.three - 35) * 1.4 * (oStyle === 'three' ? K.threeStyle : 1)
       const type = rng.weighted(['rim', 'mid', 'three'] as const, (t) => (t === 'rim' ? wRim : t === 'mid' ? wMid : wThree))
-      const perD = mean(d, (id) => R(id).perD - (dPen[id] ?? 0) * K.oopDef), intD = mean(d, (id) => R(id).intD - (dPen[id] ?? 0) * K.oopDef)
+      const dCost = (id: string) => (dPen[id] ?? 0) * K.oopDef + tired(id) * FATIGUE.def
+      const perD = mean(d, (id) => R(id).perD - dCost(id)), intD = mean(d, (id) => R(id).intD - dCost(id))
       let p =
         type === 'rim' ? K.rimBase + (r.ins - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK
         : type === 'mid' ? K.midBase + (r.mid - K.pivot) * K.shooterK - (perD - K.pivot) * K.defK
         : K.threeBase + (r.three - K.pivot) * K.shooterK - (perD - K.pivot) * K.defK * 0.67
       p += ((r.iq + r.ath) / 2 - K.pivot) * 0.001
       p -= (oPen[shooter] ?? 0) * K.oopShot
+      p -= tired(shooter) * FATIGUE.shot
       p += ((players[shooter].morale ?? 60) - 60) * K.morale
       if (dStyle === 'defense') p -= K.defenseStyle
       if (off === 'home') p += K.home
@@ -276,6 +322,10 @@ export function simGame(
     periodNo++
     possInPeriod = 0
     periodStart = pending.length
+    if (periodNo > 1) {
+      const rest = periodNo === 3 ? FATIGUE.halftime : FATIGUE.quarterBreak
+      for (const id of Object.keys(energy)) energy[id] = Math.min(100, energy[id] + rest)
+    }
     stints.forEach((sl, i) => {
       lastStint = i === stints.length - 1
       for (const s of ['home', 'away'] as Side[]) {
@@ -292,6 +342,11 @@ export function simGame(
       }
       for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].onCourt) sides[s].played[id] += sl
       for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) sides[s].stint[id] = sides[s].onCourt.includes(id) ? sides[s].stint[id] + sl : 0
+      for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) {
+        energy[id] = sides[s].onCourt.includes(id)
+          ? Math.max(0, energy[id] - drainPerMinute(players[id], heat[id] >= FATIGUE.hotHeat) * sl)
+          : Math.min(100, energy[id] + FATIGUE.bench * sl)
+      }
       elapsed += sl
       carry += (2 * poss48 * sl) / 48
       const n = Math.floor(carry)
@@ -307,7 +362,9 @@ export function simGame(
       for (const { e, idx } of pending.splice(periodStart)) e.t = possInPeriod ? idx / possInPeriod : 0
       const min: Record<string, number> = {}, pm: Record<string, number> = {}
       for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) { min[id] = sides[s].played[id]; pm[id] = box[id].pm }
-      log.push({ k: 'periodEnd', period: periodNo, t: 1, min, pm })
+      const en: Record<string, number> = {}
+      for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) en[id] = Math.round(energy[id])
+      log.push({ k: 'periodEnd', period: periodNo, t: 1, min, pm, energy: en })
     }
   }
 
@@ -317,7 +374,7 @@ export function simGame(
     ot++
     for (const s of ['home', 'away'] as Side[]) {
       const c = sides[s]
-      c.target = minutesTargets({ starters: c.starters, bench: c.ids.filter((id) => !c.starters.includes(id)) }, players, ot)
+      c.target = minutesTargets({ starters: c.starters, bench: c.ids.filter((id) => !c.starters.includes(id)) }, players, ot, c.plan)
     }
     runPeriod(false, Array.from({ length: OT_MIN }, () => 1))
   }

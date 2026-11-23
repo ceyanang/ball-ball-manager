@@ -3,7 +3,7 @@ import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
 import type { PlayEvent } from '../sim/playlog'
-import { autoRotation } from '../sim/rotation'
+import { autoRotation, coachRotation } from '../sim/rotation'
 import { advanceOffseason, simFreeAgency, startOffseason } from '../gm/offseason'
 import { aiFillRosters, processWaivers } from '../gm/roster'
 import { aiTrades } from '../gm/trade'
@@ -43,11 +43,26 @@ function playGame(league: League, g: Game, rng: Rng, capture?: Capture): void {
   afterGame(league, g)
 }
 
-/** CPU coaches re-pick their depth charts as ratings move. The user's rotation is theirs to manage. */
+/**
+ * CPU coaches re-pick their depth charts as ratings move. The user's rotation is theirs to manage, unless they
+ * ticked "let the coach handle it", in which case it is re-picked like everyone else's.
+ */
 export function refreshAiRotations(league: League): void {
   const byTeam: Record<string, Player[]> = {}
   for (const p of Object.values(league.players)) if (p.teamId) (byTeam[p.teamId] ??= []).push(p)
-  for (const t of Object.values(league.teams)) if (t.id !== league.userTeamId && byTeam[t.id]) t.rotation = autoRotation(byTeam[t.id])
+  for (const t of Object.values(league.teams)) {
+    if (!byTeam[t.id]) continue
+    if (t.id !== league.userTeamId) t.rotation = autoRotation(byTeam[t.id])
+    else if (t.rotation.auto) t.rotation = coachRotation(byTeam[t.id])
+  }
+}
+
+/** Before every game day: a user on auto gets the coach's best healthy-aware depth chart and minutes. */
+function autoUserRotation(league: League): void {
+  const t = league.teams[league.userTeamId]
+  if (!t?.rotation.auto) return
+  const roster = Object.values(league.players).filter((p) => p.teamId === t.id)
+  if (roster.length) t.rotation = coachRotation(roster)
 }
 
 /** Mutates `league`: plays the current day and advances the calendar. Returns true when the user should look (a trade offer, or All-Star Weekend just got set). */
@@ -56,6 +71,7 @@ function stepDay(league: League, rng: Rng, capture?: Capture): boolean {
   const newsFrom = league.news.length, txFrom = league.transactions.length
   let allStarNow = false
   const played: Game[] = []
+  autoUserRotation(league)
   // Skipped the All-Star Weekend broadcast: the games play themselves.
   if (league.phase === 'regular') playPendingAllStar(league)
   for (const g of league.games) {

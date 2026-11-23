@@ -17,5 +17,6 @@ Never deploy a red build: the workflow runs the tests, but run them locally firs
 - `npm test` (Vitest), `npm run typecheck`, `npm run dev`, `npm run build`.
 - Spec: `docs/superpowers/specs/2026-11-22-ball-ball-manager-design.md`; plans in `docs/superpowers/plans/` (M1 core league, M2 GM layer, M3 stories done).
 - Stories (awards, records, history, HoF, highlights, social, inbox, fans/morale) live in `src/engine/stories/`; the season engine only calls `stories/hooks.ts`, and story randomness uses `storyRng` so it never shifts game results.
+- Rotations: `Rotation.minutes` is the GM minutes plan (sums to 240), `Rotation.auto` lets the coach re-pick before every game; in-game energy/fatigue tunables are `FATIGUE` in `sim/game.ts`.
 - GM logic lives in `src/engine/gm/` (cap, trade, roster/FA/waivers, draft, offseason); UI GM moves go through `useStore().act`.
-- Save format is `League` (version 4) in IndexedDB; keep it JSON-serializable and bump `version` + add a migration if the shape changes.
+- Save format is `League` (version 7) in IndexedDB; keep it JSON-serializable and bump `version` + add a migration if the shape changes.

@@ -511,3 +511,40 @@ button, a, select, input, label { touch-action: manipulation; }
 .need-green { background: #30a46c; }
 .needs-strip { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; }
 .need-pos { display: inline-flex; align-items: center; gap: 0.3rem; }
+
+/* Minutes plan (rotation screen) */
+.auto-coach { display: flex; align-items: flex-start; gap: 0.6rem; cursor: pointer; }
+.auto-coach input { width: 1.2rem; height: 1.2rem; margin-top: 0.15rem; accent-color: var(--accent); flex: none; }
+.auto-coach b { display: block; }
+.mins-left { font-size: 0.95rem; }
+.mins-left b { font-family: var(--display); font-size: 1.3rem; color: var(--win); }
+.mins-left.off b { color: var(--loss); }
+.mins-pos { display: grid; gap: 0.25rem; max-width: 420px; }
+.mins-pos-row { display: grid; grid-template-columns: 2.2rem 1fr 2.2rem; gap: 0.5rem; align-items: center; font-size: 0.85rem; }
+.mins-bar { position: relative; height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.mins-bar::after { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: var(--ink-2); opacity: 0.6; }
+.mins-bar i { display: block; height: 100%; background: var(--win); border-radius: 4px; }
+.mins-bar i.hi { background: var(--gold); }
+.mins-bar i.lo { background: var(--loss); }
+.mins-table td { vertical-align: middle; }
+.mins-name { white-space: nowrap; }
+.mins-role { display: block; font-size: 0.75rem; }
+.mins-split td { border-top: 2px solid var(--line); }
+.mins-edit { display: inline-flex; align-items: center; gap: 0.35rem; }
+.mins-edit input[type='range'] { width: clamp(80px, 22vw, 200px); accent-color: var(--accent); }
+.mins-step { padding: 0.1rem 0.5rem; min-width: 1.9rem; }
+.mins-val { min-width: 1.6rem; text-align: right; font-size: 1.05rem; }
+.mins-tag { width: 1.3rem; text-align: center; opacity: 0.7; }
+.mins-tag.gassed { opacity: 1; }
+.mins-up { color: var(--gold); font-size: 0.8rem; }
+.mins-down { color: var(--ink-2); font-size: 0.8rem; }
+.mins-narrow { display: none; }
+@media (max-width: 640px) {
+  .mins-wide { display: none; }
+  .mins-narrow { display: inline; }
+  .mins-name { white-space: normal; }
+  .mins-table th, .mins-table td { padding-left: 0.3rem; padding-right: 0.3rem; }
+  .mins-edit { gap: 0.2rem; }
+  .mins-edit input[type='range'] { width: 64px; }
+  .mins-step { min-width: 1.6rem; padding: 0.1rem 0.3rem; }
+}

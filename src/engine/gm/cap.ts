@@ -1,6 +1,6 @@
 import { ACTIVE_MAX, MIN_SALARY, ROSTER_MAX, ROSTER_MIN, SALARY_CAP, STARTERS } from '../constants'
 import { computeOvr } from '../player/ratings'
-import { autoRotation } from '../sim/rotation'
+import { autoRotation, coachRotation } from '../sim/rotation'
 import type { League, Player, Rotation, TxType } from '../types'
 
 export const ovr = (p: Player) => computeOvr(p.ratings, p.pos)
@@ -56,20 +56,26 @@ export function syncRotation(rot: Rotation, roster: Player[]): Rotation {
   const ids = new Set(roster.map((p) => p.id))
   const keep = (xs: string[]) => xs.filter((id) => ids.has(id))
   const next: Rotation = { starters: keep(rot.starters), bench: keep(rot.bench), inactive: keep(rot.inactive) }
+  if (rot.auto) next.auto = true
   const listed = new Set([...next.starters, ...next.bench, ...next.inactive])
   const fresh = roster.filter((p) => !listed.has(p.id)).sort((a, b) => ovr(b) - ovr(a)).map((p) => p.id)
   for (const id of fresh) (next.starters.length + next.bench.length < ACTIVE_MAX ? next.bench : next.inactive).push(id)
   while (next.starters.length < STARTERS && (next.bench.length || next.inactive.length))
     next.starters.push((next.bench.length ? next.bench : next.inactive).shift()!)
   while (next.starters.length + next.bench.length > ACTIVE_MAX) next.inactive.unshift(next.bench.pop()!)
+  // A roster move breaks a minutes plan's total, so the plan goes back to the coach's suggestions.
+  const same = rot.minutes && [...next.starters, ...next.bench].every((id) => [...rot.starters, ...rot.bench].includes(id))
+    && next.starters.length + next.bench.length === rot.starters.length + rot.bench.length
+  if (rot.minutes && same) next.minutes = { ...rot.minutes }
   return next
 }
 
-/** After any roster move: CPU teams re-plan; the user's depth chart is kept and patched. */
+/** After any roster move: CPU teams (and a user on auto) re-plan; the user's own depth chart is kept and patched. */
 export function refreshRotation(l: League, teamId: string): void {
   const roster = teamPlayers(l, teamId)
   const t = l.teams[teamId]
-  t.rotation = teamId === l.userTeamId ? syncRotation(t.rotation, roster) : autoRotation(roster)
+  if (teamId !== l.userTeamId) t.rotation = autoRotation(roster)
+  else t.rotation = t.rotation.auto ? coachRotation(roster) : syncRotation(t.rotation, roster)
 }
 
 export function tradesOpen(l: League): boolean {

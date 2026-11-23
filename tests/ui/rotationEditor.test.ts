@@ -76,3 +76,20 @@ describe('dropInRotation', () => {
     expect(dropInRotation(rot, 's3', { section: 'bench', append: true })).toBe(rot)
   })
 })
+
+describe('minutes plan in the editor', () => {
+  it('moving players keeps the minutes plan and the auto flag', async () => {
+    const { dropInRotation: drop } = await import('../../src/ui/rotationEdit')
+    const rot = { starters: ['a', 'b', 'c', 'd', 'e'], bench: ['f', 'g'], inactive: ['h'], minutes: { a: 40 }, auto: false }
+    const next = drop(rot, 'f', { section: 'starters', index: 0 })
+    expect(next.minutes).toEqual({ a: 40 })
+    expect(next.auto).toBe(false)
+    expect(next.starters[0]).toBe('f')
+  })
+  it('cleanMinutes keeps only active players, rounded, with missing ones at 0', async () => {
+    const { cleanMinutes } = await import('../../src/ui/components/MinutesPanel')
+    const rot = { starters: ['a'], bench: ['b'], inactive: ['c'], minutes: { a: 40.4, c: 12 } }
+    expect(cleanMinutes(rot).minutes).toEqual({ a: 40, b: 0 })
+    expect(cleanMinutes({ starters: ['a'], bench: [], inactive: [] }).minutes).toBeUndefined()
+  })
+})

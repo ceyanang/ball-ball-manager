@@ -65,6 +65,18 @@ export function autoRotation(players: Player[]): Rotation {
   return { starters: ids(starters), bench: ids(active), inactive: ids(rest.filter((p) => !active.includes(p))) }
 }
 
+/**
+ * The coach's optimal depth chart for tonight (the "let the coach handle it" setting): best lineup from the healthy
+ * players, the hurt parked inactive (unless that would leave too few to play), and no minutes plan, so the sim uses
+ * the coach's suggested minutes.
+ */
+export function coachRotation(roster: Player[]): Rotation {
+  const healthy = roster.filter((p) => !p.injury)
+  if (healthy.length < STARTERS + 3) return { ...autoRotation(roster), auto: true }
+  const rot = autoRotation(healthy)
+  return { ...rot, inactive: [...rot.inactive, ...roster.filter((p) => p.injury).map((p) => p.id)], auto: true }
+}
+
 export function validateRotation(rot: Rotation, rosterIds: string[]): string[] {
   const problems: string[] = []
   if (rot.starters.length !== STARTERS) problems.push(`Pick exactly ${STARTERS} starters (you have ${rot.starters.length}).`)
@@ -76,8 +88,45 @@ export function validateRotation(rot: Rotation, rosterIds: string[]): string[] {
   if (all.some((id) => !roster.has(id))) problems.push('A listed player is not on this roster.')
   const listed = new Set(all)
   if (rosterIds.some((id) => !listed.has(id))) problems.push('Every rostered player must be a starter, on the bench, or inactive.')
+  problems.push(...validateMinutes(rot))
   return problems
 }
+
+/** Minutes a player can be planned for, and the total a minutes plan must hit. */
+export const MAX_PLAN_MIN = 48
+/** A minutes plan (if any) covers the active players, 0–48 each, summing to exactly 240. */
+export function validateMinutes(rot: Rotation): string[] {
+  if (!rot.minutes) return []
+  const active = [...rot.starters, ...rot.bench]
+  const vals = active.map((id) => rot.minutes![id] ?? 0)
+  if (vals.some((m) => !Number.isFinite(m) || m < 0 || m > MAX_PLAN_MIN)) return [`Each player plays 0–${MAX_PLAN_MIN} minutes.`]
+  const left = TEAM_MINUTES - Math.round(vals.reduce((a, b) => a + b, 0))
+  if (left > 0) return [`Hand out ${left} more minute${left === 1 ? '' : 's'} (the plan must total ${TEAM_MINUTES}).`]
+  if (left < 0) return [`Cut ${-left} minute${left === -1 ? '' : 's'} (the plan must total ${TEAM_MINUTES}).`]
+  return []
+}
+
+/** Rounds minute shares to whole minutes that still sum exactly to `total` (largest remainders get the extra). */
+function roundTo(raw: Record<string, number>, total: number): Record<string, number> {
+  const ids = Object.keys(raw)
+  const out: Record<string, number> = {}
+  for (const id of ids) out[id] = Math.floor(raw[id])
+  let left = total - ids.reduce((s, id) => s + out[id], 0)
+  const byRem = [...ids].sort((a, b) => (raw[b] - Math.floor(raw[b])) - (raw[a] - Math.floor(raw[a])) || ids.indexOf(a) - ids.indexOf(b))
+  for (let k = 0; left > 0 && byRem.length; k = (k + 1) % byRem.length, left--) out[byRem[k]]++
+  return out
+}
+
+/** The coach's suggested whole-minute plan for a depth chart (healthy or not): what the sim uses with no plan set. */
+export function suggestedMinutes(rot: Rotation, players: Record<string, Player>): Record<string, number> {
+  return roundTo(minutesTargets({ starters: rot.starters, bench: rot.bench }, players, 0), TEAM_MINUTES)
+}
+
+/**
+ * Comfortable minutes for a player before fatigue really bites, from his stamina rating
+ * (≈ 30 for a 40-stamina big, ≈ 40 for a 90-stamina iron man).
+ */
+export const comfortMinutes = (p: Player): number => Math.round(22 + 20 * (p.ratings.stam / 99))
 
 /**
  * The game-day 12. Injured players sit unless fewer than 5 are healthy; an injured starter's slot goes to the
@@ -112,11 +161,16 @@ export function gameLineup(team: Team, players: Record<string, Player>): { start
 const STARTER_BASE = [35, 34, 33, 32, 31]
 const BENCH_BASE = [22, 18, 14, 10, 4, 2, 0]
 
-/** Target minutes per player; sums exactly to 240 + 25·OT and caps each player at 48 + 5·OT. */
+/**
+ * Target minutes per player; sums exactly to 240 + 25·OT and caps each player at 48 + 5·OT. A `plan` (the GM's
+ * minutes) replaces the default shares for the players it covers; anyone it misses (an injury fill-in) gets the
+ * default for his spot, and the whole thing is rescaled so the team still plays exactly its minutes.
+ */
 export function minutesTargets(
   lineup: { starters: string[]; bench: string[] },
   players: Record<string, Player>,
   otPeriods: number,
+  plan?: Record<string, number>,
 ): Record<string, number> {
   const total = TEAM_MINUTES + STARTERS * OT_MIN * otPeriods
   const cap = 48 + OT_MIN * otPeriods
@@ -124,6 +178,7 @@ export function minutesTargets(
   const stamina = (id: string) => 0.9 + 0.2 * ((players[id]?.ratings.stam ?? 50) / 99)
   lineup.starters.forEach((id, i) => (raw[id] = (STARTER_BASE[i] ?? 30) * stamina(id)))
   lineup.bench.forEach((id, i) => (raw[id] = (BENCH_BASE[i] ?? 0) * stamina(id)))
+  if (plan) for (const id of Object.keys(raw)) if (plan[id] !== undefined) raw[id] = Math.max(0, plan[id])
   const ids = Object.keys(raw)
   const capped = new Set<string>()
   const out: Record<string, number> = {}

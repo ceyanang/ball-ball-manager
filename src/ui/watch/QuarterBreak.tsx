@@ -10,6 +10,8 @@ export interface RecapRow {
   team: Team
   fav: boolean
   line: LiveLine
+  /** Player rows: in-game energy 0–100 at this break. */
+  energy?: number
   /** A bench row expands (on tap) to one row per non-starter. */
   children?: RecapRow[]
 }
@@ -40,6 +42,7 @@ export function QuarterBreak({ title, scoreText, leader, standout, rows, button,
         <div role="row" className="w-lines-head">
           <span role="columnheader" />
           {['PTS', 'REB', 'AST', 'FG', '3P', 'FT'].map((h) => <span key={h} role="columnheader">{h}</span>)}
+          <span role="columnheader" title="Energy (stamina left)">⚡</span>
         </div>
         {rows.flatMap((r) => [{ r, sub: false }, ...(r.children && open.has(r.key) ? r.children.map((c) => ({ r: c, sub: true })) : [])]).map(({ r, sub }, i) => {
           return (
@@ -58,6 +61,9 @@ export function QuarterBreak({ title, scoreText, leader, standout, rows, button,
               <span role="cell">{r.line.fgm}/{r.line.fga}</span>
               <span role="cell">{r.line.tpm}/{r.line.tpa}</span>
               <span role="cell">{r.line.ftm}/{r.line.fta}</span>
+              <span role="cell" className={`w-energy${r.energy !== undefined && r.energy < 65 ? ' tired' : ''}`} title={r.energy !== undefined ? `Energy ${r.energy}` : undefined}>
+                {r.energy !== undefined ? r.energy : ''}
+              </span>
             </div>
           )
         })}

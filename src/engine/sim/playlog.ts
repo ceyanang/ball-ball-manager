@@ -14,7 +14,8 @@ export type PlayEvent = Base & (
   | { k: 'lineup'; side: Side; players: string[] }
   /** A coach's swap: `in` replaces `out` in lineup slot `slot`. */
   | { k: 'sub'; side: Side; out: string; in: string; slot: number }
-  | { k: 'periodEnd'; min: Record<string, number>; pm: Record<string, number> })
+  /** `energy`: each player's in-game energy (0–100) at the buzzer (absent in logs from older builds). */
+  | { k: 'periodEnd'; min: Record<string, number>; pm: Record<string, number>; energy?: Record<string, number> })
 
 export interface LogBoxLine {
   pts: number; oreb: number; dreb: number; ast: number; stl: number; blk: number; tov: number

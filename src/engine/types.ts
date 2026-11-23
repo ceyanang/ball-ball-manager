@@ -19,7 +19,13 @@ export interface Player {
   retired?: boolean
 }
 /** Every rostered player id appears exactly once across the three lists. */
-export interface Rotation { starters: string[]; bench: string[]; inactive: string[] }
+export interface Rotation {
+  starters: string[]; bench: string[]; inactive: string[]
+  /** Planned minutes per active player (sums to 240). Absent → the coach's suggested minutes. */
+  minutes?: Record<string, number>
+  /** The coach re-picks the optimal starters, bench and minutes before every game. */
+  auto?: boolean
+}
 export interface Team {
   id: string; city: string; name: string; abbrev: string; conf: Conference
   colors: { primary: string; secondary: string }; coachId: string; rotation: Rotation
@@ -143,7 +149,7 @@ export interface AllStarEvent {
 export interface TrainingSlot { playerId: string; season: number; day: number }
 
 export interface League {
-  version: 6; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 7; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]

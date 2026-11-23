@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as R
 import { STARTERS, ACTIVE_MAX } from '../../engine/constants'
 import { archetypeFor } from '../../engine/player/archetype'
 import { computeOvr } from '../../engine/player/ratings'
-import { SLOTS, autoRotation, validateRotation } from '../../engine/sim/rotation'
+import { SLOTS, autoRotation, coachRotation, validateRotation } from '../../engine/sim/rotation'
 import type { Player, Rotation } from '../../engine/types'
 import { Face } from '../face/Face'
 import { OvrPill } from '../components/OvrPill'
@@ -10,6 +10,7 @@ import { dropInRotation, type DropTarget, type Section } from '../rotationEdit'
 import { useStore } from '../store'
 import { Link } from 'react-router-dom'
 import { CapBar } from '../components/CapBar'
+import { MinutesPanel, cleanMinutes } from '../components/MinutesPanel'
 import { capSeason } from '../../engine/gm/cap'
 import { releasePlayer } from '../../engine/gm/roster'
 import { fullName, money, one, ovrOf, rosterOf, seasonLine } from '../util'
@@ -45,10 +46,18 @@ export function MyTeam() {
   const problems = validateRotation(draft, roster.map((p) => p.id))
   const dirty = JSON.stringify(draft) !== JSON.stringify(team.rotation)
 
-  const drop = (id: string, target: DropTarget) => setDraft((d) => dropInRotation(d, id, target))
+  const locked = !!draft.auto
+  const drop = (id: string, target: DropTarget) => { if (!locked) setDraft((d) => dropInRotation(d, id, target)) }
+  const setAuto = (on: boolean) => {
+    setPicked(null)
+    if (on) setDraft(coachRotation(roster))
+    else setDraft((d) => { const { auto: _auto, ...rest } = d; void _auto; return rest })
+  }
+  const save = () => setRotation(team.id, cleanMinutes(draft))
 
   /** Tap/click: pick a player, then tap where they should go. */
   const tap = (target: DropTarget, id?: string) => {
+    if (locked) return
     if (picked) {
       if (picked !== id) drop(picked, target)
       setPicked(null)
@@ -61,7 +70,7 @@ export function MyTeam() {
   }
 
   const startPointer = (e: ReactPointerEvent, id: string) => {
-    if (e.button !== 0) return
+    if (e.button !== 0 || locked) return
     const onGrip = (e.target as HTMLElement).closest('.grip')
     if (!onGrip && (e.target as HTMLElement).closest('a, button')) return
     // On touch screens only the grip drags, so the page can still scroll.
@@ -123,7 +132,7 @@ export function MyTeam() {
         <span className="rinfo">
           <span className="rname">{fullName(p)}</span>
           <span className="rsub">
-            {p.pos} · {archetypeFor(p)}
+            {p.pos} · {archetypeFor(p)} · STA {p.ratings.stam}
             {line ? ` · ${one(line.pg.pts)}/${one(line.pg.reb)}/${one(line.pg.ast)}` : ''}
           </span>
           {offPos && <span className="rwarn">Natural {p.pos} · {computeOvr(p.ratings, slot)} as {slot}</span>}
@@ -157,15 +166,22 @@ export function MyTeam() {
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <h1>{team.name} rotation</h1>
         <div className="row">
-          <button className="btn" onClick={() => { setPicked(null); setDraft(autoRotation(roster)) }}>Auto</button>
+          <button className="btn" disabled={locked} title="Best starters and bench, with the coach's suggested minutes" onClick={() => { setPicked(null); setDraft(autoRotation(roster)) }}>Best lineup</button>
           <button className="btn" disabled={!dirty} onClick={() => { setPicked(null); setDraft(team.rotation) }}>Reset</button>
-          <button className="btn btn-primary" disabled={!dirty || problems.length > 0 || busy} onClick={() => setRotation(team.id, draft)}>Save rotation</button>
+          <button className="btn btn-primary" disabled={!dirty || problems.length > 0 || busy} onClick={save}>Save rotation</button>
         </div>
       </div>
       <p className="muted" style={{ margin: 0, maxWidth: '70ch' }}>
         Drag a player onto a spot to swap them in (on a phone, drag by the ⠿ grip), or tap a player and then tap where they go.
         Starters play the listed position; bench order sets who subs in first. Injured players sit and the best fit off the bench takes their spot.
       </p>
+      <label className="panel auto-coach">
+        <input type="checkbox" checked={locked} onChange={(e) => setAuto(e.target.checked)} />
+        <span>
+          <b>🤖 Let the coach run the rotation</b>
+          <span className="muted">Before every game he picks the optimal starters, bench and minutes around who’s healthy. Untick to set them yourself.</span>
+        </span>
+      </label>
       {problems.length > 0 && <div className="notice" role="status">{problems.join(' ')}</div>}
 
       <section className="panel rot-section">
@@ -190,6 +206,12 @@ export function MyTeam() {
           {openSlot('inactive', '+ Move to inactive', 'inactive-open')}
         </div>
       </section>
+
+      <MinutesPanel rot={draft} players={league.players} disabled={locked} onChange={(minutes) => setDraft((d) => {
+        const { minutes: _m, ...rest } = d
+        void _m
+        return minutes ? { ...rest, minutes } : rest
+      })} />
 
       <section className="panel stack">
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>

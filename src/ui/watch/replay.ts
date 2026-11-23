@@ -10,6 +10,8 @@ export interface LiveLine {
   fgm: number; fga: number; tpm: number; tpa: number; ftm: number; fta: number
   byPeriod: number[]
   min: number; pm: number
+  /** In-game energy 0–100 at the last period break (absent until one, or in older logs). */
+  energy?: number
 }
 /** `court` is each side's five in slot order (PG..C); null for a legacy log with no lineup events. */
 export interface ReplayState { cursor: number; period: number; home: number; away: number; lines: Record<string, LiveLine>; court: Record<Side, string[]> | null }
@@ -66,6 +68,7 @@ function apply(lines: Record<string, LiveLine>, e: PlayEvent) {
         l.min = e.min[id] ?? l.min
         l.pm = e.pm[id] ?? l.pm
       }
+      for (const [id, v] of Object.entries(e.energy ?? {})) line(id).energy = v
       break
     default:
       line(e.player)[e.k]++
