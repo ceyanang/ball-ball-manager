@@ -4,6 +4,7 @@ import { Face } from '../face/Face'
 import { TeamBadge } from '../components/TeamBadge'
 import { GameDayHero } from '../components/GameDay'
 import { NewsCard } from '../components/Stories'
+import { PlayoffHub } from './PlayoffHub'
 import { useStore } from '../store'
 import { didWin, fullName, nextGame, one, ovrOf, pct, rosterOf, seasonLine, teamFull, teamGames } from '../util'
 
@@ -51,6 +52,8 @@ export function Home() {
     </li>
   )
 
+  const inPlayoffs = league.phase === 'playoffs'
+
   return (
     <div className="stack">
       {champ && (
@@ -78,7 +81,8 @@ export function Home() {
           <span className="muted">Continue →</span>
         </Link>
       )}
-      {gameDay && <GameDayHero league={league} game={gameDay} team={team} records={records} />}
+      {inPlayoffs && <PlayoffHub />}
+      {!inPlayoffs && gameDay && <GameDayHero league={league} game={gameDay} team={team} records={records} />}
 
       {inboxTop.length > 0 && (
         <section className="panel stack" style={{ gap: '0.5rem' }}>
@@ -92,6 +96,7 @@ export function Home() {
         </section>
       )}
 
+      {!inPlayoffs && (
       <div className="grid-2">
         <section className="panel stack">
           <h2>{gameDay ? 'Recent form' : 'Next game'}</h2>
@@ -141,6 +146,7 @@ export function Home() {
           </div>
         </section>
       </div>
+      )}
 
       {topNews.length > 0 && (
         <section className="panel stack">
@@ -152,6 +158,8 @@ export function Home() {
         </section>
       )}
 
+      {!inPlayoffs && (
+        <>
       <section className="panel stack">
         <h2>Progress report</h2>
         {myEvents.length === 0 && movers.length === 0 ? (
@@ -200,6 +208,8 @@ export function Home() {
           </div>
         ) : <p className="muted" style={{ margin: 0 }}>Stats show up after your first game.</p>}
       </section>
+        </>
+      )}
     </div>
   )
 }

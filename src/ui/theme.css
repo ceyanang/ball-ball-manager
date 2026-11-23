@@ -470,3 +470,20 @@ button, a, select, input, label { touch-action: manipulation; }
   .rcard { gap: 0.45rem; padding: 0.45rem 0.5rem; }
   .grip { padding: 0.4rem 0; }
 }
+
+/* Playoff hub */
+.bracket.bracket-conf { grid-template-columns: repeat(4, minmax(128px, 1fr)); min-width: 0; }
+.series.mine { border-color: var(--accent); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 40%, transparent); }
+.hub-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.6rem; }
+.hub-pill { background: var(--accent); color: var(--accent-ink); font: 900 0.85rem var(--display); letter-spacing: 0.08em; padding: 3px 10px; border-radius: 999px; text-transform: uppercase; white-space: nowrap; }
+.hub-bracket-narrow { display: block; }
+.hub-bracket-wide { display: none; }
+@media (min-width: 900px) { .hub-bracket-narrow { display: none; } .hub-bracket-wide { display: block; } }
+.today-list { display: flex; flex-direction: column; gap: 0.4rem; }
+.tg { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.5rem; background: var(--surface-2); border: 1px solid transparent; border-radius: 10px; padding: 0.5rem 0.7rem; }
+.tg.mine { border-color: var(--accent); box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 30%, transparent); }
+.tg .m { font-weight: 700; }
+.tg .s { font-size: 0.8rem; color: var(--ink-2); }
+.tg .stake { color: var(--loss); font-weight: 700; }
+.hub-controls { display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap; }
+.hub-controls .spacer { flex: 1; }
