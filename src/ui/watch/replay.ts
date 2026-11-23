@@ -1,6 +1,7 @@
 import type { PlayEvent, Side } from '../../engine/sim/playlog'
 
-export const QUARTER_MS = 15000
+/** Wall-clock length of a quarter at 1× (2× / 4× scale from this): long enough to read the play-by-play. */
+export const QUARTER_MS = 45000
 /** Wall-clock length of a period in the replay (OT is a 5-minute period vs 12). */
 export const periodMs = (period: number) => period <= 4 ? QUARTER_MS : QUARTER_MS * 5 / 12
 export const periodLabel = (period: number) => period <= 4 ? `Q${period}` : period === 5 ? 'OT' : `${period - 4}OT`
@@ -137,6 +138,35 @@ export function eventCards(court0: Court, fired: PlayEvent[], sideOf: Record<str
 
 /** Feed line for a swap. */
 export const describeSub = (e: Extract<PlayEvent, { k: 'sub' }>, last: (id: string) => string): string => `🔁 ${last(e.in)} in for ${last(e.out)}`
+
+export type FeedKind = 'play' | 'sub' | 'hot' | 'info'
+export interface FeedItem { id: number; text: string; kind: FeedKind }
+/** How many feed lines are kept (the phone shows the newest few; wide screens show more). */
+export const FEED_KEEP = 12
+
+/**
+ * Feed lines for a batch of fired events, oldest first: the newest play (scoring, miss, turnover…) and the swaps,
+ * as separate lines so a sub never hides a bucket. Swaps are 'sub' (shown as a dimmer secondary line).
+ */
+export function feedItems(fired: PlayEvent[], last: (id: string) => string): Omit<FeedItem, 'id'>[] {
+  const subs = fired.filter((e): e is Extract<PlayEvent, { k: 'sub' }> => e.k === 'sub')
+  const play = describePlays(fired, last)
+  const out: Omit<FeedItem, 'id'>[] = []
+  const subItem = subs.length ? { text: subs.map((e) => describeSub(e, last)).join(' · '), kind: 'sub' as const } : null
+  const playItem = play ? { text: play, kind: 'play' as const } : null
+  const lastSub = fired.map((e) => e.k).lastIndexOf('sub')
+  const lastPlay = fired.findLastIndex((e) => e.k !== 'sub' && e.k !== 'lineup' && e.k !== 'periodEnd')
+  for (const it of lastSub > lastPlay ? [playItem, subItem] : [subItem, playItem]) if (it) out.push(it)
+  return out
+}
+
+let feedSeq = 0
+/** Adds `items` (oldest first) to the feed, newest on top, keeping the last FEED_KEEP lines. */
+export function pushFeed(feed: FeedItem[], items: Omit<FeedItem, 'id'>[]): FeedItem[] {
+  if (!items.length) return feed
+  const added = items.map((it) => ({ ...it, id: ++feedSeq })).reverse()
+  return [...added, ...feed].slice(0, FEED_KEEP)
+}
 
 /** Sum of the given players' live lines (byPeriod element-wise). */
 export function benchLine(state: ReplayState, ids: string[]): LiveLine {

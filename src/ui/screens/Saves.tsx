@@ -38,16 +38,16 @@ export function Saves() {
       </div>
       {busy && <div className="notice">A sim is running. Loading, importing and deleting are paused until it finishes.</div>}
       <div className="panel table-wrap">
-        <table className="stats">
+        <table className="stats m-cards">
           <thead><tr><th>League</th><th className="left">Team</th><th>Season</th><th>Last played</th><th></th></tr></thead>
           <tbody>
             {saves.map((s) => (
               <tr key={s.id} className={s.id === saveId ? 'me' : ''}>
-                <td>{s.name}</td>
+                <td className="m-main" style={{ fontWeight: 700 }}>{s.name}</td>
                 <td className="left">{s.teamName}</td>
-                <td>{s.season}</td>
-                <td>{new Date(s.updatedAt).toLocaleString()}</td>
-                <td>
+                <td data-label="Season">{s.season}</td>
+                <td data-label="Played">{new Date(s.updatedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                <td className="m-act">
                   <div className="row" style={{ justifyContent: 'flex-end', gap: '0.4rem' }}>
                     <button className="btn" disabled={s.id === saveId || busy} onClick={async () => { await load(s.id); navigate('/') }}>{s.id === saveId ? 'Playing' : 'Load'}</button>
                     <button className="btn btn-danger" disabled={busy} onClick={async () => {

@@ -3,7 +3,7 @@ import { NeedDot, NeedsStrip } from '../components/NeedDot'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { capSeason, payroll, tradesOpen } from '../../engine/gm/cap'
-import { assetLabel, proposeTrade, suggestPackage, tradeableAssets, tradeProblem, type Asset, type Trade as TradeT } from '../../engine/gm/trade'
+import { proposeTrade, suggestPackage, tradeableAssets, tradeProblem, type Asset, type Trade as TradeT } from '../../engine/gm/trade'
 import { projectedSlot } from '../../engine/gm/value'
 import { archetypeFor } from '../../engine/player/archetype'
 import type { League } from '../../engine/types'
@@ -14,6 +14,8 @@ import { Face } from '../face/Face'
 import { useStore } from '../store'
 import { POSITIONS, filterPlayers, type PosFilter } from '../playerFilter'
 import { fullName, money, ovrOf, teamFull } from '../util'
+import { rejectionText, tradeLabel } from '../tradeText'
+import { Help } from '../components/Help'
 
 const key = (a: Asset) => `${a.kind}:${a.id}`
 
@@ -41,9 +43,9 @@ export function AssetList({ league, teamId, assets, picked, toggle, pos, q }: {
             <Face seed={p.faceSeed} age={p.age} colors={team.colors} size={30} />
             <span className="asset-main">
               <span className="asset-name">{fullName(p)}{p.injury ? ' 🤕' : ''}</span>
-              <span className="asset-sub">{p.pos} · {p.age}y · {archetypeFor(p)}</span>
+              {/* Salary sits on the second line so the name keeps the row's width on a phone. */}
+              <span className="asset-sub">{p.pos} · {p.age}y{p.contract ? ` · ${money(p.contract.salary)} · ${yrs}y` : ''}<span className="m-hide"> · {archetypeFor(p)}</span></span>
             </span>
-            <span className="asset-money">{p.contract ? `${money(p.contract.salary)} · ${yrs}y` : ''}</span>
             <NeedDot level={myNeeds[p.pos]} after={teamNeeds(league, me, teamId === me ? { removeIds: [p.id] } : { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos]} />
             <OvrPill value={ovrOf(p)} pot={p.pot} />
           </label>
@@ -57,7 +59,7 @@ export function AssetList({ league, teamId, assets, picked, toggle, pos, q }: {
             <input type="checkbox" checked={on} onChange={() => toggle(a)} />
             <span className="pick-chip">R{pk.round}</span>
             <span className="asset-main">
-              <span className="asset-name">{assetLabel(league, a)}</span>
+              <span className="asset-name">{tradeLabel(league, a)}</span>
               <span className="asset-sub">Projected #{projectedSlot(league, pk)} in round {pk.round}</span>
             </span>
           </label>
@@ -117,7 +119,7 @@ export function Trade() {
     const pkg = suggestPackage(league, me, partner, trade.bGives)
     if (!pkg) return setHint(`Nothing on your roster gets this done with the ${league.teams[partner].name}.`)
     setGive(new Set(pkg.map(key)))
-    setHint(`The ${league.teams[partner].name} would take: ${pkg.map((a) => assetLabel(league, a)).join(', ')}.`)
+    setHint(`The ${league.teams[partner].name} would take: ${pkg.map((a) => tradeLabel(league, a)).join(', ')}.`)
   }
   const target = (teamId: string, playerId: string) => {
     const k = `player:${playerId}`
@@ -130,7 +132,7 @@ export function Trade() {
     act((l) => {
       const v = proposeTrade(l, trade)
       accepted = v.ok
-      return v.ok ? `✅ Trade accepted! ${trade.bGives.map((a) => assetLabel(league, a)).join(', ') || 'Nothing'} heading your way.` : `❌ ${league.teams[partner].name}: “${v.reason}”`
+      return v.ok ? `✅ Trade accepted! ${trade.bGives.map((a) => tradeLabel(league, a)).join(', ') || 'Nothing'} heading your way.` : rejectionText(league.teams[partner].name, v)
     })
     if (accepted) { setGive(new Set()); setGet(new Set()) }
   }
@@ -175,9 +177,8 @@ export function Trade() {
                 <Face seed={p.faceSeed} age={p.age} colors={t.colors} size={30} />
                 <span className="asset-main">
                   <span className="asset-name">{fullName(p)}{p.injury ? ' 🤕' : ''}</span>
-                  <span className="asset-sub">{p.pos} · {p.age}y · {t.abbrev} · {archetypeFor(p)}</span>
+                  <span className="asset-sub">{p.pos} · {p.age}y · {t.abbrev}{p.contract ? ` · ${money(p.contract.salary)}` : ''}<span className="m-hide"> · {archetypeFor(p)}</span></span>
                 </span>
-                <span className="asset-money">{p.contract ? money(p.contract.salary) : ''}</span>
                 <OvrPill value={ovrOf(p)} pot={p.pot} />
                 <button className="btn" disabled={on} onClick={() => target(t.id, p.id)}>{on ? 'Added' : 'Target'}</button>
               </div>
@@ -189,7 +190,7 @@ export function Trade() {
 
       <div className="trade-grid">
         <section className="panel stack">
-          <div className="row"><TeamBadge team={league.teams[me]} size={32} /><h2>You send</h2></div>
+          <div className="row"><TeamBadge team={league.teams[me]} size={32} /><h2>You send</h2><Help topics={['pot', 'need']} /></div>
           <AssetList league={league} teamId={me} assets={myAssets} picked={give} toggle={toggle(give, setGive)} pos={pos} q={q} />
         </section>
         <section className="panel stack">
@@ -203,7 +204,9 @@ export function Trade() {
           <span>Salary out <strong>{money(out)}</strong> · in <strong>{money(inn)}</strong> · your payroll after <strong>{money(payroll(league, me) - out + inn)}</strong></span>
           <div className="row">
             <button className="btn" disabled={!trade.bGives.length} onClick={whatWouldItTake}>What would it take?</button>
-            <button className="btn btn-primary" disabled={!!problem || (!trade.aGives.length && !trade.bGives.length)} onClick={propose}>Propose trade</button>
+            <button className="btn btn-primary" disabled={!!problem || !trade.aGives.length || !trade.bGives.length} onClick={propose}>
+              {!trade.aGives.length && !trade.bGives.length ? 'Pick both sides' : !trade.aGives.length ? 'Add something to send' : !trade.bGives.length ? 'Pick what you want' : 'Propose trade'}
+            </button>
           </div>
         </div>
         {problem && <div className="notice">{problem}</div>}

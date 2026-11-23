@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { computeStandings } from '../../engine/standings'
 import { TeamBadge } from '../components/TeamBadge'
 import { useStore } from '../store'
-import { pct } from '../util'
+import { rowPct } from '../util'
 
 export function Standings() {
   const league = useStore((s) => s.league)!
@@ -22,16 +22,17 @@ export function Standings() {
               <tbody>
                 {st[conf].map((r, i) => {
                   const t = league.teams[r.teamId]
+                  const played = r.w + r.l > 0
                   const gp = r.w + r.l || 1
                   const diff = (r.pf - r.pa) / gp
                   return (
                     <tr key={r.teamId} className={[r.teamId === league.userTeamId ? 'me' : '', i === 7 ? 'cut' : ''].join(' ')}>
-                      <td>{i + 1}</td>
+                      <td>{played ? i + 1 : '—'}</td>
                       <td className="left"><span className="row" style={{ gap: '0.5rem' }}><TeamBadge team={t} size={26} /><Link className="link" to={`/team/${t.id}`}>{t.city} {t.name}</Link></span></td>
-                      <td>{r.w}</td><td>{r.l}</td><td>{pct(r.pct)}</td><td>{r.gb === 0 ? '—' : r.gb.toFixed(1)}</td>
+                      <td>{r.w}</td><td>{r.l}</td><td>{rowPct(r)}</td><td>{r.gb === 0 ? '—' : r.gb.toFixed(1)}</td>
                       <td>{r.confW}-{r.confL}</td><td>{r.home[0]}-{r.home[1]}</td><td>{r.away[0]}-{r.away[1]}</td>
-                      <td>{(r.pf / gp).toFixed(1)}</td><td>{(r.pa / gp).toFixed(1)}</td>
-                      <td className={diff > 0 ? 'win' : diff < 0 ? 'loss' : ''}>{diff > 0 ? '+' : ''}{diff.toFixed(1)}</td>
+                      <td>{played ? (r.pf / gp).toFixed(1) : '—'}</td><td>{played ? (r.pa / gp).toFixed(1) : '—'}</td>
+                      <td className={diff > 0 ? 'win' : diff < 0 ? 'loss' : ''}>{played ? `${diff > 0 ? '+' : ''}${diff.toFixed(1)}` : '—'}</td>
                       <td>{r.streak || '—'}</td><td>{r.last10}</td>
                     </tr>
                   )

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { computeStandings } from '../../engine/standings'
 import type { League } from '../../engine/types'
@@ -31,6 +31,13 @@ export function Shell() {
   useMusic(pathname, watching)
   // New screen starts at the top (the More sheet closes itself via its links).
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  // A notice belongs to the screen it was raised on: drop it when the user moves on. A notice raised by the same
+  // action that navigated (e.g. a move that sends you to another page) is tagged with the new path, so it survives.
+  const noticeAt = useRef<string | null>(null)
+  useEffect(() => { if (notice) noticeAt.current = pathname }, [notice]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (notice && noticeAt.current !== null && noticeAt.current !== pathname) clearNotice()
+  }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const team = league ? league.teams[league.userTeamId] : null
   const unread = league ? league.inbox.filter((i) => !i.read && !i.dismissed).length : 0
@@ -77,7 +84,7 @@ export function Shell() {
             <Link to="/" className="mbar-team" aria-label={`${team.name} home`}>
               <TeamBadge team={team} size={36} />
               <span className="mbar-text">
-                <span className="mbar-title">{team.name}{record && <span className="mbar-rec"> {record}</span>}</span>
+                <span className="mbar-title"><span className="mbar-name">{team.name}</span>{record && <span className="mbar-rec">{record}</span>}</span>
                 <span className="mbar-sub">{phaseLabel(league, true)}</span>
               </span>
             </Link>

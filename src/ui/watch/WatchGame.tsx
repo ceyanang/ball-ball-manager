@@ -12,20 +12,21 @@ import { useStore, type WatchSession } from '../store'
 import { fullName, seasonLine, teamFull } from '../util'
 import { QuarterBreak, type RecapRow } from './QuarterBreak'
 import {
-  advanceTo, beatsAverage, benchLine, clockText, describePlays, describeSub, elapsedFraction, eventCards, finalState, initState, isHot,
-  periodCount, periodLabel, periodMs, shotDelays, shotMs, sittingIds, standout, type ReplayState,
+  advanceTo, beatsAverage, benchLine, clockText, elapsedFraction, eventCards, feedItems, finalState, initState, isHot,
+  periodCount, periodLabel, periodMs, pushFeed, shotDelays, shotMs, sittingIds, standout, type FeedItem, type ReplayState,
 } from './replay'
+import { distinctColor } from '../color'
+import { Sheet } from '../components/Sheet'
 import { recapRows } from './recap'
 import { WatchCard } from './WatchCard'
 import { WatchPlayerSheet } from './WatchPlayerSheet'
 import './watch.css'
+import { Help } from '../components/Help'
 
 type Phase = 'play' | 'break' | 'final'
 type ShotKind = 'made' | 'miss' | 'blocked'
 
 const SPEEDS = [1, 2, 4] as const
-/** A hot-streak callout stays on the feed at least this long (ms of real time). */
-const HOT_HOLD = 2500
 const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 /** Full-screen replay of the user's game. Shell renders only this while a watch session is open (no spoilers). */
@@ -114,7 +115,8 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   const [clock, setClock] = useState({ period: 1, t: 0 })
   const [phase, setPhase] = useState<Phase>('play')
   const [speed, setSpeed] = useState<number>(1)
-  const [feed, setFeed] = useState<{ text: string; hot: boolean }>({ text: `Tip-off in ${m.teamOf.home.city}…`, hot: false })
+  const [feed, setFeed] = useState<FeedItem[]>(() => pushFeed([], [{ text: `Tip-off in ${m.teamOf.home.city}…`, kind: 'info' }]))
+  const [confirmExit, setConfirmExit] = useState(false)
   const [sheetId, setSheetId] = useState<string | null>(null)
   const audio = useAudioSettings()
 
@@ -122,7 +124,6 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   const clockRef = useRef(clock)
   const speedRef = useRef(speed)
   const announced = useRef(new Set<string>())
-  const holdUntil = useRef(0)
   const timers = useRef(new Set<number>())
   const cards = useRef(new Map<string, HTMLElement>())
   const fxRef = useRef<HTMLDivElement>(null)
@@ -237,7 +238,6 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   }
 
   const onFired = useEffectEvent((next: ReplayState, fired: PlayEvent[], start: number, court: ReplayState['court']) => {
-    const now = performance.now()
     let hot: string | null = null
     for (const e of fired) {
       if ((e.k !== 'fg' && e.k !== 'ft') || !e.made || announced.current.has(e.player)) continue
@@ -248,23 +248,20 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
         hot = `🔥 ${fullName(p)} already has ${pts}. He averages ${avg.toFixed(1)}.`
       }
     }
+    const last = (id: string) => m.players[id]?.lastName ?? '?'
+    const items = feedItems(fired, last)
     if (hot) {
       sfx.crowd()
-      setFeed({ text: hot, hot: true })
-      holdUntil.current = now + HOT_HOLD
-    } else if (now >= holdUntil.current) {
-      const last = (id: string) => m.players[id]?.lastName ?? '?'
-      const subs = fired.filter((e): e is Extract<PlayEvent, { k: 'sub' }> => e.k === 'sub').map((e) => describeSub(e, last))
-      const text = subs.length ? subs.join(' · ') : describePlays(fired, last)
-      if (text) setFeed({ text, hot: false })
+      items.push({ text: hot, kind: 'hot' })
     }
+    if (items.length) setFeed((f) => pushFeed(f, items))
     scheduleSfx(fired, start)
     if (!reducedMotion()) animate(fired, start, court)
   })
 
   // The replay clock: advance t by real time × speed, fire the events reached, pause at the end of each period.
   useEffect(() => {
-    if (phase !== 'play') return
+    if (phase !== 'play' || confirmExit) return
     let raf = 0
     let last = performance.now()
     const tick = (now: number) => {
@@ -291,14 +288,14 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [phase, log, nPeriods])
+  }, [phase, confirmExit, log, nPeriods])
 
   const nextPeriod = () => {
     const period = clockRef.current.period + 1
     clockRef.current = { period, t: 0 }
     setIntensity(period >= 4 ? 1 : 0)
     setClock(clockRef.current)
-    setFeed({ text: `${periodLabel(period)} is under way`, hot: false })
+    setFeed((f) => pushFeed(f, [{ text: `${periodLabel(period)} is under way`, kind: 'info' }]))
     setPhase('play')
   }
   const skipToFinal = () => {
@@ -309,10 +306,14 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     clockRef.current = { period: nPeriods, t: 1 }
     setRs(f)
     setClock(clockRef.current)
-    setFeed({ text: 'Final', hot: false })
+    setFeed((f) => pushFeed(f, [{ text: 'Final', kind: 'info' }]))
     setPhase('final')
   }
   const done = () => { endWatch(); navigate(watch.doneTo ?? '/'); window.scrollTo(0, 0) }
+  /** Leave mid-game without seeing the result: the game is already played and saved, so it still counts. */
+  const leave = () => { clearFx(); endWatch(); navigate('/'); window.scrollTo(0, 0) }
+  // All-Star games aren't in league.games, so only league games have a box score page.
+  const boxScore = watch.game ? undefined : () => { endWatch(); navigate(`/game/${game.id}`); window.scrollTo(0, 0) }
 
   const frac = elapsedFraction(clock.period, clock.t)
   const lineOf = (id: string) => rs.lines[id] ?? benchLine(rs, [])
@@ -356,6 +357,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     const sp = sid ? m.players[sid] : null
     const avg = sid ? m.ppg[sid] ?? null : null
     const standoutText = sp ? `👀 Standout: ${fullName(sp)}, ${lineOf(sid!).pts} pts${avg !== null ? ` (avg ${avg.toFixed(1)})` : ''}` : null
+    const dot: Record<string, string> = { [us.id]: us.colors.primary, [them.id]: distinctColor(them.colors, us.colors.primary) }
     const rows: RecapRow[] = [m.userSide, m.oppSide].flatMap((side) => recapRows(rs, { starters: m.starters[side], bench: m.bench[side] }, m.teamOf[side], m.players, favs))
     return (
       <QuarterBreak
@@ -367,6 +369,8 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
         button={final ? 'Done' : `Start ${periodLabel(clock.period + 1)} ▶`}
         onButton={final ? done : nextPeriod}
         onPick={setSheetId}
+        dotColors={dot}
+        onBoxScore={final ? boxScore : undefined}
       />
     )
   }
@@ -380,8 +384,9 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
         <div className="w-top">
           <span className="w-meta">🏀 {m.meta}</span>
           <span className="row">
+            <Help topics={['tiers']} label="What do the card colours mean?" />
             <button className="btn" aria-pressed={audio.muted} aria-label={audio.muted ? 'Unmute sound' : 'Mute sound'} onClick={() => setSettings({ muted: !audio.muted })}>{audio.muted ? '🔇' : '🔊'}</button>
-            {phase !== 'final' && <button className="btn" onClick={skipToFinal}>Exit</button>}
+            {phase !== 'final' && <button className="btn" onClick={() => setConfirmExit(true)}>Exit</button>}
           </span>
         </div>
 
@@ -407,12 +412,15 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
             </div>
             {row(m.userSide)}
             {teamHead(us)}
-            {/* Only hot callouts fade in: at 4× plays change faster than a fade. */}
-            <div className="w-feed"><span key={feed.hot ? feed.text : 'play'} className={`w-ev${feed.hot ? ' hot' : ''}`}>{feed.text}</span></div>
           </div>
           <div className="w-fx" ref={fxRef} aria-hidden="true" />
           {phase !== 'play' && breakView()}
         </div>
+
+        {/* Play-by-play, newest on top. Swaps are a dimmer line so they never hide a bucket; hot callouts fade in. */}
+        <ol className="w-feed" aria-label="Play-by-play" aria-live="off">
+          {feed.map((f) => <li key={f.id} className={`w-ev ${f.kind}`}>{f.text}</li>)}
+        </ol>
 
         {phase !== 'final' && (
           <div className="w-controls">
@@ -426,6 +434,14 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
           </div>
         )}
       </div>
+
+      <Sheet open={confirmExit} onClose={() => setConfirmExit(false)} title="Leave the game?">
+        <p style={{ margin: 0 }}>The game still counts — you’ll see the result in the box score.</p>
+        <div className="row" style={{ justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button className="btn" onClick={() => setConfirmExit(false)}>Keep watching</button>
+          <button className="btn btn-primary" onClick={leave}>Leave</button>
+        </div>
+      </Sheet>
 
       <WatchPlayerSheet
         player={sheetPlayer}

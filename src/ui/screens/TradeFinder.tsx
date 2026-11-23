@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { rejectionText, tradeLabel } from '../tradeText'
 import { Link } from 'react-router-dom'
 import { tradesOpen } from '../../engine/gm/cap'
-import { assetLabel, assetsValue, findOffers, proposeTrade, tradeableAssets, type Asset, type Offer } from '../../engine/gm/trade'
+import { assetsValue, findOffers, proposeTrade, tradeableAssets, type Asset, type Offer } from '../../engine/gm/trade'
 import { projectedSlot, teamMode } from '../../engine/gm/value'
 import { archetypeFor } from '../../engine/player/archetype'
 import { OvrPill } from '../components/OvrPill'
@@ -59,7 +60,7 @@ export function TradeFinder() {
   const accept = (o: Offer) => {
     act((l) => {
       const v = proposeTrade(l, { a: me, b: o.teamId, aGives: offered, bGives: o.gives })
-      return v.ok ? `✅ Trade done! ${o.gives.map((a) => assetLabel(league, a)).join(', ')} heading your way.` : `❌ ${league.teams[o.teamId].name}: “${v.reason}”`
+      return v.ok ? `✅ Trade done! ${o.gives.map((a) => tradeLabel(league, a)).join(', ')} heading your way.` : rejectionText(league.teams[o.teamId].name, v)
     })
     setGive(new Set())
   }
@@ -120,7 +121,7 @@ export function TradeFinder() {
                           <div key={a.id} className="asset pick">
                             <span className="pick-chip">R{pk.round}</span>
                             <span className="asset-main">
-                              <span className="asset-name">{assetLabel(league, a)}</span>
+                              <span className="asset-name">{tradeLabel(league, a)}</span>
                               <span className="asset-sub">Projected #{projectedSlot(league, pk)} in round {pk.round}</span>
                             </span>
                           </div>

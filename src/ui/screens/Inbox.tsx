@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { assetLabel } from '../../engine/gm/trade'
+import { tradeLabel } from '../tradeText'
 import { respondToOffer } from '../../engine/stories/inbox'
 import type { InboxItem, League, TradeAsset } from '../../engine/types'
 import { TeamBadge } from '../components/TeamBadge'
@@ -14,7 +14,7 @@ function AssetList({ league, assets }: { league: League; assets: TradeAsset[] })
         const p = a.kind === 'player' ? league.players[a.id] : null
         return (
           <li key={a.id}>
-            {p ? <Link className="link" to={`/player/${p.id}`}>{assetLabel(league, a)}</Link> : assetLabel(league, a)}
+            {p ? <Link className="link" to={`/player/${p.id}`}>{tradeLabel(league, a)}</Link> : tradeLabel(league, a)}
             {p && <span className="muted"> · {p.pos} · {ovrOf(p)} OVR · {p.age}y{p.contract ? ` · ${money(p.contract.salary)}` : ''}</span>}
           </li>
         )

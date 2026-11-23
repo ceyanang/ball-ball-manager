@@ -13,6 +13,7 @@ import { OvrPill } from '../components/OvrPill'
 import { PlayerCell } from '../components/PlayerCell'
 import { useStore } from '../store'
 import { fullName, money, ovrOf } from '../util'
+import { Help } from '../components/Help'
 
 const POS = ['All', 'PG', 'SG', 'SF', 'PF', 'C']
 
@@ -64,17 +65,17 @@ export function FreeAgents() {
         <section className="panel stack">
           <h2>On waivers</h2>
           <div className="table-wrap">
-            <table className="stats">
+            <table className="stats m-cards">
               <thead><tr><th>Player</th><th>From</th><th>OVR</th><th>Contract</th><th></th></tr></thead>
               <tbody>
                 {league.waivers.map((w) => {
                   const p = league.players[w.playerId]
                   return (
                     <tr key={w.playerId}>
-                      <td><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
-                      <td>{league.teams[w.fromTeamId].abbrev}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
-                      <td>{money(w.contract.salary)} through {w.contract.expires}</td>
-                      <td>{w.fromTeamId !== me && <button className="btn" onClick={() => act((l) => { claimWaiver(l, me, p.id); return `You claimed ${fullName(p)}.` })}>Claim</button>}</td>
+                      <td className="m-main"><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
+                      <td data-label="From">{league.teams[w.fromTeamId].abbrev}</td><td className="m-key"><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
+                      <td className="m-key">{money(w.contract.salary)} through {w.contract.expires}</td>
+                      <td className="m-act">{w.fromTeamId !== me && <button className="btn" onClick={() => act((l) => { claimWaiver(l, me, p.id); return `You claimed ${fullName(p)}.` })}>Claim</button>}</td>
                     </tr>
                   )
                 })}
@@ -97,11 +98,11 @@ export function FreeAgents() {
 
       <section className="panel stack">
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <h2>Available</h2>
+          <h2>Available <Help topics={['pot', 'need']} /></h2>
           <div className="seg">{POS.map((x) => <button key={x} className="btn" aria-pressed={pos === x} onClick={() => setPos(x)}>{x}</button>)}</div>
         </div>
         <div className="table-wrap">
-          <table className="stats">
+          <table className="stats m-cards">
             <thead><tr><th>Player</th><th>Pos</th><th>Need</th><th>Age</th><th>OVR</th><th>Asking</th><th></th></tr></thead>
             <tbody>
               {fas.map((p) => {
@@ -110,10 +111,10 @@ export function FreeAgents() {
                 return (
                   <Fragment key={p.id}>
                     <tr>
-                      <td><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
-                      <td>{p.pos}</td><td><NeedDot level={needs[p.pos]} after={teamNeeds(league, me, { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos]} /></td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
-                      <td>{money(ask)} × {yrs}y</td>
-                      <td><button className="btn" disabled={!faOpen} onClick={() => setOpen(open === p.id ? null : p.id)}>Offer</button></td>
+                      <td className="m-main"><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
+                      <td>{p.pos}</td><td data-label="Need"><NeedDot level={needs[p.pos]} after={teamNeeds(league, me, { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos]} /></td><td data-label="Age">{p.age}</td><td className="m-key"><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
+                      <td className="m-key" data-label="Asks">{money(ask)} × {yrs}y</td>
+                      <td className="m-act"><button className="btn" disabled={!faOpen} onClick={() => setOpen(open === p.id ? null : p.id)}>Offer</button></td>
                     </tr>
                     {open === p.id && (
                       <tr className="offer-row"><td colSpan={7}>

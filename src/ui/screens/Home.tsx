@@ -6,7 +6,7 @@ import { GameDayHero } from '../components/GameDay'
 import { NewsCard } from '../components/Stories'
 import { PlayoffHub } from './PlayoffHub'
 import { useStore } from '../store'
-import { didWin, fullName, nextGame, one, ovrOf, pct, recentResults, rosterOf, seasonLine, teamFull } from '../util'
+import { didWin, fullName, nextGame, one, ordinal, ovrOf, recentResults, rosterOf, rowPct, seasonLine, teamFull } from '../util'
 
 export function Home() {
   const league = useStore((s) => s.league)!
@@ -74,7 +74,7 @@ export function Home() {
         <TeamBadge team={team} size={64} />
         <div>
           <div className="team-line">{teamFull(team)}</div>
-          <div className="sub">{rank}{['st', 'nd', 'rd'][rank - 1] ?? 'th'} in the {team.conf} · {league.coaches[team.coachId].firstName} {league.coaches[team.coachId].lastName}, coach</div>
+          <div className="sub">{me.w + me.l > 0 ? `${ordinal(rank)} in the ${team.conf}` : `${team.conf} · no games yet`} · {league.coaches[team.coachId].firstName} {league.coaches[team.coachId].lastName}, coach</div>
         </div>
         <div className="record" aria-label={`Record ${me.w} wins ${me.l} losses`}>{me.w}–{me.l}</div>
       </div>
@@ -143,7 +143,7 @@ export function Home() {
                 {confRows.slice(0, 8).map((r) => (
                   <tr key={r.teamId} className={r.teamId === team.id ? 'me' : ''}>
                     <td><Link className="link" to={`/team/${r.teamId}`}>{league.teams[r.teamId].name}</Link></td>
-                    <td>{r.w}</td><td>{r.l}</td><td>{pct(r.pct)}</td><td>{r.gb === 0 ? '—' : r.gb.toFixed(1)}</td>
+                    <td>{r.w}</td><td>{r.l}</td><td>{rowPct(r)}</td><td>{r.gb === 0 ? '—' : r.gb.toFixed(1)}</td>
                   </tr>
                 ))}
               </tbody>

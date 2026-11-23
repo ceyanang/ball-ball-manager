@@ -2,6 +2,7 @@ import { TEAM_MINUTES } from '../../engine/constants'
 import { MAX_PLAN_MIN, SLOTS, comfortMinutes, suggestedMinutes } from '../../engine/sim/rotation'
 import type { Player, Position, Rotation } from '../../engine/types'
 import { fullName, ovrOf } from '../util'
+import { Help } from './Help'
 
 /** The plan as shown: the saved minutes (missing active players at 0), or the coach's suggestions when there is none. */
 export function shownMinutes(rot: Rotation, players: Record<string, Player>): Record<string, number> {
@@ -35,7 +36,7 @@ export function MinutesPanel({ rot, players, disabled, onChange }: {
   return (
     <section className="panel stack mins-panel">
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <h3>Minutes</h3>
+        <h3>Minutes <Help topics={['sta']} /></h3>
         <div className="row">
           <span className={`mins-left${remaining !== 0 ? ' off' : ''}`} role="status">
             Remaining minutes: <b>{remaining}</b>
@@ -98,8 +99,8 @@ export function MinutesPanel({ rot, players, disabled, onChange }: {
                       </span>
                     </span>
                   </td>
-                  <td className="num">
-                    {sug[id] ?? 0}
+                  <td className="num mins-sug">
+                    <span className="mins-narrow muted">Sugg. </span>{sug[id] ?? 0}
                     {diff !== 0 && <span className={diff > 0 ? 'mins-up' : 'mins-down'}> {diff > 0 ? '▲' : '▼'}{Math.abs(diff)}</span>}
                   </td>
                 </tr>

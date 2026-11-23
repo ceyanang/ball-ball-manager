@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Team } from '../../engine/types'
 import type { LiveLine } from './replay'
+import { Help } from '../components/Help'
 
 export interface RecapRow {
   key: string
@@ -17,7 +18,7 @@ export interface RecapRow {
 }
 
 /** Recap over the blurred court: after each period, and the final. */
-export function QuarterBreak({ title, scoreText, leader, standout, rows, button, onButton, onPick }: {
+export function QuarterBreak({ title, scoreText, leader, standout, rows, button, onButton, onPick, dotColors, onBoxScore }: {
   title: string
   scoreText: string
   leader: string
@@ -26,6 +27,10 @@ export function QuarterBreak({ title, scoreText, leader, standout, rows, button,
   button: string
   onButton: () => void
   onPick: (playerId: string) => void
+  /** Dot colour per team id (so two red teams don't share a dot); defaults to the primary. */
+  dotColors?: Record<string, string>
+  /** Final only: opens the game's full box score. */
+  onBoxScore?: () => void
 }) {
   const next = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState<Set<string>>(new Set())
@@ -48,7 +53,7 @@ export function QuarterBreak({ title, scoreText, leader, standout, rows, button,
           return (
             <div role="row" key={`${r.key}-${i}`} className={sub ? 'w-sub' : undefined}>
               <span role="cell" className="w-lines-name">
-                <i className="w-dot" style={{ background: r.team.colors.primary }} aria-hidden="true" />
+                <i className="w-dot" style={{ background: dotColors?.[r.team.id] ?? r.team.colors.primary }} aria-hidden="true" />
                 {r.children
                   ? <button className="w-pl w-bench-toggle" aria-expanded={open.has(r.key)} onClick={() => toggle(r.key)}>{r.name} {open.has(r.key) ? '▾' : '▸'}</button>
                   : r.playerId
@@ -68,8 +73,11 @@ export function QuarterBreak({ title, scoreText, leader, standout, rows, button,
           )
         })}
       </div>
-      <div className="w-hint">Tap a name for his full line · tap a bench row for everyone who didn’t start</div>
-      <button ref={next} className="btn btn-primary w-next" onClick={onButton}>{button}</button>
+      <div className="w-hint">Tap a name for his full line · tap a bench row for everyone who didn’t start <Help topics={['energy', 'tiers']} /></div>
+      <div className="w-break-actions">
+        {onBoxScore && <button className="btn w-next" onClick={onBoxScore}>Full box score</button>}
+        <button ref={next} className="btn btn-primary w-next" onClick={onButton}>{button}</button>
+      </div>
     </div>
   )
 }

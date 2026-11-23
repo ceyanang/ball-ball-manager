@@ -5,7 +5,7 @@ import { userSeries } from '../../engine/season/advance'
 import { ROSTER_MAX, ROSTER_MIN } from '../../engine/constants'
 import type { League } from '../../engine/types'
 import { useStore } from '../store'
-import { nextGame } from '../util'
+import { nextGame, teamGames, winLoss } from '../util'
 import { Icon } from './Icon'
 import { Sheet } from './Sheet'
 
@@ -15,6 +15,20 @@ export function rosterProblem(l: League): string | null {
   if (n < ROSTER_MIN) return `You need ${ROSTER_MIN} players to play (you have ${n}).`
   if (n > ROSTER_MAX) return `You have ${n} players; the max is ${ROSTER_MAX}.`
   return null
+}
+
+/** Sims seven days, then sums up the user's week ("Week: 2–3") unless something more important is being shown. */
+async function simWeek(sim: (cmd: { type: 'simDays'; days: number }) => Promise<void>) {
+  const before = useStore.getState().league
+  if (!before) return
+  const played = (l: League) => new Set(teamGames(l, l.userTeamId).filter((g) => g.result).map((g) => g.id))
+  const seen = played(before)
+  await sim({ type: 'simDays', days: 7 })
+  const s = useStore.getState()
+  if (!s.league || s.league === before || s.notice || s.error || s.watch) return
+  const week = teamGames(s.league, s.league.userTeamId).filter((g) => g.result && !seen.has(g.id))
+  const { w, l } = winLoss(week, s.league.userTeamId)
+  useStore.setState({ notice: week.length ? `Week: ${w}–${l}` : 'Week done — no games for you this week.' })
 }
 
 type SimAction = { key: string; label: string; short: string; primary?: boolean; run: () => void }
@@ -33,7 +47,7 @@ export function useSim() {
   const base: SimAction[] = league.phase === 'regular'
     ? [
         { key: 'day', label: 'Sim day', short: 'Next day', run: () => sim({ type: 'simDays', days: 1 }) },
-        { key: 'week', label: 'Sim week', short: 'Next 7 days', run: () => sim({ type: 'simDays', days: 7 }) },
+        { key: 'week', label: 'Sim week', short: 'Next 7 days', run: () => void simWeek(sim) },
         ...(league.day < league.tradeDeadlineDay ? [{ key: 'deadline', label: 'Sim to deadline', short: `Up to the trade deadline (day ${league.tradeDeadlineDay})`, run: () => sim({ type: 'simUntil', target: 'deadline' }) }] : []),
         { key: 'end', label: 'Sim to end of season', short: 'Play out the regular season', primary: true, run: () => sim({ type: 'simUntil', target: 'regularEnd' }) },
       ]
