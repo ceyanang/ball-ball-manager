@@ -129,7 +129,7 @@ export function AllStar() {
               const mvp = ev.mvp ? league.players[ev.mvp] : null
               return (
                 <li key={`${ev.season}-${ev.kind}`}>
-                  <span>{ev.season} · {ev.kind === 'allstar' ? 'All-Star' : 'Rising Stars'}: {winner.city} {Math.max(r.homeScore, r.awayScore)}–{Math.min(r.homeScore, r.awayScore)}</span>
+                  <span>Season {ev.season} · {ev.kind === 'allstar' ? 'All-Star Game' : 'Rising Stars'}: {winner.city} {Math.max(r.homeScore, r.awayScore)}–{Math.min(r.homeScore, r.awayScore)}</span>
                   {mvp && <Link className="link" to={`/player/${mvp.id}`}>MVP {fullName(mvp)}</Link>}
                 </li>
               )

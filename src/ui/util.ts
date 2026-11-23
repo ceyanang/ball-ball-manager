@@ -35,6 +35,13 @@ export function recentResults(l: League, teamId: string, n: number): Game[] {
   return teamGames(l, teamId).filter((g) => g.result && g.season === l.season).slice(-n)
 }
 
+/** Wins and losses in the given games for `teamId` (unplayed games are skipped). */
+export function winLoss(games: Game[], teamId: string): { w: number; l: number } {
+  let w = 0, l = 0
+  for (const g of games) if (g.result) { if (didWin(g, teamId)) w++; else l++ }
+  return { w, l }
+}
+
 export function nextGame(l: League, teamId: string): Game | undefined {
   return teamGames(l, teamId).find((g) => !g.result)
 }

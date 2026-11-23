@@ -154,7 +154,7 @@ function DevProgram() {
                   <tr key={p.id}>
                     <td className="m-main"><Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> <span className="muted">{p.pos}</span></td>
                     <td data-label="Age">{p.age}</td><td className="m-key"><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
-                    <td data-label="Draft">{p.draft ? `R${p.draft.round} #${p.draft.pick}` : 'Original roster'}</td>
+                    <td data-label="Draft">{p.draft ? `R${p.draft.round} #${p.draft.pick}` : p.ratingHistory[0]?.season > 1 ? 'Undrafted' : 'Original roster'}</td>
                     <td className="m-key" data-label="Bloom" style={{ color, fontWeight: 700 }}>{label}</td>
                     <td className="m-act"><button className="btn btn-primary" onClick={() => act((l) => startTraining(l, p.id))}>Invest</button></td>
                   </tr>

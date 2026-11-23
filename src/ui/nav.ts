@@ -1,7 +1,7 @@
 /** Navigation model shared by the desktop sidebar and the mobile tab bar + "More" sheet. */
 export type IconName =
   | 'home' | 'inbox' | 'team' | 'rotation' | 'office' | 'calendar' | 'trophy' | 'chart'
-  | 'star' | 'chat' | 'history' | 'grid' | 'save' | 'more' | 'sun' | 'play' | 'close'
+  | 'star' | 'medal' | 'chat' | 'history' | 'grid' | 'save' | 'more' | 'sun' | 'play' | 'close'
 
 export type NavItem = { to: string; label: string; icon: IconName }
 
@@ -13,7 +13,7 @@ const OFFICE: NavItem = { to: '/office', label: 'Front Office', icon: 'office' }
 const SCHEDULE: NavItem = { to: '/schedule', label: 'Schedule', icon: 'calendar' }
 const STANDINGS: NavItem = { to: '/standings', label: 'Standings', icon: 'trophy' }
 const LEADERS: NavItem = { to: '/leaders', label: 'Leaders', icon: 'chart' }
-const ALL_STAR: NavItem = { to: '/all-star', label: 'All-Star', icon: 'star' }
+const ALL_STAR: NavItem = { to: '/all-star', label: 'All-Star', icon: 'medal' }
 const HIGHLIGHTS: NavItem = { to: '/highlights', label: 'Highlights', icon: 'star' }
 const SOCIAL: NavItem = { to: '/social', label: 'Social', icon: 'chat' }
 const HISTORY: NavItem = { to: '/history', label: 'History', icon: 'history' }

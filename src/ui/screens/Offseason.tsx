@@ -30,7 +30,8 @@ export function Offseason() {
   const busy = useStore((s) => s.busy)
   const [open, setOpen] = useState<string | null>(null)
   const os = league.offseason
-  if (league.phase !== 'offseason' || !os) return <Navigate to="/office" replace />
+  // Once the new season starts (or outside the offseason) there's nothing here: go Home.
+  if (league.phase !== 'offseason' || !os) return <Navigate to="/" replace />
   const me = league.userTeamId
   const idx = STEPS.findIndex(([s]) => s === os.step)
   const r = os.report
