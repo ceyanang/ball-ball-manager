@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { committed } from '../../engine/gm/cap'
+import { userSeries } from '../../engine/season/advance'
 import { ROSTER_MAX, ROSTER_MIN } from '../../engine/constants'
 import type { League } from '../../engine/types'
 import { useStore } from '../store'
+import { nextGame } from '../util'
 import { Icon } from './Icon'
 import { Sheet } from './Sheet'
 
 /** The user can't sim with an illegal roster (spec §10). */
-function rosterProblem(l: League): string | null {
+export function rosterProblem(l: League): string | null {
   const n = committed(l, l.userTeamId).length
   if (n < ROSTER_MIN) return `You need ${ROSTER_MIN} players to play (you have ${n}).`
   if (n > ROSTER_MAX) return `You have ${n} players; the max is ${ROSTER_MAX}.`
@@ -18,13 +20,17 @@ function rosterProblem(l: League): string | null {
 type SimAction = { key: string; label: string; short: string; primary?: boolean; run: () => void }
 
 /** Shared by the desktop button row and the mobile header so both offer the same sims. */
-function useSim() {
+export function useSim() {
   const league = useStore((s) => s.league)
   const busy = useStore((s) => s.busy)
   const sim = useStore((s) => s.sim)
+  const startWatch = useStore((s) => s.startWatch)
   if (!league || league.phase === 'offseason') return null
   const problem = rosterProblem(league)
-  const actions: SimAction[] = league.phase === 'regular'
+  const playsToday = nextGame(league, league.userTeamId)?.day === league.day
+  const watch: SimAction[] = playsToday ? [{ key: 'watch', label: 'Watch game', short: 'Play today\'s game live', primary: true, run: () => void startWatch() }] : []
+  const series: SimAction[] = league.phase === 'playoffs' && userSeries(league) ? [{ key: 'series', label: 'Sim series', short: 'Until your series is decided', run: () => sim({ type: 'simUntil', target: 'seriesEnd' }) }] : []
+  const base: SimAction[] = league.phase === 'regular'
     ? [
         { key: 'day', label: 'Sim day', short: 'Next day', run: () => sim({ type: 'simDays', days: 1 }) },
         { key: 'week', label: 'Sim week', short: 'Next 7 days', run: () => sim({ type: 'simDays', days: 7 }) },
@@ -35,6 +41,7 @@ function useSim() {
         { key: 'day', label: 'Sim day', short: 'Next playoff day', run: () => sim({ type: 'simDays', days: 1 }) },
         { key: 'end', label: 'Sim playoffs', short: 'Play out the playoffs', primary: true, run: () => sim({ type: 'simUntil', target: 'playoffsEnd' }) },
       ]
+  const actions = [...watch, ...base.slice(0, 1), ...series, ...base.slice(1)].map((a) => (playsToday && a.primary && a.key !== 'watch' ? { ...a, primary: false } : a))
   return { problem, actions, disabled: busy || !!problem, busy }
 }
 

@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { archetypeFor } from '../../engine/player/archetype'
 import { SLOTS, gameLineup } from '../../engine/sim/rotation'
 import type { Game, League, Player, Team } from '../../engine/types'
+import { useStore } from '../store'
+import { rosterProblem } from './SimControls'
 import { Face } from '../face/Face'
 import { fullName, one, ovrOf, rosterOf, seasonLine, teamFull } from '../util'
 import { OvrPill } from './OvrPill'
@@ -35,6 +37,9 @@ function StarterCard({ league, team, p, slot, crowned }: { league: League; team:
 export function GameDayHero({ league, game, team, records }: {
   league: League; game: Game; team: Team; records: Record<string, { w: number; l: number }>
 }) {
+  const busy = useStore((s) => s.busy)
+  const startWatch = useStore((s) => s.startWatch)
+  const blocked = busy || !!rosterProblem(league)
   const home = game.homeId === team.id
   const opp = league.teams[home ? game.awayId : game.homeId]
   const them = todaysFive(league, opp)
@@ -61,6 +66,8 @@ export function GameDayHero({ league, game, team, records }: {
           Day {game.day} · {home ? 'Home' : 'Road'}{game.playoff ? ` · Playoffs game ${game.playoff.gameNum}` : ''}{seriesText ? ` · ${seriesText}` : ''}
         </span>
       </div>
+
+      <button className="btn btn-primary" disabled={blocked} onClick={() => void startWatch()}>▶ Watch game</button>
 
       <div className="gd-matchup">
         <div className="gd-team">
