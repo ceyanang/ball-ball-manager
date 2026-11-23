@@ -670,3 +670,19 @@ button, a, select, input, label { touch-action: manipulation; }
 .event-changes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; font-weight: 600; }
 .event-card[data-tone='good'] h2 { color: var(--win, #2e9e5b); }
 .event-card[data-tone='bad'] h2 { color: var(--loss); }
+
+/* DataTable: sortable headers, sticky Player column, group rows, filter bar */
+.dt-filters { display: flex; flex-wrap: wrap; gap: 0.6rem 0.8rem; align-items: flex-end; }
+.dt-range { display: flex; gap: 0.4rem; align-items: center; }
+.dt-range select, .dt-range input { font: inherit; padding: 0.4rem 0.5rem; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.dt-range input { width: 5rem; }
+.dt-empty { margin: 0.8rem 0.5rem; }
+table.dt-table th { padding: 0; }
+table.dt-table .th-btn { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; gap: 0.2rem; align-items: center; padding: 0.4rem 0.5rem; font-weight: 600; color: inherit; }
+table.dt-table .th-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 4px; }
+table.dt-table th[aria-sort='ascending'] .th-btn, table.dt-table th[aria-sort='descending'] .th-btn { color: var(--accent); }
+table.dt-table .th-arrow { display: inline-block; min-width: 0.7em; font-size: 0.7rem; }
+table.dt-table tr.group-row th { background: var(--surface-2); border-bottom: 1px solid var(--line); color: var(--ink); }
+table.dt-table tr.group-row .count { color: var(--ink-2); font-weight: 400; margin-left: 0.2rem; }
+table.dt-table th:first-child, table.dt-table td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
+table.dt-table tr.group-row th:first-child { background: var(--surface-2); }
