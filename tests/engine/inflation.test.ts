@@ -23,7 +23,7 @@ const n80 = (l: League) => nAt(l, 80)
 
 // Long: run with `SIM_LONG=1 npx vitest run tests/engine/inflation.test.ts`.
 describe('league talent over many seasons', () => {
-  it.skipIf(!SIM_LONG)('does not inflate over 10 seasons', { timeout: 900_000 }, () => {
+  it.skipIf(!SIM_LONG)('does not inflate over 8 seasons', { timeout: 900_000 }, () => {
     let l = createLeague({ seed: 5, userTeamIndex: 3, name: 'Inflate' })
     const start = { n80: n80(l), top8: top8Mean(l) }
     const log: string[] = [`season 1 start: 80+=${start.n80} top8=${start.top8.toFixed(1)}`]
