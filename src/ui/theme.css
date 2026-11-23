@@ -592,3 +592,24 @@ button, a, select, input, label { touch-action: manipulation; }
   .mins-edit input[type='range'] { flex: 1; width: auto; min-width: 0; height: 36px; }
   .mins-step { min-width: 40px; min-height: 40px; padding: 0; font-size: 1.2rem; }
 }
+
+/* Phone tables: .m-cards turns each row into a compact card — the name on top, then the key numbers and the action
+   (td.m-main / .m-key / .m-act); other cells follow with their data-label. .m-hide / .m-show swap cells by width. */
+.m-show { display: none; }
+@media (max-width: 640px) {
+  .m-hide { display: none !important; }
+  .m-show { display: inline; }
+  table.m-cards thead { display: none; }
+  table.m-cards, table.m-cards tbody { display: block; }
+  table.m-cards tr { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.9rem; padding: 0.6rem 0.2rem; border-bottom: 1px solid var(--line); }
+  table.m-cards td { border: none; padding: 0; text-align: left; white-space: normal; }
+  /* Line 1: name + action. Line 2: key numbers, then the rest. */
+  table.m-cards td.m-main { order: -3; flex: 1 1 calc(100% - 8rem); min-width: 0; }
+  table.m-cards td.m-act { order: -2; margin-left: auto; }
+  table.m-cards td.m-key { order: -1; font-weight: 700; }
+  table.m-cards tr { gap: 0.3rem 0.8rem; }
+  table.m-cards td[data-label]::before { content: attr(data-label); margin-right: 0.3rem; color: var(--ink-2); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+  table.m-cards tr.offer-row td { flex: 1 1 100%; }
+  table.m-cards tr.me { background: color-mix(in srgb, var(--accent) 10%, transparent); border-radius: 8px; }
+  table.m-cards tr.me td { background: none; }
+}

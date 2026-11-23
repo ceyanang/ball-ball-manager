@@ -25,7 +25,7 @@ export function Schedule() {
       </div>
       <div className="panel table-wrap">
         <table className="stats">
-          <thead><tr><th>Day</th><th className="left">Opponent</th><th className="left">Result</th><th className="left">Game</th></tr></thead>
+          <thead><tr><th>Day</th><th className="left">Opponent</th><th className="left">Result</th><th className="left m-hide">Game</th></tr></thead>
           <tbody>
             {games.map((g) => {
               const home = g.homeId === team.id
@@ -37,9 +37,9 @@ export function Schedule() {
               return (
                 <tr key={g.id}>
                   <td>{g.day}</td>
-                  <td className="left"><span className="row" style={{ gap: '0.5rem' }}><span className="muted" style={{ width: '1.3rem' }}>{home ? 'vs' : '@'}</span><TeamBadge team={opp} size={26} /><Link className="link" to={`/team/${opp.id}`}>{teamFull(opp)}</Link></span></td>
+                  <td className="left"><span className="row" style={{ gap: '0.5rem' }}><span className="muted" style={{ width: '1.3rem' }}>{home ? 'vs' : '@'}</span><TeamBadge team={opp} size={26} /><Link className="link" to={`/team/${opp.id}`}><span className="m-hide">{teamFull(opp)}</span><span className="m-show">{opp.name}</span></Link>{g.playoff && <span className="muted m-show">G{g.playoff.gameNum}</span>}</span></td>
                   <td className="left">{r ? <Link className="link" to={`/game/${g.id}`}><span className={w ? 'win' : 'loss'}>{w ? 'W' : 'L'}</span> {us}–{them}{r.ot ? ` (${r.ot > 1 ? r.ot : ''}OT)` : ''}</Link> : '—'}</td>
-                  <td className="left muted">{g.playoff ? `${ROUND[g.playoff.round]}, game ${g.playoff.gameNum}` : 'Regular season'}</td>
+                  <td className="left muted m-hide">{g.playoff ? `${ROUND[g.playoff.round]}, game ${g.playoff.gameNum}` : 'Regular season'}</td>
                 </tr>
               )
             })}

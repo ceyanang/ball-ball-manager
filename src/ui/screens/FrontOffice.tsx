@@ -121,7 +121,7 @@ function DevProgram() {
     <section className="panel stack">
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <h2>🌱 Development program</h2>
-        <span className="muted">{slots.length}/{TRAINING_SLOTS} slots · coach boosts it ×{cf.toFixed(2)}</span>
+        <span className="muted">{slots.length}/{TRAINING_SLOTS} slots · {cf >= 1 ? `coach boosts it ×${cf.toFixed(2)}` : `coach slows it ×${cf.toFixed(2)}`}</span>
       </div>
       <p className="muted" style={{ margin: 0 }}>
         Pick the players you believe in. They grow faster and slide slower, and every so often one breaks out and raises his ceiling.
@@ -145,18 +145,18 @@ function DevProgram() {
       )}
       {free > 0 && options.length > 0 && (
         <div className="table-wrap">
-          <table className="stats">
+          <table className="stats m-cards">
             <thead><tr><th>Invest in…</th><th>Age</th><th>OVR</th><th>Draft</th><th>Bloom odds / season</th><th></th></tr></thead>
             <tbody>
               {options.slice(0, 10).map((p) => {
                 const [label, color] = bloomLabel(odds(p.age, p))
                 return (
                   <tr key={p.id}>
-                    <td><Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> <span className="muted">{p.pos}</span></td>
-                    <td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
-                    <td>{p.draft ? `R${p.draft.round} #${p.draft.pick}` : 'Undrafted'}</td>
-                    <td style={{ color, fontWeight: 700 }}>{label}</td>
-                    <td><button className="btn btn-primary" onClick={() => act((l) => startTraining(l, p.id))}>Invest</button></td>
+                    <td className="m-main"><Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> <span className="muted">{p.pos}</span></td>
+                    <td data-label="Age">{p.age}</td><td className="m-key"><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
+                    <td data-label="Draft">{p.draft ? `R${p.draft.round} #${p.draft.pick}` : 'Original roster'}</td>
+                    <td className="m-key" data-label="Bloom" style={{ color, fontWeight: 700 }}>{label}</td>
+                    <td className="m-act"><button className="btn btn-primary" onClick={() => act((l) => startTraining(l, p.id))}>Invest</button></td>
                   </tr>
                 )
               })}
