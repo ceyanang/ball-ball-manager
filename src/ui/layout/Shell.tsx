@@ -44,7 +44,7 @@ export function Shell() {
   const inboxBadge = unread > 0 && <span className="nav-count" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>
 
   // Watching a game: nothing else in the app is rendered, so nothing can spoil the result.
-  if (watching) return <ErrorBoundary onReset={endWatch}><WatchGame /></ErrorBoundary>
+  if (watching) return <ErrorBoundary onReset={endWatch} message="Something went wrong showing this game. The result is already saved."><WatchGame /></ErrorBoundary>
 
   return (
     <div className="shell">

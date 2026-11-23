@@ -44,6 +44,7 @@ export function migrateLeague(raw: any): League {
   if (raw?.version === 4) raw = { ...raw, version: 5, favoritePlayerIds: [] }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)
+  if (!Array.isArray(raw.favoritePlayerIds)) raw = { ...raw, favoritePlayerIds: [] }
   if (!Array.isArray(raw.progress)) raw = { ...raw, progress: [] }
   return raw as League
 }

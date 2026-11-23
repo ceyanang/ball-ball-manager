@@ -94,6 +94,10 @@ describe('save versions', () => {
     expect(m.version).toBe(5)
     expect(m.favoritePlayerIds).toEqual([])
   })
+  it('loads a v5 save missing favoritePlayerIds with an empty list', () => {
+    const m = parseImport(JSON.stringify({ ...league, version: 5, favoritePlayerIds: undefined }))
+    expect(m.favoritePlayerIds).toEqual([])
+  })
   it('rejects version 6', () => {
     expect(() => parseImport(JSON.stringify({ ...league, version: 6 }))).toThrow(SaveImportError)
   })

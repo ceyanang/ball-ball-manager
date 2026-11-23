@@ -438,6 +438,7 @@ button, a, select, input, label { touch-action: manipulation; }
   .mbar-word { font-size: 1.3rem; min-height: 44px; display: flex; align-items: center; gap: 0.3rem; }
   .msim { display: flex; gap: 0.35rem; flex: none; }
   .msim-go { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; min-height: 44px; padding: 0 1rem; white-space: nowrap; text-decoration: none; }
+  .msim-day { min-height: 44px; padding: 0 0.7rem; white-space: nowrap; font-size: 0.85rem; }
   .msim-more { width: 44px; height: 44px; padding: 0; display: grid; place-items: center; }
   .m-warn { display: block; padding: 0.65rem 0.85rem; border-radius: var(--r); background: color-mix(in srgb, var(--loss) 14%, var(--surface)); border: 1px solid var(--loss); color: var(--ink); font-weight: 600; text-decoration: none; }
 

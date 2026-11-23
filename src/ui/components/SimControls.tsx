@@ -80,14 +80,17 @@ export function MobileSim() {
   if (!s) {
     return <Link className="btn btn-primary msim-go" to="/offseason">Offseason</Link>
   }
-  const [first, ...rest] = s.actions
+  const [first, ...others] = s.actions
+  const simDay = first.key === 'watch' ? others.find((a) => a.key === 'day') : undefined
+  const rest = simDay ? others.filter((a) => a !== simDay) : others
   return (
     <>
       <div className="msim" aria-busy={s.busy}>
         <button className="btn btn-primary msim-go" disabled={s.disabled} onClick={first.run}>
           {s.busy ? <span className="spinner on-accent" role="status" aria-label="Simulating" /> : <Icon name="play" size={16} />}
-          {s.busy ? 'Simming' : first.label}
+          {s.busy ? 'Simming' : first.key === 'watch' ? 'Watch' : first.label}
         </button>
+        {simDay && <button className="btn msim-day" disabled={s.disabled} onClick={simDay.run}>Sim day</button>}
         <button className="btn msim-more" disabled={s.disabled} onClick={() => setOpen(true)} aria-label="More sim options" aria-haspopup="dialog">
           <Icon name="more" size={20} />
         </button>

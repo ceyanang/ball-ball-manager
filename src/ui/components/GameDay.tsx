@@ -39,6 +39,7 @@ export function GameDayHero({ league, game, team, records }: {
 }) {
   const busy = useStore((s) => s.busy)
   const startWatch = useStore((s) => s.startWatch)
+  const sim = useStore((s) => s.sim)
   const blocked = busy || !!rosterProblem(league)
   const home = game.homeId === team.id
   const opp = league.teams[home ? game.awayId : game.homeId]
@@ -67,7 +68,10 @@ export function GameDayHero({ league, game, team, records }: {
         </span>
       </div>
 
-      <button className="btn btn-primary" disabled={blocked} onClick={() => void startWatch()}>▶ Watch game</button>
+      <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
+        <button className="btn btn-primary" disabled={blocked} onClick={() => void startWatch()}>▶ Watch game</button>
+        <button className="btn" disabled={blocked} onClick={() => sim({ type: 'simDays', days: 1 })}>Sim day</button>
+      </div>
 
       <div className="gd-matchup">
         <div className="gd-team">

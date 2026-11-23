@@ -35,7 +35,7 @@ export function WatchGame() {
       <div className="w-screen">
         <div className="w-wrap">
           <p className="muted">This game can’t be replayed.</p>
-          <button className="btn btn-primary" onClick={() => { endWatch(); navigate('/') }}>Done</button>
+          <button className="btn btn-primary" onClick={() => { endWatch(); navigate('/'); window.scrollTo(0, 0) }}>Done</button>
         </div>
       </div>
     )
@@ -133,6 +133,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     fxRef.current?.replaceChildren()
   }
   useEffect(() => clearFx, [])
+  useEffect(() => { window.scrollTo(0, 0) }, [])
 
   /** Flies a ball from a card to the rim: made = through the net, miss = off the rim, blocked = swatted away. */
   function shoot(cardId: string, kind: ShotKind, pts: number, ft: boolean, salt: number) {
@@ -244,6 +245,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
       }
       setClock({ period, t })
       if (t >= 1) {
+        clearFx()
         setPhase(period >= nPeriods ? 'final' : 'break')
         return
       }
@@ -270,7 +272,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     setFeed({ text: 'Final', hot: false })
     setPhase('final')
   }
-  const done = () => { endWatch(); navigate('/') }
+  const done = () => { endWatch(); navigate('/'); window.scrollTo(0, 0) }
 
   const frac = elapsedFraction(clock.period, clock.t)
   const lineOf = (id: string) => rs.lines[id] ?? benchLine(rs, [])
