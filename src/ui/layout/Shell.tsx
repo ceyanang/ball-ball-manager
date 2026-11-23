@@ -10,6 +10,7 @@ import { Sheet } from '../components/Sheet'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { activeTab, MORE_GROUPS, OFFSEASON, SIDEBAR, TABS } from '../nav'
 import { WatchGame } from '../watch/WatchGame'
+import { useMusic } from '../../audio/useMusic'
 
 function phaseLabel(l: League, short = false): string {
   if (l.phase === 'regular') return short ? `Day ${l.day}` : `Season ${l.season} · Day ${l.day}`
@@ -27,6 +28,7 @@ export function Shell() {
   const clearNotice = useStore((s) => s.clearNotice)
   const { pathname } = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
+  useMusic(pathname, watching)
   // New screen starts at the top (the More sheet closes itself via its links).
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
 

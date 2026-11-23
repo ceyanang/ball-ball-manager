@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { setIntensity } from '../../audio/engine'
+import { sfx } from '../../audio/sfx'
+import { setSettings, useAudioSettings } from '../../audio/settings'
+import { sfxFor } from '../../audio/watchSfx'
 import { computeStandings } from '../../engine/standings'
 import { perGame, playerSeasonStats } from '../../engine/stats/stats'
 import type { PlayEvent, Side } from '../../engine/sim/playlog'
@@ -112,6 +116,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   const [speed, setSpeed] = useState<number>(1)
   const [feed, setFeed] = useState<{ text: string; hot: boolean }>({ text: `Tip-off in ${m.teamOf.home.city}…`, hot: false })
   const [sheetId, setSheetId] = useState<string | null>(null)
+  const audio = useAudioSettings()
 
   const rsRef = useRef(rs)
   const clockRef = useRef(clock)
@@ -139,6 +144,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   }
   useEffect(() => clearFx, [])
   useEffect(() => { window.scrollTo(0, 0) }, [])
+  useEffect(() => { setIntensity(0); return () => setIntensity(0) }, [])
 
   /** Flies a ball from a card to the rim: made = through the net, miss = off the rim, blocked = swatted away. */
   function shoot(cardId: string, kind: ShotKind, pts: number, ft: boolean, salt: number) {
@@ -216,6 +222,20 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     })
   }
 
+  /** Sounds for a batch of plays, timed to when each ball reaches the rim (free throws tick as they launch). */
+  function scheduleSfx(fired: PlayEvent[], start: number) {
+    const delays = shotDelays(fired, speedRef.current)
+    const rate = Math.sqrt(speedRef.current)
+    fired.forEach((e, i) => {
+      const names = sfxFor(e, log[start + i + 1])
+      if (!names.length) return
+      if (e.k === 'ft') {
+        later(() => sfx.ftTick(), delays[i])
+        later(() => names.slice(1).forEach((n) => sfx[n]()), delays[i] + 480 / rate)
+      } else later(() => names.forEach((n) => sfx[n]()), shotMs(speedRef.current) * 0.8)
+    })
+  }
+
   const onFired = useEffectEvent((next: ReplayState, fired: PlayEvent[], start: number, court: ReplayState['court']) => {
     const now = performance.now()
     let hot: string | null = null
@@ -229,6 +249,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
       }
     }
     if (hot) {
+      sfx.crowd()
       setFeed({ text: hot, hot: true })
       holdUntil.current = now + HOT_HOLD
     } else if (now >= holdUntil.current) {
@@ -237,6 +258,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
       const text = subs.length ? subs.join(' · ') : describePlays(fired, last)
       if (text) setFeed({ text, hot: false })
     }
+    scheduleSfx(fired, start)
     if (!reducedMotion()) animate(fired, start, court)
   })
 
@@ -261,6 +283,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
       setClock({ period, t })
       if (t >= 1) {
         clearFx()
+        sfx.buzzer()
         setPhase(period >= nPeriods ? 'final' : 'break')
         return
       }
@@ -273,12 +296,14 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   const nextPeriod = () => {
     const period = clockRef.current.period + 1
     clockRef.current = { period, t: 0 }
+    setIntensity(period >= 4 ? 1 : 0)
     setClock(clockRef.current)
     setFeed({ text: `${periodLabel(period)} is under way`, hot: false })
     setPhase('play')
   }
   const skipToFinal = () => {
     clearFx()
+    sfx.buzzer()
     const f = finalState(log)
     rsRef.current = f
     clockRef.current = { period: nPeriods, t: 1 }
@@ -354,7 +379,10 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
       <div className="w-wrap">
         <div className="w-top">
           <span className="w-meta">🏀 {m.meta}</span>
-          {phase !== 'final' && <button className="btn" onClick={skipToFinal}>Exit</button>}
+          <span className="row">
+            <button className="btn" aria-pressed={audio.muted} aria-label={audio.muted ? 'Unmute sound' : 'Mute sound'} onClick={() => setSettings({ muted: !audio.muted })}>{audio.muted ? '🔇' : '🔊'}</button>
+            {phase !== 'final' && <button className="btn" onClick={skipToFinal}>Exit</button>}
+          </span>
         </div>
 
         <div className="w-court">
