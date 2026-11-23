@@ -1,30 +1,35 @@
-import type { League, Player } from '../../engine/types'
-import { money, one, ovrOf, seasonLine } from '../util'
+import { useMemo, useState } from 'react'
+import type { League, Player, Team } from '../../engine/types'
 import { archetypeFor } from '../../engine/player/archetype'
+import { groupRoster, rosterColumns, type StatMode } from '../rosterColumns'
+import { fullName, ovrOf } from '../util'
+import { DataTable, type Column } from './DataTable'
 import { OvrPill } from './OvrPill'
 import { PlayerCell } from './PlayerCell'
 
-export function RosterTable({ league, players }: { league: League; players: Player[] }) {
+/** A team's roster: Starters/Bench groups by default, every stat sortable, filterable by position, name or stat range. */
+export function RosterTable({ league, team, players, mode: initial = 'pg' }: { league: League; team: Team; players: Player[]; mode?: StatMode }) {
+  const [mode, setMode] = useState<StatMode>(initial)
+  const columns = useMemo<Column<Player>[]>(() => rosterColumns(league, mode).map((c) => {
+    if (c.key === 'player') return { ...c, cell: (p: Player) => <PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /> }
+    if (c.key === 'ovr') return { ...c, cell: (p: Player) => <OvrPill value={ovrOf(p)} pot={p.pot} /> }
+    return c
+  }), [league, mode])
+  const groups = useMemo(() => groupRoster(team, players), [team, players])
   return (
-    <div className="table-wrap">
-      <table className="stats">
-        <thead>
-          <tr><th>Player</th><th>Pos</th><th>Age</th><th>OVR</th><th>GP</th><th>PTS</th><th>REB</th><th>AST</th><th>Salary</th><th>Through</th></tr>
-        </thead>
-        <tbody>
-          {players.map((p) => {
-            const line = seasonLine(league, p)
-            return (
-              <tr key={p.id}>
-                <td><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
-                <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
-                <td>{line?.s.gp ?? 0}</td><td>{line ? one(line.pg.pts) : '—'}</td><td>{line ? one(line.pg.reb) : '—'}</td><td>{line ? one(line.pg.ast) : '—'}</td>
-                <td>{p.contract ? money(p.contract.salary) : '—'}</td><td>{p.contract ? `Season ${p.contract.expires}` : '—'}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+    <div className="stack">
+      <div className="seg" role="group" aria-label="Stat mode">
+        <button className="btn" aria-pressed={mode === 'pg'} onClick={() => setMode('pg')}>Per game</button>
+        <button className="btn" aria-pressed={mode === 'tot'} onClick={() => setMode('tot')}>Totals</button>
+      </div>
+      <DataTable
+        rows={players}
+        columns={columns}
+        groups={groups.map((g) => ({ label: g.label, rows: g.rows, collapsed: g.label === 'Inactive' }))}
+        rowKey={(p) => p.id}
+        filters={{ pos: (p) => p.pos, name: fullName, range: true }}
+        ariaLabel={`${team.name} roster`}
+      />
     </div>
   )
 }

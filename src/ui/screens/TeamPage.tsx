@@ -52,7 +52,7 @@ export function TeamPage() {
       </div>
       <section className="panel stack">
         <h2>Roster</h2>
-        <RosterTable league={league} players={roster} />
+        <RosterTable league={league} team={team} players={roster} />
       </section>
       {league.history.length > 0 && (
         <section className="panel stack">
