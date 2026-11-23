@@ -10,6 +10,7 @@ import { aiTrades } from '../gm/trade'
 import { rollInjuries, tickInjuries } from '../sim/injury'
 import { addBoxToStatLines } from '../stats/stats'
 import type { Game, League, Phase, Player, Series } from '../types'
+import { afterUserGame, beforeUserGame, onOffDay } from '../events/hooks'
 import { buildMods, tickEffects } from '../events/mods'
 import { advancePlayoffs, seedPlayoffs } from './playoffs'
 import { pruneTraining } from '../gm/training'
@@ -68,8 +69,16 @@ function autoUserRotation(league: League): void {
 }
 
 /** Mutates `league`: plays the current day and advances the calendar. Returns true when the user should look (a trade offer, or All-Star Weekend just got set). */
-function stepDay(league: League, rng: Rng, capture?: Capture): boolean {
+function stepDay(league: League, rng: Rng, capture?: Capture, pause = false): boolean {
   if (league.phase === 'offseason') return false
+  const userGameToday = league.games.find(
+    (g) => g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null) && (g.homeId === league.userTeamId || g.awayId === league.userTeamId),
+  )
+  if (pause) {
+    // A pop-up pauses the day before anything is played; answering it and sim-ing again carries on.
+    if (league.events.pending) return true
+    if (userGameToday ? beforeUserGame(league, userGameToday) : (league.phase === 'regular' || userSeries(league)) && onOffDay(league)) return true
+  }
   const newsFrom = league.news.length, txFrom = league.transactions.length
   let allStarNow = false
   const played: Game[] = []
@@ -112,30 +121,31 @@ function stepDay(league: League, rng: Rng, capture?: Capture): boolean {
     }
   }
   const offer = afterDay(league, played, newsFrom, txFrom)
+  const popup = pause && !!userGameToday && afterUserGame(league, userGameToday)
   league.day++
-  return offer || allStarNow
+  return offer || allStarNow || popup
 }
 
 /** `stopOnOffer`: pause when a CPU team sends the user a trade offer (the app does; scripts and tests don't). */
-export interface SimOpts { stopOnOffer?: boolean }
+export interface SimOpts { stopOnOffer?: boolean; /** Roll random pop-up events and pause on them (the app does; scripts and tests don't). */ pauseForEvents?: boolean }
 
 export function simDays(league: League, days: number, opts: SimOpts = {}): League {
   if (league.phase === 'offseason') return league
   const next = structuredClone(league)
   const rng = new Rng(next.rng)
   const phase = next.phase
-  for (let i = 0; i < days && next.phase === phase; i++) if (stepDay(next, rng) && opts.stopOnOffer) break
+  for (let i = 0; i < days && next.phase === phase; i++) if (stepDay(next, rng, undefined, opts.pauseForEvents) && (opts.stopOnOffer || next.events.pending)) break
   return next
 }
 
 /** Plays one day exactly like `simDays(league, 1)`, also capturing the user's game as a play log (null on an off day). */
 export function watchDay(league: League, opts: SimOpts = {}): { league: League; watch: WatchCapture | null } {
   if (league.phase === 'offseason') return { league, watch: null }
-  void opts // a single day pauses after one step whether or not an offer arrives
+  // a single day pauses after one step whether or not an offer arrives
   const next = structuredClone(league)
   const rng = new Rng(next.rng)
   const capture: Capture = { teamId: next.userTeamId, out: null }
-  stepDay(next, rng, capture)
+  stepDay(next, rng, capture, opts.pauseForEvents)
   return { league: next, watch: capture.out }
 }
 
@@ -144,18 +154,20 @@ export function userSeries(league: League): Series | null {
   return league.playoffs?.series.find((s) => !s.winnerId && (s.highSeedId === league.userTeamId || s.lowSeedId === league.userTeamId)) ?? null
 }
 
-export function simUntil(league: League, target: 'regularEnd' | 'playoffsEnd' | 'deadline' | 'seriesEnd', opts: SimOpts = {}): League {
+export function simUntil(league: League, target: 'regularEnd' | 'playoffsEnd' | 'deadline' | 'seriesEnd' | 'event', opts: SimOpts = {}): League {
   if (league.phase === 'offseason') return league
   const seriesId = target === 'seriesEnd' ? userSeries(league)?.id : undefined
   if (target === 'seriesEnd' && !seriesId) return league
   const next = structuredClone(league)
   const rng = new Rng(next.rng)
+  const startPhase = next.phase
   const done = () =>
+    target === 'event' ? !!next.events.pending || next.phase !== startPhase :
     target === 'seriesEnd' ? next.phase === 'offseason' || !!next.playoffs?.series.find((s) => s.id === seriesId)?.winnerId :
     target === 'deadline' ? next.phase !== 'regular' || next.day >= next.tradeDeadlineDay
     : target === 'regularEnd' ? next.phase !== 'regular' : next.phase === 'offseason'
   // A trade offer for the user pauses the sim so they can answer it.
-  for (let guard = 0; !done() && guard < 1000; guard++) if (stepDay(next, rng) && opts.stopOnOffer) break
+  for (let guard = 0; !done() && guard < 1000; guard++) if (stepDay(next, rng, undefined, opts.pauseForEvents) && (opts.stopOnOffer || next.events.pending)) break
   return next
 }
 

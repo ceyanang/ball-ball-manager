@@ -3,7 +3,7 @@ import type { League } from '../engine/types'
 
 export type SimCommand =
   | { type: 'simDays'; days: number }
-  | { type: 'simUntil'; target: 'regularEnd' | 'playoffsEnd' | 'deadline' | 'seriesEnd' }
+  | { type: 'simUntil'; target: 'regularEnd' | 'playoffsEnd' | 'deadline' | 'seriesEnd' | 'event' }
   | { type: 'watchDay' }
   | { type: 'offseason' }
   | { type: 'faDays'; days: number }

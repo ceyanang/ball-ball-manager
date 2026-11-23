@@ -8,8 +8,8 @@ import type { EventLogEntry, Subjects } from './state'
 
 /** Chance a roll fires an event, by frequency setting and moment. ~15–25 a season on "lots". */
 export const EVENT_TUNING = {
-  some: { preGame: 0.12, day: 0.1, postGame: 0.04 },
-  lots: { preGame: 0.28, day: 0.25, postGame: 0.1 },
+  some: { preGame: 0.05, day: 0.02, postGame: 0.02 },
+  lots: { preGame: 0.12, day: 0.05, postGame: 0.05 },
 } as const
 
 const HISTORY_MAX = 100

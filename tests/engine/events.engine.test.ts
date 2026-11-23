@@ -64,8 +64,8 @@ describe('rollEvent', () => {
     const l = fresh()
     let n = 0
     for (let d = 1; d <= 200; d++) { l.day = d; l.events.pending = null; l.events.cooldowns = {}; if (rollEvent(l, 'preGame', null)) n++ }
-    expect(n / 200).toBeGreaterThan(0.15)
-    expect(n / 200).toBeLessThan(0.5)
+    expect(n / 200).toBeGreaterThan(0.06)
+    expect(n / 200).toBeLessThan(0.25)
   })
   it('rolls each day/slot only once', () => {
     setCatalogForTests([mk()])
