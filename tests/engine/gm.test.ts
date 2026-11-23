@@ -118,6 +118,27 @@ describe('waivers and free agents', () => {
     expect(offerFreeAgent(l, user(l), fa.id, ask, 2)).toBe('signed')
     expect(l.players[fa.id].teamId).toBe(user(l))
   })
+  it('once free agency is over (step "ready"), a short roster can still sign free agents on the spot', () => {
+    const l = fresh()
+    l.phase = 'offseason'
+    l.offseason = { step: 'ready', faDay: 15, report: { retired: [], changes: [], coaching: [] }, resignTries: {} }
+    const fa = Object.values(l.players).find((p) => !p.teamId && !p.retired && !l.draftRights[p.id] && !(l.draft?.prospects.includes(p.id) ?? false))
+      ?? (() => { const p = l.players[committed(l, user(l))[0]?.id ?? best(l, user(l))[0].id]; p.teamId = null; p.contract = null; return p })()
+    const before = committed(l, user(l)).length
+    const ask = Math.max(currentAsk(l, fa), 1_000)
+    expect(offerFreeAgent(l, user(l), fa.id, ask, 1)).toBe('signed')
+    expect(l.players[fa.id].teamId).toBe(user(l))
+    expect(committed(l, user(l)).length).toBe(before + 1)
+  })
+  it('free agency has not opened before re-signing ends', () => {
+    const l = fresh()
+    l.phase = 'offseason'
+    l.offseason = { step: 'resign', faDay: 0, report: { retired: [], changes: [], coaching: [] }, resignTries: {} }
+    const fa = best(l, user(l))[0]
+    fa.teamId = null
+    fa.contract = null
+    expect(() => offerFreeAgent(l, user(l), fa.id, 1_000, 1)).toThrow(/Free agency opens/)
+  })
 })
 
 describe('full offseason cycle', () => {

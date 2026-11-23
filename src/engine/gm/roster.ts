@@ -104,10 +104,15 @@ export function offerFreeAgent(l: League, teamId: string, playerId: string, sala
   const problem = capProblem(l, teamId, { addSalary: salary, addCount: 1 }, 'This offer')
   if (problem) throw new GmError(problem)
   if (l.phase === 'offseason') {
-    if (l.offseason?.step !== 'freeAgency') throw new GmError('Free agency opens after the re-signing period.')
-    l.faOffers = l.faOffers.filter((o) => !(o.playerId === playerId && o.teamId === teamId))
-    l.faOffers.push({ playerId, teamId, salary, years })
-    return 'pending'
+    const step = l.offseason?.step
+    // Once free agency has run its course ('ready') no more days will pass, so a pending offer would never be
+    // decided. Sign on the spot like in season, so a short roster can always be filled before the opener.
+    if (step === 'freeAgency') {
+      l.faOffers = l.faOffers.filter((o) => !(o.playerId === playerId && o.teamId === teamId))
+      l.faOffers.push({ playerId, teamId, salary, years })
+      return 'pending'
+    }
+    if (step !== 'ready') throw new GmError('Free agency opens after the re-signing period.')
   }
   if (salary < currentAsk(l, p) * 0.9) return 'rejected'
   sign(l, teamId, p, salary, years)

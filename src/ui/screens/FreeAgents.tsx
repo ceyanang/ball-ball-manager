@@ -22,7 +22,7 @@ export function FreeAgents() {
   const [pos, setPos] = useState('All')
   const me = league.userTeamId
   const os = league.offseason
-  const faOpen = league.phase !== 'offseason' || os?.step === 'freeAgency'
+  const faOpen = league.phase !== 'offseason' || os?.step === 'freeAgency' || os?.step === 'ready'
   const perf = useMemo(() => formOf(league), [league])
   const fas = Object.values(league.players)
     .filter((p) => isFreeAgent(league, p) && (pos === 'All' || p.pos === pos))
