@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { listSaves } from '../save/db'
+import { lastOpenedSave, listSaves } from '../save/db'
 import { FaceGallery } from './FaceGallery'
 import { Shell } from './layout/Shell'
 import { BoxScore } from './screens/BoxScore'
@@ -42,7 +42,11 @@ export default function App() {
   const [ready, setReady] = useState(false)
   useEffect(() => {
     listSaves()
-      .then(async (s) => { if (s.length) await load(s[0].id) })
+      .then(async (s) => {
+        const last = lastOpenedSave()
+        const pick = s.find((m) => m.id === last) ?? s[0]
+        if (pick) await load(pick.id)
+      })
       .finally(() => setReady(true))
   }, [load])
   if (!ready) return null

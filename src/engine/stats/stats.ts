@@ -23,11 +23,31 @@ export function addBoxToStatLines(statLines: Record<string, StatLine>, game: Gam
   }
 }
 
+/**
+ * statLines grouped by `season|type|player`, cached per statLines object. Lines are mutated in place (fine: the
+ * index holds the same objects); added or removed keys change the signature and rebuild it.
+ */
+const indexCache = new WeakMap<Record<string, StatLine>, { sig: string; map: Map<string, StatLine[]> }>()
+function statIndex(statLines: Record<string, StatLine>): Map<string, StatLine[]> {
+  const keys = Object.keys(statLines)
+  const sig = `${keys.length}|${keys[0] ?? ''}|${keys[keys.length - 1] ?? ''}`
+  const hit = indexCache.get(statLines)
+  if (hit && hit.sig === sig) return hit.map
+  const map = new Map<string, StatLine[]>()
+  for (const k of keys) {
+    const group = k.slice(0, k.lastIndexOf('|'))
+    const arr = map.get(group)
+    if (arr) arr.push(statLines[k])
+    else map.set(group, [statLines[k]])
+  }
+  indexCache.set(statLines, { sig, map })
+  return map
+}
+
 /** All lines for a player's season merged across teams; teamId is his current team when he played for it. */
 export function playerSeasonStats(league: League, playerId: string, season: number, playoffs: boolean): StatLine | null {
-  const prefix = `${season}|${playoffs ? 'p' : 'r'}|${playerId}|`
-  const lines = Object.entries(league.statLines).filter(([k]) => k.startsWith(prefix)).map(([, v]) => v)
-  if (!lines.length) return null
+  const lines = statIndex(league.statLines).get(`${season}|${playoffs ? 'p' : 'r'}|${playerId}`)
+  if (!lines?.length) return null
   const current = league.players[playerId]?.teamId
   const teamId = lines.some((l) => l.teamId === current) ? current! : lines[lines.length - 1].teamId
   const out = blank(season, playoffs, playerId, teamId)

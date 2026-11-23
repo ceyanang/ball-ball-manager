@@ -31,12 +31,34 @@ export async function loadSave(id: string): Promise<League> {
   return reslotAiRotations(migrateLeague(league))
 }
 
+/** Other windows/tabs (or the installed app) with the same save open reload it after we write. */
+const channel: BroadcastChannel | null = typeof BroadcastChannel === 'function' ? new BroadcastChannel('bbm-saves') : null
+export const TAB_ID = Math.random().toString(36).slice(2)
+export function onSaveWritten(fn: (id: string) => void): () => void {
+  if (!channel) return () => {}
+  const h = (e: MessageEvent) => { if (e.data?.tab !== TAB_ID && typeof e.data?.id === 'string') fn(e.data.id) }
+  channel.addEventListener('message', h)
+  return () => channel.removeEventListener('message', h)
+}
+
 export async function writeSave(id: string, league: League): Promise<void> {
   const d = await db()
   const team = league.teams[league.userTeamId]
   const meta: SaveMeta = { id, name: league.name, teamName: `${team.city} ${team.name}`, season: league.season, updatedAt: Date.now() }
   const tx = d.transaction(['meta', 'leagues'], 'readwrite')
   await Promise.all([tx.objectStore('meta').put(meta), tx.objectStore('leagues').put(league, id), tx.done])
+  try { channel?.postMessage({ tab: TAB_ID, id }) } catch { /* another tab simply won't refresh */ }
+}
+
+const LAST_KEY = 'bbm.lastSave'
+/** The save this device last opened (so a reload reopens it, not just the most recently written one). */
+export function lastOpenedSave(): string | null {
+  try { return localStorage.getItem(LAST_KEY) } catch { return null }
+}
+export function rememberOpenedSave(id: string | null): void {
+  try { if (id) localStorage.setItem(LAST_KEY, id); else localStorage.removeItem(LAST_KEY) } catch { /* private mode */ }
+  // Ask the browser not to evict saves under storage pressure (iOS especially). Best effort.
+  try { void navigator.storage?.persist?.() } catch { /* unsupported */ }
 }
 
 export async function deleteSave(id: string): Promise<void> {

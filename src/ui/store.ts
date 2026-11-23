@@ -5,7 +5,7 @@ import { GmError } from '../engine/gm/cap'
 import { Rng } from '../engine/rng'
 import { eventGame, playAllStarEvent, userSideIndex } from '../engine/allstar/allstar'
 import type { AllStarKind, Game, League, Rotation } from '../engine/types'
-import { deleteSave, loadSave, parseImport, writeSave } from '../save/db'
+import { deleteSave, listSaves, loadSave, onSaveWritten, parseImport, rememberOpenedSave, writeSave } from '../save/db'
 import { runSim, runWatch } from '../worker/client'
 import type { PlayEvent } from '../engine/sim/playlog'
 import type { WatchCapture } from '../engine/season/advance'
@@ -46,9 +46,27 @@ interface State {
   act: (fn: (l: League, rng: Rng) => string | void) => boolean
 }
 
+/** Keeps a tab from overwriting newer progress made in another tab/window on the same save. */
+let externalSyncInstalled = false
+function installExternalSync(get: () => State, set: (p: Partial<State>) => void) {
+  if (externalSyncInstalled) return
+  externalSyncInstalled = true
+  onSaveWritten(async (id) => {
+    const s = get()
+    if (s.saveId !== id || s.watch) return
+    try {
+      const league = await loadSave(id)
+      if (get().saveId === id && !get().busy) set({ league, notice: '🔄 This save was updated in another window — showing the latest.' })
+    } catch { /* keep what we have */ }
+  })
+  // Leaving mid-broadcast: the result is already saved, so warn before the reload spoils it.
+  if (typeof window !== 'undefined') window.addEventListener('beforeunload', (e) => { if (get().watch) e.preventDefault() })
+}
+
 const newId = () => 'save_' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36)
 
 export const useStore = create<State>((set, get) => {
+  installExternalSync(get, set)
   /** Runs a sim step on the open league, saves the result and shows an offer notice. A watch capture, if any, starts a watch session. */
   async function runAndSave(run: (league: League) => Promise<{ league: League; watch: WatchCapture | null }>) {
     const { league, busy, saveId } = get()
@@ -91,16 +109,23 @@ export const useStore = create<State>((set, get) => {
 
   async newLeague(opts) {
     if (get().busy) return
-    const league = createLeague(opts)
-    const saveId = newId()
-    await writeSave(saveId, league)
-    set({ league, saveId, error: null })
+    set({ busy: true })
+    try {
+      const league = createLeague(opts)
+      const saveId = newId()
+      await writeSave(saveId, league)
+      rememberOpenedSave(saveId)
+      set({ league, saveId, error: null })
+    } finally {
+      set({ busy: false })
+    }
   },
 
   async load(id) {
     if (get().busy) return
     try {
       set({ league: await loadSave(id), saveId: id, error: null })
+      rememberOpenedSave(id)
     } catch (e) {
       set({ error: (e as Error).message })
     }
@@ -109,7 +134,11 @@ export const useStore = create<State>((set, get) => {
   async remove(id) {
     if (get().busy) return
     await deleteSave(id)
-    if (get().saveId === id) set({ saveId: null, league: null })
+    if (get().saveId !== id) return
+    set({ saveId: null, league: null, watch: null })
+    rememberOpenedSave(null)
+    const next = (await listSaves())[0]
+    if (next) await get().load(next.id)
   },
 
   async sim(cmd) {
