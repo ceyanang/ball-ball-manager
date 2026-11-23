@@ -174,3 +174,26 @@ export function describePlays(events: PlayEvent[], last: (id: string) => string)
     default: return null
   }
 }
+
+/** Wall-clock length of a field-goal ball flight (ms) at the given speed. */
+export const shotMs = (speed: number) => 900 / Math.sqrt(speed)
+/** Gap between free-throw balls in one trip (ms). */
+export const ftGapMs = (speed: number) => 420 / Math.sqrt(speed)
+
+/**
+ * Launch delay (ms) for each event's ball, 0 for non-shots. Free throws go a beat apart; an and-one free throw waits
+ * for the make to land. Only shots chain: an assist or block between them doesn't break the trip.
+ */
+export function shotDelays(events: PlayEvent[], speed: number): number[] {
+  let prev: Extract<PlayEvent, { k: 'fg' | 'ft' }> | null = null
+  let delay = 0
+  return events.map((e) => {
+    if (e.k === 'fg') { prev = e; delay = 0; return 0 }
+    if (e.k !== 'ft') return 0
+    const p = prev as Extract<PlayEvent, { k: 'fg' | 'ft' }> | null
+    const same = !!p && p.player === e.player && p.period === e.period && p.t === e.t
+    delay = !same ? 0 : p!.k === 'fg' ? (p!.made ? shotMs(speed) : 0) : delay + ftGapMs(speed)
+    prev = e
+    return delay
+  })
+}

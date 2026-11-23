@@ -6,7 +6,7 @@ import { boxFromLog, type PlayEvent } from '../../src/engine/sim/playlog'
 import type { GameResult, Team } from '../../src/engine/types'
 import {
   advanceTo, beatsAverage, benchLine, clockText, describePlays, elapsedFraction, finalState, initState, isHot, onPace, periodCount,
-  periodLabel, periodMs, standout,
+  periodLabel, periodMs, shotDelays, shotMs, ftGapMs, standout,
 } from '../../src/ui/watch/replay'
 
 const league = createLeague({ seed: 1, userTeamIndex: 0, name: 'G' })
@@ -145,5 +145,18 @@ describe('replay model', () => {
     expect(clockText(2, 1)).toBe('0:00')
     expect(clockText(5, 0)).toBe('5:00')
     expect(clockText(3, 0.999)).toBe('0:01')
+  })
+
+  it('shotDelays: free throws a beat apart, and-ones after the make (assist or not)', () => {
+    const at = { period: 2, t: 0.3 }
+    const fg = (made: boolean): PlayEvent => ({ ...at, k: 'fg', side: 'home', player: 'a', made, three: false, home: 0, away: 0 })
+    const ft = (player = 'a'): PlayEvent => ({ ...at, k: 'ft', side: 'home', player, made: true, home: 0, away: 0 })
+    const ast: PlayEvent = { ...at, k: 'ast', side: 'home', player: 'b' }
+    const reb: PlayEvent = { ...at, k: 'reb', side: 'away', player: 'c', off: false }
+    expect(shotDelays([fg(true), ast, ft()], 4)).toEqual([0, 0, shotMs(4)])
+    expect(shotDelays([fg(true), ft()], 1)).toEqual([0, shotMs(1)])
+    expect(shotDelays([ft(), ft(), ft(), reb], 2)).toEqual([0, ftGapMs(2), 2 * ftGapMs(2), 0])
+    expect(shotDelays([fg(true), ast, ft('z')], 1)).toEqual([0, 0, 0])
+    expect(shotDelays([fg(false), ft()], 1)).toEqual([0, 0])
   })
 })

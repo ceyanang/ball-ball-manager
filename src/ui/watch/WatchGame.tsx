@@ -9,7 +9,7 @@ import { fullName, seasonLine, teamFull } from '../util'
 import { QuarterBreak, type RecapRow } from './QuarterBreak'
 import {
   advanceTo, beatsAverage, benchLine, clockText, describePlays, elapsedFraction, finalState, initState, isHot,
-  periodCount, periodLabel, periodMs, standout, type ReplayState,
+  periodCount, periodLabel, periodMs, shotDelays, shotMs, standout, type ReplayState,
 } from './replay'
 import { WatchCard } from './WatchCard'
 import { WatchPlayerSheet } from './WatchPlayerSheet'
@@ -144,7 +144,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     const above = c.top + c.height / 2 < r.top
     const sy = above ? c.bottom - box.top - 24 : c.top - box.top
     const apex = Math.min(sy, rimY) - (ft ? 35 : 70)
-    const dur = (ft ? 600 : 900) / Math.sqrt(speedRef.current)
+    const dur = ft ? 600 / Math.sqrt(speedRef.current) : shotMs(speedRef.current)
     const dir = salt % 2 ? 1 : -1
     const at = (x: number, y: number, deg: number) => `translate(${x}px, ${y}px) rotate(${deg}deg)`
     const frames: Keyframe[] =
@@ -190,22 +190,15 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
 
   /** Balls for every shot in a batch; free throws a beat apart (after the make on an and-one). */
   function animate(fired: PlayEvent[], start: number) {
-    const gap = 420 / Math.sqrt(speedRef.current)
-    let delay = 0
-    let prev: PlayEvent | null = null
+    const delays = shotDelays(fired, speedRef.current)
     fired.forEach((e, i) => {
       const idx = start + i
       if (e.k === 'fg') {
-        const next = log[idx + 1]
-        const kind: ShotKind = e.made ? 'made' : next?.k === 'blk' ? 'blocked' : 'miss'
+        const kind: ShotKind = e.made ? 'made' : log[idx + 1]?.k === 'blk' ? 'blocked' : 'miss'
         shoot(m.cardOf[e.player], kind, e.three ? 3 : 2, false, idx)
-        delay = 0
       } else if (e.k === 'ft') {
-        const continues = prev && (prev.k === 'fg' || prev.k === 'ft') && prev.player === e.player && prev.t === e.t
-        delay = !continues ? 0 : prev!.k === 'fg' ? 900 / Math.sqrt(speedRef.current) : delay + gap
-        later(() => shoot(m.cardOf[e.player], e.made ? 'made' : 'miss', 1, true, idx), delay)
+        later(() => shoot(m.cardOf[e.player], e.made ? 'made' : 'miss', 1, true, idx), delays[i])
       }
-      if (e.k !== 'periodEnd') prev = e
     })
   }
 

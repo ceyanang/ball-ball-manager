@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useCallback } from 'react'
 import type { Player, Team } from '../../engine/types'
 import { Face } from '../face/Face'
 import { fullName } from '../util'
@@ -18,9 +18,10 @@ export const WatchCard = memo(function WatchCard({ cardId, player, team, benchCo
   hot: boolean; fav: boolean
   register: (cardId: string, el: HTMLElement | null) => void
 }) {
+  const ref = useCallback((el: HTMLDivElement | null) => register(cardId, el), [register, cardId])
   const cls = `w-card${player ? '' : ' bench'}${hot ? ' hot' : ''}${fav ? ' fav' : ''}`
   return (
-    <div className={cls} ref={(el) => register(cardId, el)} aria-label={player ? `${fullName(player)}: ${pts} points, ${reb} rebounds, ${ast} assists` : `${team.name} bench: ${pts} points`}>
+    <div className={cls} ref={ref} aria-label={player ? `${fullName(player)}: ${pts} points, ${reb} rebounds, ${ast} assists` : `${team.name} bench: ${pts} points`}>
       {fav && <span className="w-mark star" aria-hidden="true">⭐</span>}
       {hot && <span className="w-mark fire" aria-hidden="true">🔥</span>}
       <div className="w-face">

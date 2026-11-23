@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import type { Team } from '../../engine/types'
 import type { LiveLine } from './replay'
 
@@ -22,6 +23,9 @@ export function QuarterBreak({ title, scoreText, leader, standout, rows, button,
   onButton: () => void
   onPick: (playerId: string) => void
 }) {
+  const next = useRef<HTMLButtonElement>(null)
+  // Focus the next action when the break opens (not on every re-render, e.g. after a favorite toggle).
+  useEffect(() => { next.current?.focus({ preventScroll: true }) }, [button])
   return (
     <div className="w-break" role="dialog" aria-label={title}>
       <h3>{title}</h3>
@@ -50,7 +54,7 @@ export function QuarterBreak({ title, scoreText, leader, standout, rows, button,
         ))}
       </div>
       <div className="w-hint">Tap a name for his full line</div>
-      <button className="btn btn-primary w-next" onClick={onButton}>{button}</button>
+      <button ref={next} className="btn btn-primary w-next" onClick={onButton}>{button}</button>
     </div>
   )
 }
