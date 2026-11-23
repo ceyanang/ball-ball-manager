@@ -39,7 +39,7 @@ export function AssetList({ league, teamId, assets, picked, toggle, pos, q }: {
               <span className="asset-sub">{p.pos} · {p.age}y · {archetypeFor(p)}</span>
             </span>
             <span className="asset-money">{p.contract ? `${money(p.contract.salary)} · ${yrs}y` : ''}</span>
-            <OvrPill value={ovrOf(p)} />
+            <OvrPill value={ovrOf(p)} pot={p.pot} />
           </label>
         )
       })}
@@ -171,7 +171,7 @@ export function Trade() {
                   <span className="asset-sub">{p.pos} · {p.age}y · {t.abbrev} · {archetypeFor(p)}</span>
                 </span>
                 <span className="asset-money">{p.contract ? money(p.contract.salary) : ''}</span>
-                <OvrPill value={ovrOf(p)} />
+                <OvrPill value={ovrOf(p)} pot={p.pot} />
                 <button className="btn" disabled={on} onClick={() => target(t.id, p.id)}>{on ? 'Added' : 'Target'}</button>
               </div>
             )

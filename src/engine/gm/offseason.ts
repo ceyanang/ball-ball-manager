@@ -13,22 +13,26 @@ import { aiTrades } from './trade'
 import { strengthOrder } from './value'
 import { afterOffseason, onNewSeason, onOffseasonStart, onRetired } from '../stories/hooks'
 
-/** Offseason rating change: growth toward potential when young, decline with age, always some variance. */
+/** Offseason rating change: growth toward potential when young, decline with age, some variance. */
 function progressPlayer(p: Player, rng: Rng, coachDev: number, minutes: number): void {
   const o = ovr(p)
+  const gap = Math.max(0, p.pot - o)
   let delta: number
-  if (p.age <= 22) delta = Math.max(0, p.pot - o) * 0.16
-  else if (p.age <= 26) delta = Math.max(0, p.pot - o) * 0.1
-  else if (p.age <= 28) delta = -0.3
-  else if (p.age <= 30) delta = -0.9
+  if (p.age <= 22) delta = gap * 0.16
+  else if (p.age <= 26) delta = gap * 0.1
+  else if (p.age <= 28) delta = -0.3 + gap * 0.12
+  else if (p.age <= 30) delta = -0.9 + (p.age <= 29 ? gap * 0.1 : 0)
   else if (p.age <= 33) delta = -2 - (p.age - 31) * 0.8
   else delta = -4.2 - (p.age - 34) * 1.1
   if (p.age <= 25) delta += (coachDev - 60) / 40
   if (minutes >= 1000 && p.age <= 26) delta += 0.3
-  delta += rng.normal(0, 2)
+  // Variance is tighter for young players and primes, so nobody craters out of nowhere before the age decline.
+  delta += rng.normal(0, p.age <= 26 ? 1.5 : p.age <= 29 ? 1.3 : 2)
+  if (p.age <= 26) delta = Math.max(delta, -1)
+  else if (p.age <= 29) delta = Math.max(delta, -2.5)
   // The very top is hard to climb: gains shrink past 84 and nobody grows beyond his ceiling.
   if (delta > 0 && o >= 84) delta *= o >= 90 ? 0.25 : 0.45
-  if (delta > 0) delta = Math.min(delta, Math.max(0, p.pot - o) + 1)
+  if (delta > 0) delta = Math.min(delta, gap + 1)
   const target = Math.round(o + delta)
   const w = POSITION_WEIGHTS[p.pos]
   const dir = Math.sign(target - o)
@@ -39,8 +43,36 @@ function progressPlayer(p: Player, rng: Rng, coachDev: number, minutes: number):
     const k: keyof Ratings = rng.weighted(options, (key) => w[key] * (dir < 0 && p.age >= 31 && (key === 'ath' || key === 'stam') ? 3 : 1))
     p.ratings[k] += dir
   }
-  if (p.age >= 27) p.pot = Math.max(ovr(p), Math.min(p.pot, ovr(p) + Math.max(0, 29 - p.age)))
+  // Through 29 a dip leaves potential in place (a small one is still recoverable); 30+ the ceiling is today.
+  if (p.age >= 30) p.pot = ovr(p)
+  else if (p.age >= 27) p.pot = Math.max(ovr(p), Math.min(Math.max(p.pot, o - 1), ovr(p) + 30 - p.age))
   else p.pot = Math.max(ovr(p), Math.min(99, Math.round(p.pot + rng.normal(0, 1.5))))
+}
+
+/**
+ * Season-ending injuries (torn ACL, ruptured Achilles) heal over the summer, but not always cleanly:
+ * some players come all the way back, some lose a step, and a few lose the star athleticism for good.
+ * Everyone else's injury just heals.
+ */
+function recoverFromInjury(p: Player, rng: Rng): void {
+  const inj = p.injury
+  p.injury = null
+  if (!inj || inj.severity !== 'season') return
+  const achilles = inj.type.includes('Achilles')
+  const r = rng.next()
+  const full = achilles ? 0.35 : 0.5
+  const partial = achilles ? 0.4 : 0.35
+  const old = p.age >= 31 ? 0.15 : 0 // older players are less likely to come all the way back
+  if (r < full - old) return
+  const major = r >= full + partial - old
+  const before = ovr(p)
+  const lose = (k: 'ath' | 'stam' | 'handle' | 'perD', n: number) => { p.ratings[k] = Math.max(RATING_MIN, p.ratings[k] - n) }
+  lose('ath', major ? rng.int(9, 15) : rng.int(3, 7))
+  lose('stam', major ? rng.int(4, 8) : rng.int(1, 3))
+  if (major) { lose('handle', rng.int(1, 4)); lose('perD', rng.int(1, 4)) }
+  const drop = before - ovr(p)
+  // The ceiling comes down with the athleticism, but only part of the way for the young.
+  p.pot = Math.max(ovr(p), p.pot - Math.ceil(drop * (p.age <= 25 ? 0.5 : 1)))
 }
 
 function retireChance(p: Player): number {
@@ -113,6 +145,7 @@ export function startOffseason(l: League, rng: Rng): void {
     const dev = p.teamId ? l.coaches[l.teams[p.teamId].coachId]?.dev ?? 60 : 50
     p.age++
     progressPlayer(p, rng, dev, mins[p.id] ?? 0)
+    recoverFromInjury(p, rng)
     const to = ovr(p)
     p.ratingHistory.push({ season: l.season + 1, ovr: to })
     if (p.teamId && (Math.abs(to - from) >= 4 || p.teamId === l.userTeamId) && to !== from)

@@ -103,3 +103,17 @@
 .w-qbar span { position: absolute; top: -16px; left: 0; right: 0; text-align: center; font-size: 0.7rem; color: var(--ink-2); }
 .w-qbar div.todo span { color: var(--ink); }
 .w-pace { background: var(--surface-2); border-radius: 10px; padding: 10px; font-size: 0.9rem; }
+
+/* OVR tiers: border on the portrait + badge top-left. 95+ two-tone silver/gold, 90+ purple, 85+ gold, 75+ silver, else bronze. */
+.w-face { position: relative; box-sizing: border-box; border: 2px solid transparent; }
+.w-face.tier-bronze { border-color: #b0733a; }
+.w-face.tier-silver { border-color: #c4ccd8; }
+.w-face.tier-gold { border-color: #ffc83d; }
+.w-face.tier-purple { border-color: #a45bff; }
+.w-face.tier-dual { background: linear-gradient(#1f2a42, #1f2a42) padding-box, linear-gradient(135deg, #d5dce8 0 48%, #ffc83d 52% 100%) border-box; }
+.w-ovr { position: absolute; top: 0; left: 0; z-index: 2; min-width: 1.15rem; padding: 0 3px; border-radius: 0 0 6px 0; font: 900 0.7rem/1.25 var(--display); text-align: center; color: #111; }
+.w-ovr.tier-bronze { background: #b0733a; color: #fff; }
+.w-ovr.tier-silver { background: #c4ccd8; }
+.w-ovr.tier-gold { background: #ffc83d; }
+.w-ovr.tier-purple { background: #a45bff; color: #fff; }
+.w-ovr.tier-dual { background: linear-gradient(135deg, #d5dce8 0 48%, #ffc83d 52% 100%); }

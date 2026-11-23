@@ -96,7 +96,7 @@ export function Roster() {
                   <span className="asset-name">{fullName(p)}{p.injury ? ' 🤕' : ''}</span>
                   <span className="asset-sub">{p.pos} · {p.age}y · {archetypeFor(p)}{showTeam ? ` · ${t.abbrev}` : ''}</span>
                 </span>
-                <OvrPill value={ovrOf(p)} />
+                <OvrPill value={ovrOf(p)} pot={p.pot} />
               </button>
               {isOpen && detail(p)}
             </div>

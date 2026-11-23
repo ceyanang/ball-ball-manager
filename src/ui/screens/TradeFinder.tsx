@@ -135,7 +135,7 @@ export function TradeFinder() {
                             <span className="asset-sub">{p.pos} · {p.age}y · {archetypeFor(p)}</span>
                           </span>
                           <span className="asset-money">{p.contract ? money(p.contract.salary) : ''}</span>
-                          <OvrPill value={ovrOf(p)} />
+                          <OvrPill value={ovrOf(p)} pot={p.pot} />
                         </div>
                       )
                     })}

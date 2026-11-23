@@ -129,7 +129,7 @@ export function MyTeam() {
           {offPos && <span className="rwarn">Natural {p.pos} · {computeOvr(p.ratings, slot)} as {slot}</span>}
           {p.injury && <span className="hurt">🤕 {p.injury.gamesRemaining >= 999 ? 'out for season' : `${p.injury.gamesRemaining}g`}</span>}
         </span>
-        <OvrPill value={ovrOf(p)} />
+        <OvrPill value={ovrOf(p)} pot={p.pot} />
       </div>
     )
   }
@@ -206,7 +206,7 @@ export function MyTeam() {
                 return (
                   <tr key={p.id}>
                     <td><Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link></td>
-                    <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} /></td>
+                    <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
                     <td>{p.contract ? money(p.contract.salary) : '—'}</td>
                     <td>{expiring ? <span className="muted">expiring</span> : `Season ${p.contract!.expires}`}</td>
                     <td><button className="btn btn-danger" disabled={busy} onClick={() => {

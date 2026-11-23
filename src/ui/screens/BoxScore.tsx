@@ -25,7 +25,7 @@ function TeamBox({ league, team, lines, rosterIds }: { league: League; team: Tea
           <tbody>
             {played.map((b, i) => (
               <tr key={b.playerId} className={b.gs && !played[i + 1]?.gs ? 'last-starter' : ''}>
-                <td><PlayerCell league={league} p={league.players[b.playerId]} size={28} showInjury={false} /></td>
+                <td><PlayerCell league={league} p={league.players[b.playerId]} size={28} showInjury={false} subtitle={league.players[b.playerId].pos} /></td>
                 <td>{b.min}</td><td><strong>{b.pts}</strong></td><td>{b.oreb + b.dreb}</td><td>{b.oreb}</td><td>{b.dreb}</td><td>{b.ast}</td><td>{b.stl}</td><td>{b.blk}</td><td>{b.tov}</td><td>{b.pf}</td>
                 <td>{b.fgm}-{b.fga}</td><td>{b.tpm}-{b.tpa}</td><td>{b.ftm}-{b.fta}</td><td>{b.pm > 0 ? `+${b.pm}` : b.pm}</td>
               </tr>
@@ -34,7 +34,7 @@ function TeamBox({ league, team, lines, rosterIds }: { league: League; team: Tea
               const p = league.players[id]
               if (!p) return null
               const hurt = lines.every((b) => b.playerId !== id) && p.injury
-              return <tr key={id} className="dnp"><td><PlayerCell league={league} p={p} size={28} showInjury={false} /></td><td colSpan={14} className="left">{hurt ? 'DNP – Injured' : 'DNP – Coach’s decision'}</td></tr>
+              return <tr key={id} className="dnp"><td><PlayerCell league={league} p={p} size={28} showInjury={false} subtitle={p.pos} /></td><td colSpan={14} className="left">{hurt ? 'DNP – Injured' : 'DNP – Coach’s decision'}</td></tr>
             })}
           </tbody>
           <tfoot>

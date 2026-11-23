@@ -63,7 +63,7 @@ export function FreeAgents() {
                   return (
                     <tr key={w.playerId}>
                       <td><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
-                      <td>{league.teams[w.fromTeamId].abbrev}</td><td><OvrPill value={ovrOf(p)} /></td>
+                      <td>{league.teams[w.fromTeamId].abbrev}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
                       <td>{money(w.contract.salary)} through {w.contract.expires}</td>
                       <td>{w.fromTeamId !== me && <button className="btn" onClick={() => act((l) => { claimWaiver(l, me, p.id); return `You claimed ${fullName(p)}.` })}>Claim</button>}</td>
                     </tr>
@@ -102,7 +102,7 @@ export function FreeAgents() {
                   <Fragment key={p.id}>
                     <tr>
                       <td><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
-                      <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} /></td>
+                      <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
                       <td>{money(ask)} × {yrs}y</td>
                       <td><button className="btn" disabled={!faOpen} onClick={() => setOpen(open === p.id ? null : p.id)}>Offer</button></td>
                     </tr>

@@ -17,7 +17,7 @@ export function RosterTable({ league, players }: { league: League; players: Play
             return (
               <tr key={p.id}>
                 <td><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
-                <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} /></td>
+                <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
                 <td>{line?.s.gp ?? 0}</td><td>{line ? one(line.pg.pts) : '—'}</td><td>{line ? one(line.pg.reb) : '—'}</td><td>{line ? one(line.pg.ast) : '—'}</td>
                 <td>{p.contract ? money(p.contract.salary) : '—'}</td><td>{p.contract ? `Season ${p.contract.expires}` : '—'}</td>
               </tr>

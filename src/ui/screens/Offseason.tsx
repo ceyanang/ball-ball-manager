@@ -141,7 +141,7 @@ export function Offseason() {
                     return [
                       <tr key={p.id}>
                         <td><PlayerCell league={league} p={p} subtitle={`${p.pos} · was ${money(p.contract!.salary)}`} /></td>
-                        <td>{p.age}</td><td><OvrPill value={ovrOf(p)} /></td><td>{p.morale}</td>
+                        <td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td><td>{p.morale}</td>
                         <td>{money(ask)} × {yrs}y</td><td>{Math.round(resignChance(league, p, ask, yrs) * 100)}%</td>
                         <td>{done ? <span className="loss">Won’t talk</span> : <button className="btn" onClick={() => setOpen(open === p.id ? null : p.id)}>Offer{tries ? ` (${3 - tries} left)` : ''}</button>}</td>
                       </tr>,
