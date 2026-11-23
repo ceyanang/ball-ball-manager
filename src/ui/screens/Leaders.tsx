@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { leaders, type LeaderStat } from '../../engine/stats/stats'
+import type { Player, Team } from '../../engine/types'
+import { DataTable, type Column } from '../components/DataTable'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
 import { fullName } from '../util'
@@ -10,6 +12,8 @@ const STATS: [LeaderStat, string][] = [
   ['tpm', '3-pointers made'], ['fgPct', 'Field goal %'], ['tpPct', '3-point %'], ['ftPct', 'Free throw %'],
 ]
 const fmt = (stat: LeaderStat, v: number) => (stat.endsWith('Pct') ? (v * 100).toFixed(1) + '%' : v.toFixed(1))
+
+interface BoardRow { rank: number; p: Player; t: Team | null; value: number }
 
 export function Leaders() {
   const league = useStore((s) => s.league)!
@@ -48,25 +52,26 @@ export function Leaders() {
       {open && (
         <section className="panel stack">
           <h2>Top 25 · {STATS.find(([s]) => s === open)![1]}</h2>
-          <div className="table-wrap">
-            <table className="stats">
-              <thead><tr><th>#</th><th className="left">Player</th><th className="left">Team</th><th>Value</th></tr></thead>
-              <tbody>
-                {leaders(league, league.season, open, 25).map((x, i) => {
-                  const p = league.players[x.playerId]
-                  const t = p.teamId ? league.teams[p.teamId] : null
-                  return (
-                    <tr key={x.playerId} className={p.teamId === league.userTeamId ? 'me' : ''}>
-                      <td>{i + 1}</td><td className="left"><Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link></td>
-                      <td className="left">{t ? <Link className="link" to={`/team/${t.id}`}>{t.name}</Link> : 'Free agent'}</td><td>{fmt(open, x.value)}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable<BoardRow>
+            ariaLabel={`Top 25 ${STATS.find(([s]) => s === open)![1]}`}
+            rows={leaders(league, league.season, open, 25).map((x, i) => {
+              const p = league.players[x.playerId]
+              return { rank: i + 1, p, t: p.teamId ? league.teams[p.teamId] : null, value: x.value }
+            })}
+            rowKey={(r) => r.p.id}
+            rowClass={(r) => (r.p.teamId === league.userTeamId ? 'me' : undefined)}
+            columns={boardColumns(open)}
+            filters={{ name: (r) => fullName(r.p) }}
+          />
         </section>
       )}
     </div>
   )
 }
+
+const boardColumns = (stat: LeaderStat): Column<BoardRow>[] => [
+  { key: 'rank', label: '#', defaultDir: 'asc', value: (r) => r.rank },
+  { key: 'player', label: 'Player', align: 'left', defaultDir: 'asc', value: (r) => fullName(r.p), cell: (r) => <Link className="link" to={`/player/${r.p.id}`}>{fullName(r.p)}</Link> },
+  { key: 'team', label: 'Team', align: 'left', defaultDir: 'asc', value: (r) => r.t?.name ?? 'Free agent', cell: (r) => (r.t ? <Link className="link" to={`/team/${r.t.id}`}>{r.t.name}</Link> : 'Free agent') },
+  { key: 'value', label: 'Value', defaultDir: 'desc', value: (r) => r.value, text: (r) => fmt(stat, r.value) },
+]

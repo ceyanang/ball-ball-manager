@@ -689,3 +689,11 @@ table.dt-table tr.group-row th:first-child { background: var(--surface-2); }
 
 .sheet.wide { max-width: min(1100px, 100%); }
 .sheet.wide .sheet-body { min-width: 0; }
+
+.dt-sortby { display: none; gap: 0.6rem; align-items: flex-end; flex-wrap: wrap; }
+.dt-sortby .field select { min-width: 9rem; }
+@media (max-width: 640px) {
+  .dt-sortby { display: flex; }
+  table.dt-table.m-cards td:first-child { position: static; background: none; }
+  table.dt-table.m-cards tr.offer-row td { background: none; }
+}

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { Fragment, useMemo, useState, type ReactNode } from 'react'
 import { POSITIONS, type PosFilter } from '../playerFilter'
 import type { StatCol } from '../rosterColumns'
 import { filterRows, nextSort, sortRows, type SortState } from '../tableSort'
@@ -6,6 +6,10 @@ import { filterRows, nextSort, sortRows, type SortState } from '../tableSort'
 export interface Column<T> extends StatCol<T> {
   /** Custom cell content (avatars, pills, buttons); falls back to `text` then the value. */
   cell?: (r: T) => ReactNode
+  /** Phone card layout (`cards`): which slot the cell takes — name on top, key number, or the action. Others get a data-label. */
+  mobile?: 'main' | 'key' | 'act'
+  /** False for action/display-only columns: the header is plain text and the column is left out of sorting. Default true. */
+  sortable?: boolean
 }
 
 export interface DataGroup<T> {
@@ -23,6 +27,10 @@ export interface DataTableProps<T> {
   groups?: DataGroup<T>[]
   filters?: { pos?: (r: T) => string; name?: (r: T) => string; range?: boolean }
   defaultSort?: SortState
+  /** Render as phone cards (the `m-cards` layout) and add a "Sort by" picker, since the header is hidden on phones. */
+  cards?: boolean
+  /** Extra full-width row shown under a row (e.g. an inline offer form); null/undefined for none. */
+  expanded?: (r: T) => ReactNode
   rowClass?: (r: T) => string | undefined
   emptyText?: string
   ariaLabel: string
@@ -31,7 +39,7 @@ export interface DataTableProps<T> {
 const ariaSort = (s: SortState, key: string) => (s?.key === key ? (s.dir === 'asc' ? 'ascending' : 'descending') : 'none')
 const toNum = (s: string) => (s.trim() === '' || Number.isNaN(Number(s)) ? undefined : Number(s))
 
-export function DataTable<T>({ rows, columns, rowKey, groups, filters, defaultSort, rowClass, emptyText, ariaLabel }: DataTableProps<T>) {
+export function DataTable<T>({ rows, columns, rowKey, groups, filters, defaultSort, cards, expanded, rowClass, emptyText, ariaLabel }: DataTableProps<T>) {
   const [sort, setSort] = useState<SortState>(defaultSort ?? null)
   const [pos, setPos] = useState<PosFilter>('All')
   const [q, setQ] = useState('')
@@ -56,13 +64,24 @@ export function DataTable<T>({ rows, columns, rowKey, groups, filters, defaultSo
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grouped, rows, pos, q, min, max, rangeKey, sort, columns])
 
-  const renderRow = (r: T) => (
-    <tr key={rowKey(r)} className={rowClass?.(r)}>
-      {columns.map((c) => (
-        <td key={c.key} className={c.align === 'left' ? 'left' : undefined}>{c.cell?.(r) ?? c.text?.(r) ?? c.value(r) ?? '—'}</td>
-      ))}
-    </tr>
-  )
+  const renderRow = (r: T) => {
+    const extra = expanded?.(r)
+    return (
+      <Fragment key={rowKey(r)}>
+        <tr className={rowClass?.(r)}>
+          {columns.map((c) => (
+            <td
+              key={c.key}
+              className={[c.align === 'left' ? 'left' : '', c.mobile ? `m-${c.mobile}` : ''].filter(Boolean).join(' ') || undefined}
+              data-label={cards && !c.mobile && c.label ? c.label : undefined}
+            >{c.cell?.(r) ?? c.text?.(r) ?? c.value(r) ?? '—'}</td>
+          ))}
+        </tr>
+        {extra ? <tr className="offer-row"><td colSpan={columns.length}>{extra}</td></tr> : null}
+      </Fragment>
+    )
+  }
+  const sortable = columns.filter((c) => c.sortable !== false)
   const reset = () => { setSort(null); setPos('All'); setQ(''); setMin(''); setMax('') }
   const empty = emptyText ?? 'No players match.'
 
@@ -91,23 +110,39 @@ export function DataTable<T>({ rows, columns, rowKey, groups, filters, defaultSo
           )}
         </div>
       )}
+      {cards && (
+        <div className="dt-sortby">
+          <label className="field">Sort by
+            <select value={sort?.key ?? ''} onChange={(e) => {
+              const col = sortable.find((c) => c.key === e.target.value)
+              setSort(col ? { key: col.key, dir: col.defaultDir } : null)
+            }}>
+              <option value="">Default order</option>
+              {sortable.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)}
+            </select>
+          </label>
+          {sort && <button className="btn" onClick={() => setSort({ key: sort.key, dir: sort.dir === 'asc' ? 'desc' : 'asc' })} aria-label="Reverse sort order">{sort.dir === 'asc' ? '▲ Low to high' : '▼ High to low'}</button>}
+        </div>
+      )}
       {groups && !grouped && (
         <div className="chips">
           <button className="chip" onClick={reset}>↩ Back to {groups.map((g) => g.label).join('/')}</button>
         </div>
       )}
       <div className="table-wrap">
-        <table className="stats dt-table" aria-label={ariaLabel}>
+        <table className={`stats dt-table${cards ? ' m-cards' : ''}`} aria-label={ariaLabel}>
           <thead>
             <tr>
-              {columns.map((c) => (
-                <th key={c.key} aria-sort={ariaSort(sort, c.key)} className={c.align === 'left' ? 'left' : undefined} title={c.title}>
-                  <button className="th-btn" onClick={() => setSort((s) => nextSort(s, c.key, c.defaultDir))}>
-                    {c.label}
-                    <span className="th-arrow" aria-hidden="true">{sort?.key === c.key ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</span>
-                  </button>
-                </th>
-              ))}
+              {columns.map((c) => c.sortable === false
+                ? <th key={c.key} className={c.align === 'left' ? 'left' : undefined} title={c.title}>{c.label}</th>
+                : (
+                  <th key={c.key} aria-sort={ariaSort(sort, c.key)} className={c.align === 'left' ? 'left' : undefined} title={c.title}>
+                    <button className="th-btn" onClick={() => setSort((s) => nextSort(s, c.key, c.defaultDir))}>
+                      {c.label}
+                      <span className="th-arrow" aria-hidden="true">{sort?.key === c.key ? (sort.dir === 'asc' ? '▲' : '▼') : ''}</span>
+                    </button>
+                  </th>
+                ))}
             </tr>
           </thead>
           <tbody>

@@ -16,6 +16,7 @@ import { releasePlayer } from '../../engine/gm/roster'
 import { fullName, money, one, ordinal, ovrOf, rosterOf, seasonLine } from '../util'
 import { useUnsavedGuard } from '../useUnsavedGuard'
 import { Help } from '../components/Help'
+import { DataTable, type Column } from '../components/DataTable'
 
 const LABEL: Record<Section, string> = { starters: 'Starting five', bench: 'Bench', inactive: 'Inactive' }
 const BENCH_SLOTS = ACTIVE_MAX - STARTERS
@@ -175,6 +176,30 @@ export function MyTeam() {
 
   const ghost = drag ? league.players[drag.id] : null
 
+  const contractColumns: Column<Player>[] = [
+    { key: 'player', label: 'Player', align: 'left', defaultDir: 'asc', value: (p) => fullName(p), cell: (p) => <Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> },
+    { key: 'pos', label: 'Pos', align: 'left', defaultDir: 'asc', value: (p) => p.pos },
+    { key: 'age', label: 'Age', defaultDir: 'asc', value: (p) => p.age },
+    { key: 'ovr', label: 'OVR', defaultDir: 'desc', value: (p) => ovrOf(p), cell: (p) => <OvrPill value={ovrOf(p)} pot={p.pot} /> },
+    { key: 'salary', label: 'Salary', defaultDir: 'desc', value: (p) => p.contract?.salary ?? null, text: (p) => (p.contract ? money(p.contract.salary) : '—') },
+    {
+      key: 'through', label: 'Through', defaultDir: 'desc', value: (p) => p.contract?.expires ?? null,
+      cell: (p) => (!p.contract || p.contract.expires < capSeason(league) ? <span className="muted">expiring</span> : `Season ${p.contract.expires}`),
+    },
+    {
+      key: 'release', label: '', defaultDir: 'asc', sortable: false, value: () => null,
+      cell: (p) => {
+        const expiring = !p.contract || p.contract.expires < capSeason(league)
+        return (
+          <button className="btn btn-danger" disabled={busy} onClick={() => {
+            const msg = expiring ? `Let ${fullName(p)} go?` : `Release ${fullName(p)}? He goes on waivers; if nobody claims him, his ${money(p.contract!.salary)}/yr through season ${p.contract!.expires} stays on your cap as dead money.`
+            if (confirm(msg)) act((l) => { releasePlayer(l, p.id); return `${fullName(p)} was released.` })
+          }}>Release</button>
+        )
+      },
+    },
+  ]
+
   return (
     <div className={`stack${drag ? ' is-dragging' : ''}`}>
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
@@ -242,28 +267,13 @@ export function MyTeam() {
           <Link className="link muted" to="/office">Front office →</Link>
         </div>
         <CapBar league={league} teamId={team.id} />
-        <div className="table-wrap">
-          <table className="stats">
-            <thead><tr><th>Player</th><th>Pos</th><th>Age</th><th>OVR</th><th>Salary</th><th>Through</th><th></th></tr></thead>
-            <tbody>
-              {[...roster].sort((a, b) => (b.contract?.salary ?? 0) - (a.contract?.salary ?? 0)).map((p) => {
-                const expiring = !p.contract || p.contract.expires < capSeason(league)
-                return (
-                  <tr key={p.id}>
-                    <td><Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link></td>
-                    <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
-                    <td>{p.contract ? money(p.contract.salary) : '—'}</td>
-                    <td>{expiring ? <span className="muted">expiring</span> : `Season ${p.contract!.expires}`}</td>
-                    <td><button className="btn btn-danger" disabled={busy} onClick={() => {
-                      const msg = expiring ? `Let ${fullName(p)} go?` : `Release ${fullName(p)}? He goes on waivers; if nobody claims him, his ${money(p.contract!.salary)}/yr through season ${p.contract!.expires} stays on your cap as dead money.`
-                      if (confirm(msg)) act((l) => { releasePlayer(l, p.id); return `${fullName(p)} was released.` })
-                    }}>Release</button></td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<Player>
+          ariaLabel={`${team.name} contracts`}
+          rows={roster}
+          rowKey={(p) => p.id}
+          defaultSort={{ key: 'salary', dir: 'desc' }}
+          columns={contractColumns}
+        />
       </section>
 
       {ghost && drag && (

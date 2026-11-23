@@ -62,4 +62,45 @@ describe('DataTable', () => {
     expect(html).toContain('aria-label="Position"')
     expect(html).toContain('type="number"')
   })
+
+  describe('phone card layout', () => {
+    const cols: Column<Row>[] = [
+      { key: 'name', label: 'Player', align: 'left', defaultDir: 'asc', value: (r) => r.name, mobile: 'main' },
+      { key: 'pts', label: 'PTS', defaultDir: 'desc', value: (r) => r.pts },
+      { key: 'act', label: '', defaultDir: 'asc', value: () => null, sortable: false, mobile: 'act', cell: () => <button>Go</button> },
+    ]
+    it('adds m-cards, mobile classes and data-labels', () => {
+      const html = render({ columns: cols, cards: true })
+      expect(html).toContain('m-cards')
+      expect(html).toContain('class="left m-main"')
+      expect(html).toContain('class="m-act"')
+      expect(html).toContain('data-label="PTS"')
+      expect(html).not.toContain('data-label="Player"')
+    })
+    it('offers a Sort by select of the sortable columns (phones hide the header)', () => {
+      const html = render({ columns: cols, cards: true })
+      expect(html).toContain('Sort by')
+      expect(html).toMatch(/<option[^>]*value="pts"[^>]*>PTS<\/option>/)
+      expect(html).not.toMatch(/<option[^>]*value="act"/)
+    })
+    it('has no Sort by select without cards', () => {
+      expect(render({ columns: cols })).not.toContain('Sort by')
+    })
+  })
+
+  it('leaves non-sortable columns out of sorting', () => {
+    const cols: Column<Row>[] = [
+      { key: 'name', label: 'Player', defaultDir: 'asc', value: (r) => r.name },
+      { key: 'act', label: 'Do', defaultDir: 'asc', value: () => null, sortable: false },
+    ]
+    const html = render({ columns: cols })
+    expect(html.match(/aria-sort=/g)).toHaveLength(1)
+  })
+  it('renders an expanded row under the row that asks for one', () => {
+    const html = render({ expanded: (r) => (r.id === 'b' ? <span>OFFER-FORM</span> : null) })
+    expect(html.match(/OFFER-FORM/g)).toHaveLength(1)
+    expect(html).toContain('class="offer-row"')
+    expect(html.indexOf('OFFER-FORM')).toBeGreaterThan(html.indexOf('Bravo'))
+    expect(html.indexOf('OFFER-FORM')).toBeLessThan(html.indexOf('Charlie'))
+  })
 })
