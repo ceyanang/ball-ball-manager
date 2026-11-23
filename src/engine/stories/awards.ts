@@ -75,7 +75,8 @@ export function computeAwards(l: League): SeasonAwards {
     const s = playerSeasonStats(l, c.p.id, season - 1, false)
     if (s && s.gp >= 10) prev[c.p.id] = gameScore(s) / s.gp
   }
-  const mip = best(cands.filter((c) => prev[c.p.id] !== undefined && c.gsPg - prev[c.p.id] >= 3), (c) => c.gsPg - prev[c.p.id])
+  // One player never takes both bench awards: Sixth Man wins, MIP goes to the next-best improver.
+  const mip = best(cands.filter((c) => c.p.id !== sixth?.p.id && prev[c.p.id] !== undefined && c.gsPg - prev[c.p.id] >= 3), (c) => c.gsPg - prev[c.p.id])
   const st = computeStandings(l, season)
   const order = strengthOrder(l)
   const coyRow = best([...st.East, ...st.West], (r) => r.pct - (0.72 - (0.44 * order.indexOf(r.teamId)) / 29))
@@ -147,8 +148,27 @@ export function playerAwards(l: League, playerId: string): { season: number; lab
 /** Hall of Fame threshold on the career score. */
 export const HOF_SCORE = 65
 
+/** Pro seasons an undrafted veteran is assumed to have played before he first shows up in the league. */
+const PRE_LEAGUE_DEBUT_AGE = 22
+const PRE_LEAGUE_MAX_YEARS = 12
+
+/**
+ * Career credit for seasons played before the league began (or before a veteran first signed). The original
+ * rosters arrive mid-career, so their earlier years are estimated from age and OVR on arrival: about what a
+ * player of that OVR earns per season in-league, awards included (~7 a year at 92, ~2 at 76, nothing at 70).
+ * Drafted players start their careers here and get none.
+ */
+export function preLeagueCredit(p: Player): number {
+  const first = p.ratingHistory[0]
+  if (p.draft || !first) return 0
+  const latest = p.ratingHistory.at(-1)!.season
+  const ageOnArrival = p.age - (latest - first.season)
+  const years = Math.min(PRE_LEAGUE_MAX_YEARS, Math.max(0, ageOnArrival - PRE_LEAGUE_DEBUT_AGE))
+  return years * (Math.max(0, first.ovr - 70) / 3.2)
+}
+
 export function careerScore(l: League, playerId: string): number {
-  let score = 0
+  let score = l.players[playerId] ? preLeagueCredit(l.players[playerId]) : 0
   const seasons = new Set(Object.values(l.statLines).filter((s) => s.playerId === playerId && !s.playoffs).map((s) => s.season))
   for (const season of seasons) {
     const s = playerSeasonStats(l, playerId, season, false)!

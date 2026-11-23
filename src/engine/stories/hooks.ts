@@ -2,7 +2,7 @@ import { pname } from '../gm/cap'
 import type { Game, Injury, League, NewsItem, Player } from '../types'
 import { AWARD_NAMES, awardNews, computeAwards, induct, seasonHistory } from './awards'
 import { addNews, gameHighlights, injuryNews, pruneNews, seriesNews } from './highlights'
-import { expireOffers, injuryPing, maybeAiOffer, offseasonInbox, ping, returnPing, weeklyInbox } from './inbox'
+import { clearStaleInbox, expireOffers, injuryPing, maybeAiOffer, offseasonInbox, ping, returnPing, weeklyInbox } from './inbox'
 import { RECORD_LABEL, careerRecords, gameRecords, seasonRecords, type Broken } from './records'
 import { updateFans, weeklyMorale } from './sentiment'
 import { socialDay, socialOffseason } from './social'
@@ -124,6 +124,7 @@ export function onOffseasonStart(l: League): void {
 
 export function onNewSeason(l: League): void {
   pruneNews(l)
+  clearStaleInbox(l)
   for (const k of Object.keys(l.fans.players)) {
     if (!l.players[k] || l.players[k].retired) delete l.fans.players[k]
     else l.fans.players[k] = Math.round(l.fans.players[k] * 0.5)

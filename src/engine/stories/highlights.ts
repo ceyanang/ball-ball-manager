@@ -9,10 +9,22 @@ export function addNews(l: League, n: Omit<NewsItem, 'id' | 'season' | 'day' | '
   return item
 }
 
+/** A player's age during `season` (ages tick with each progression, which also adds a rating-history entry). */
+export function ageIn(l: League, p: Player, season: number): number {
+  const latest = p.ratingHistory.at(-1)?.season ?? l.season
+  return p.age - (latest - season)
+}
+
 /** Drafted last summer; in the first season (no drafts yet), the youngest players count as rookies. */
 export function isRookie(l: League, p: Player, season = l.season): boolean {
   if (p.draft) return p.draft.season === season - 1
-  return season === 1 && p.age <= 21
+  return season === 1 && ageIn(l, p, 1) <= 21
+}
+
+/** Second-year players: drafted two summers ago, or (in season 2) the first season's undrafted rookies. */
+export function isSophomore(l: League, p: Player, season = l.season): boolean {
+  if (p.draft) return p.draft.season === season - 2
+  return season === 2 && p.ratingHistory[0]?.season === 1 && isRookie(l, p, 1)
 }
 
 const reb = (b: BoxLine) => b.oreb + b.dreb
@@ -110,7 +122,7 @@ export function seriesNews(l: League, s: Series): void {
   const [w, lw] = s.winnerId === s.highSeedId ? [s.highWins, s.lowWins] : [s.lowWins, s.highWins]
   const t = l.teams[s.winnerId]
   if (s.round === 4) {
-    addNews(l, { kind: 'champion', emoji: '🏆', title: `${t.city} ${t.name} are champions!`, text: `${t.name} beat the ${l.teams[loser].name} ${w}–${lw} in the Finals.`, playerIds: [], teamIds: [s.winnerId, loser], weight: 10 })
+    addNews(l, { kind: 'champion', emoji: '🏆', title: `${t.city} ${t.name} are champions!`, text: `The ${t.city} ${t.name} beat the ${l.teams[loser].city} ${l.teams[loser].name} ${w}–${lw} in the Finals.`, playerIds: [], teamIds: [s.winnerId, loser], weight: 10 })
     return
   }
   const upset = s.winnerId === s.lowSeedId
