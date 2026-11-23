@@ -34,12 +34,12 @@ export function NewLeague() {
       </p>
       <div className="row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <label className="field">League name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} /></label>
-        <label className="field">Seed<input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value) || 0)} style={{ width: '9rem' }} /></label>
         <button className="btn" onClick={() => { setSeed(randomSeed()); setPick(null) }}>Shuffle league</button>
-        <button className="btn btn-primary" disabled={pick === null || creating || busy} onClick={create}>
-          {pick === null ? 'Pick a team to start' : `Start as the ${teams[pick].name}`}
-        </button>
       </div>
+      <details className="advanced">
+        <summary>Advanced</summary>
+        <label className="field">Seed<input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value) || 0)} style={{ width: '9rem' }} /></label>
+      </details>
       {(['East', 'West'] as const).map((conf) => (
         <section key={conf} className="stack">
           <h2>{conf}</h2>
@@ -64,6 +64,12 @@ export function NewLeague() {
           </div>
         </section>
       ))}
+      {/* Always in reach: the start button follows you down the team list. */}
+      <div className="start-bar">
+        <button className="btn btn-primary" disabled={pick === null || creating || busy} onClick={create}>
+          {pick === null ? 'Pick a team to start' : `Start as the ${teams[pick].name}`}
+        </button>
+      </div>
     </div>
   )
 }
