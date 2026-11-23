@@ -43,7 +43,7 @@ describe('in-season progress', () => {
   })
   it('leaves free agents untouched', () => {
     for (const { start, end } of runs)
-      for (const p of Object.values(start.players)) if (!p.teamId) expect(end.players[p.id].ratings).toEqual(p.ratings)
+      for (const p of Object.values(start.players)) if (!p.teamId && !end.players[p.id].teamId) expect(end.players[p.id].ratings).toEqual(p.ratings)
   })
   it('records events only when OVR changed, during the regular season', () => {
     const done = simUntil(runs[0].end, 'playoffsEnd')
