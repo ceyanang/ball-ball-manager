@@ -5,8 +5,9 @@ import type { League } from '../engine/types'
 import { SaveImportError } from './errors'
 import { backfillRecords } from '../engine/stories/records'
 import { emptyStories } from '../engine/stories/state'
+import { emptyEvents } from '../engine/events/state'
 
-export const CURRENT_VERSION = 7
+export const CURRENT_VERSION = 8
 
 /**
  * Upgrades an older save to the current shape.
@@ -14,6 +15,7 @@ export const CURRENT_VERSION = 7
  * v3 → v4 adds stories (news, social, inbox, awards, history, records, Hall of Fame, fan sentiment).
  * v4 → v5 adds the user's favorite players. v5 → v6 adds All-Star Weekend and development slots.
  * v6 → v7 adds minutes plans and auto-rotation to depth charts (both optional, so nothing to fill in).
+ * v7 → v8 adds random events and team chemistry.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function migrateLeague(raw: any): League {
@@ -50,6 +52,7 @@ export function migrateLeague(raw: any): League {
     raw = { ...raw, version: 6, allStarDay: raw.phase === 'regular' && games.length ? allStarDayFor(games, raw.season) : 0, allStars: [], training: [] }
   }
   if (raw?.version === 6) raw = { ...raw, version: 7 }
+  if (raw?.version === 7) raw = { ...raw, version: 8, events: emptyEvents(), chemistry: Object.fromEntries(Object.keys(raw.teams ?? {}).map((id) => [id, 50])) }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)
   if (!Array.isArray(raw.favoritePlayerIds)) raw = { ...raw, favoritePlayerIds: [] }

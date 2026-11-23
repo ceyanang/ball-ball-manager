@@ -1,3 +1,4 @@
+import type { EventsState } from './events/state'
 export type Position = 'PG' | 'SG' | 'SF' | 'PF' | 'C'
 export type Conference = 'East' | 'West'
 export type CoachStyle = 'pace' | 'three' | 'defense' | 'balanced'
@@ -149,7 +150,7 @@ export interface AllStarEvent {
 export interface TrainingSlot { playerId: string; season: number; day: number }
 
 export interface League {
-  version: 7; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 8; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]
@@ -174,4 +175,8 @@ export interface League {
   careerHighs: Record<string, CareerHigh>
   /** Counter for story ids. */
   storySeq: number
+  /** Random pop-up events: pending prompt, temporary effects, log. */
+  events: EventsState
+  /** Team chemistry 0–100 per team (starts at 50). */
+  chemistry: Record<string, number>
 }
