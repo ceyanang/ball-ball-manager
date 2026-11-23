@@ -10,6 +10,7 @@ import { Playoffs } from './screens/Playoffs'
 import { Schedule } from './screens/Schedule'
 import { Standings } from './screens/Standings'
 import { MyTeam } from './screens/MyTeam'
+import { Roster } from './screens/Roster'
 import { PlayerPage } from './screens/PlayerPage'
 import { TeamPage } from './screens/TeamPage'
 import { TeamsBrowser } from './screens/TeamsBrowser'
@@ -53,6 +54,7 @@ export default function App() {
           <Route path="/new" element={<NewLeague />} />
           <Route path="/saves" element={<Saves />} />
           <Route path="/my-team" element={guarded(<MyTeam />)} />
+          <Route path="/roster" element={guarded(<Roster />)} />
           <Route path="/team/:id" element={guarded(<TeamPage />)} />
           <Route path="/teams" element={guarded(<TeamsBrowser />)} />
           <Route path="/player/:id" element={guarded(<PlayerPage />)} />

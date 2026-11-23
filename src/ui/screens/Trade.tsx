@@ -10,16 +10,20 @@ import { OvrPill } from '../components/OvrPill'
 import { TeamBadge } from '../components/TeamBadge'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
+import { POSITIONS, filterPlayers, type PosFilter } from '../playerFilter'
 import { fullName, money, ovrOf, teamFull } from '../util'
 
 const key = (a: Asset) => `${a.kind}:${a.id}`
 
-function AssetList({ league, teamId, assets, picked, toggle }: {
-  league: League; teamId: string; assets: Asset[]; picked: Set<string>; toggle: (a: Asset) => void
+function AssetList({ league, teamId, assets, picked, toggle, pos, q }: {
+  league: League; teamId: string; assets: Asset[]; picked: Set<string>; toggle: (a: Asset) => void; pos: PosFilter; q: string
 }) {
   const team = league.teams[teamId]
-  const players = assets.filter((a) => a.kind === 'player').map((a) => league.players[a.id]).sort((a, b) => ovrOf(b) - ovrOf(a))
-  const picks = assets.filter((a) => a.kind === 'pick')
+  const filtering = pos !== 'All' || !!q.trim()
+  // Filters hide unpicked players only, so a filter never makes a chosen piece vanish from the deal.
+  const shown = new Set(filterPlayers(assets.filter((a) => a.kind === 'player').map((a) => league.players[a.id]), { pos, q }).map((p) => p.id))
+  const players = assets.filter((a) => a.kind === 'player' && (shown.has(a.id) || picked.has(key(a)))).map((a) => league.players[a.id]).sort((a, b) => ovrOf(b) - ovrOf(a))
+  const picks = assets.filter((a) => a.kind === 'pick' && (!filtering || picked.has(key(a))))
   return (
     <div className="asset-list">
       {players.map((p) => {
@@ -53,7 +57,7 @@ function AssetList({ league, teamId, assets, picked, toggle }: {
           </label>
         )
       })}
-      {!assets.length && <p className="muted">Nothing tradeable.</p>}
+      {!assets.length ? <p className="muted">Nothing tradeable.</p> : !players.length && !picks.length && <p className="muted">No players match the filter.</p>}
     </div>
   )
 }
@@ -68,9 +72,18 @@ export function Trade() {
   const [give, setGive] = useState<Set<string>>(new Set())
   const [get, setGet] = useState<Set<string>>(() => new Set(params.get('get') ? [`player:${params.get('get')}`] : []))
   const [hint, setHint] = useState<string | null>(null)
+  const [pos, setPos] = useState<PosFilter>('All')
+  const [q, setQ] = useState('')
+  const [findTeam, setFindTeam] = useState('All')
 
   const myAssets = useMemo(() => tradeableAssets(league, me), [league, me])
   const theirAssets = useMemo(() => tradeableAssets(league, partner), [league, partner])
+  const finds = useMemo(() => {
+    const ids = others.filter((t) => findTeam === 'All' || t.id === findTeam)
+      .flatMap((t) => tradeableAssets(league, t.id).filter((a) => a.kind === 'player').map((a) => league.players[a.id]))
+    return filterPlayers(ids, { pos, q })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [league, findTeam, pos, q])
   const parse = (s: Set<string>, pool: Asset[]) => pool.filter((a) => s.has(key(a)))
   const trade: TradeT = { a: me, b: partner, aGives: parse(give, myAssets), bGives: parse(get, theirAssets) }
   const problem = trade.aGives.length || trade.bGives.length ? tradeProblem(league, trade) : null
@@ -97,6 +110,12 @@ export function Trade() {
     setGive(new Set(pkg.map(key)))
     setHint(`The ${league.teams[partner].name} would take: ${pkg.map((a) => assetLabel(league, a)).join(', ')}.`)
   }
+  const target = (teamId: string, playerId: string) => {
+    const k = `player:${playerId}`
+    if (teamId !== partner) { setPartner(teamId); setGive(new Set()); setGet(new Set([k])) }
+    else setGet(new Set(get).add(k))
+    setHint(null)
+  }
   const propose = () => {
     let accepted = false
     act((l) => {
@@ -121,14 +140,52 @@ export function Trade() {
         Pick what you send and what you want back. CPU teams answer instantly and only take deals that clearly help them. Contenders want talent now; rebuilding teams want youth and picks. Not sure what they want? Pick their player and ask what it would take.
       </p>
 
+      <section className="panel finder">
+        <h3>Find players</h3>
+        <div className="filters">
+          <label className="field">Team
+            <select value={findTeam} onChange={(e) => setFindTeam(e.target.value)}>
+              <option value="All">All teams</option>
+              {others.map((t) => <option key={t.id} value={t.id}>{teamFull(t)}</option>)}
+            </select>
+          </label>
+          <label className="field">Search
+            <input type="search" placeholder="Player name" value={q} onChange={(e) => setQ(e.target.value)} />
+          </label>
+          <div className="seg" role="group" aria-label="Position">
+            {(['All', ...POSITIONS] as PosFilter[]).map((x) => <button key={x} className="btn" aria-pressed={pos === x} onClick={() => setPos(x)}>{x}</button>)}
+          </div>
+        </div>
+        <p className="muted" style={{ margin: 0, fontSize: '0.85rem' }}>Position and name also filter both lists below.</p>
+        <div className="asset-list" style={{ maxHeight: 300 }}>
+          {finds.slice(0, 40).map((p) => {
+            const t = league.teams[p.teamId!]
+            const on = p.teamId === partner && get.has(`player:${p.id}`)
+            return (
+              <div key={p.id} className={`asset${on ? ' on' : ''}`}>
+                <Face seed={p.faceSeed} age={p.age} colors={t.colors} size={30} />
+                <span className="asset-main">
+                  <span className="asset-name">{fullName(p)}{p.injury ? ' 🤕' : ''}</span>
+                  <span className="asset-sub">{p.pos} · {p.age}y · {t.abbrev} · {archetypeFor(p)}</span>
+                </span>
+                <span className="asset-money">{p.contract ? money(p.contract.salary) : ''}</span>
+                <OvrPill value={ovrOf(p)} />
+                <button className="btn" disabled={on} onClick={() => target(t.id, p.id)}>{on ? 'Added' : 'Target'}</button>
+              </div>
+            )
+          })}
+          {!finds.length && <p className="muted">No players match.</p>}
+        </div>
+      </section>
+
       <div className="trade-grid">
         <section className="panel stack">
           <div className="row"><TeamBadge team={league.teams[me]} size={32} /><h2>You send</h2></div>
-          <AssetList league={league} teamId={me} assets={myAssets} picked={give} toggle={toggle(give, setGive)} />
+          <AssetList league={league} teamId={me} assets={myAssets} picked={give} toggle={toggle(give, setGive)} pos={pos} q={q} />
         </section>
         <section className="panel stack">
           <div className="row"><TeamBadge team={league.teams[partner]} size={32} /><h2>You get</h2></div>
-          <AssetList league={league} teamId={partner} assets={theirAssets} picked={get} toggle={toggle(get, setGet)} />
+          <AssetList league={league} teamId={partner} assets={theirAssets} picked={get} toggle={toggle(get, setGet)} pos={pos} q={q} />
         </section>
       </div>
 

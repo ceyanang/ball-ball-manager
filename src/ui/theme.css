@@ -386,3 +386,23 @@ table.stats tr.offer-row td { background: var(--surface-2); }
 .hof-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.7rem; }
 .hof-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.3rem; background: linear-gradient(180deg, color-mix(in srgb, #f5b400 14%, var(--surface)), var(--surface)); border: 1px solid color-mix(in srgb, #f5b400 45%, var(--line)); border-radius: var(--r); padding: 0.9rem 0.6rem; text-decoration: none; color: var(--ink); }
 .hof-chip { margin-left: 0.4rem; background: rgba(245, 180, 0, 0.85); color: #1b1300; }
+
+/* Roster quick view + player finders */
+.filters { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.6rem 0.9rem; }
+.filters .field { min-width: 0; flex: 1 1 180px; max-width: 280px; }
+.filters .field input, .filters .field select { width: 100%; box-sizing: border-box; }
+.rq-list { display: flex; flex-direction: column; gap: 0.35rem; }
+.rq { border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); overflow: hidden; }
+.rq.open { border-color: var(--accent); }
+.rq-row { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 0.6rem; width: 100%; padding: 0.4rem 0.6rem; cursor: pointer; min-width: 0; }
+.rq-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.rq-detail { padding: 0.2rem 0.75rem 0.75rem; display: flex; flex-direction: column; gap: 0.6rem; }
+.rq-facts { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; font-size: 0.85rem; color: var(--ink-2); }
+.rq-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.4rem 1rem; }
+.rq-groups h4 { margin: 0.2rem 0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-2); }
+.rq-rating { display: flex; justify-content: space-between; font-size: 0.88rem; padding: 0.08rem 0; }
+.finder { display: flex; flex-direction: column; gap: 0.5rem; }
+.finder .asset { cursor: default; }
+a.btn { text-decoration: none; display: inline-block; }
+.finder .asset .btn { padding: 0.3rem 0.75rem; font-size: 0.85rem; flex: none; }
+@media (max-width: 720px) { .finder .asset-money { display: none; } }

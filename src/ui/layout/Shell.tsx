@@ -5,7 +5,7 @@ import { TeamBadge } from '../components/TeamBadge'
 import { ErrorBoundary } from '../ErrorBoundary'
 
 const LINKS: [string, string][] = [
-  ['/', 'Home'], ['/inbox', 'Inbox'], ['/my-team', 'My Team'], ['/office', 'Front Office'], ['/schedule', 'Schedule'], ['/standings', 'Standings'],
+  ['/', 'Home'], ['/inbox', 'Inbox'], ['/roster', 'Roster'], ['/my-team', 'Rotations'], ['/office', 'Front Office'], ['/schedule', 'Schedule'], ['/standings', 'Standings'],
   ['/leaders', 'Leaders'], ['/highlights', 'Highlights'], ['/social', 'Social'], ['/history', 'History'], ['/teams', 'Teams'], ['/saves', 'Saves'],
 ]
 

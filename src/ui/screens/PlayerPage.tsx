@@ -1,6 +1,7 @@
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { perGame, playerSeasonStats } from '../../engine/stats/stats'
-import type { League, Ratings, StatLine } from '../../engine/types'
+import type { League, StatLine } from '../../engine/types'
+import { RATING_GROUPS } from '../playerFilter'
 import { archetypeFor } from '../../engine/player/archetype'
 import { gradeFor } from '../../engine/player/grades'
 import { OvrChart } from '../components/OvrChart'
@@ -12,11 +13,7 @@ import { useStore } from '../store'
 import { isFreeAgent, tradesOpen } from '../../engine/gm/cap'
 import { fullName, heightStr, money, one, ovrOf, teamFull } from '../util'
 
-const GROUPS: [string, [keyof Ratings, string][]][] = [
-  ['Offense', [['ins', 'Inside scoring'], ['mid', 'Mid-range'], ['three', 'Three-point'], ['ft', 'Free throw'], ['pass', 'Passing'], ['handle', 'Ball handling'], ['oreb', 'Offensive rebounding']]],
-  ['Defense', [['perD', 'Perimeter defense'], ['intD', 'Interior defense'], ['stl', 'Steals'], ['blk', 'Blocks'], ['dreb', 'Defensive rebounding']]],
-  ['Physical', [['ath', 'Athleticism'], ['stam', 'Stamina'], ['iq', 'Basketball IQ']]],
-]
+const GROUPS = RATING_GROUPS
 
 function sumLines(lines: StatLine[]): StatLine | null {
   if (!lines.length) return null
