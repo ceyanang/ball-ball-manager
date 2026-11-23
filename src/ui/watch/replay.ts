@@ -1,4 +1,4 @@
-import type { PlayEvent } from '../../engine/sim/playlog'
+import type { PlayEvent, Side } from '../../engine/sim/playlog'
 
 export const QUARTER_MS = 15000
 /** Wall-clock length of a period in the replay (OT is a 5-minute period vs 12). */
@@ -11,7 +11,8 @@ export interface LiveLine {
   byPeriod: number[]
   min: number; pm: number
 }
-export interface ReplayState { cursor: number; period: number; home: number; away: number; lines: Record<string, LiveLine> }
+/** `court` is each side's five in slot order (PG..C); null for a legacy log with no lineup events. */
+export interface ReplayState { cursor: number; period: number; home: number; away: number; lines: Record<string, LiveLine>; court: Record<Side, string[]> | null }
 
 const blank = (): LiveLine => ({
   pts: 0, reb: 0, oreb: 0, dreb: 0, ast: 0, stl: 0, blk: 0, tov: 0,
@@ -22,7 +23,7 @@ export function periodCount(log: PlayEvent[]): number {
   return log.reduce((m, e) => Math.max(m, e.period), 0)
 }
 
-export const initState = (): ReplayState => ({ cursor: 0, period: 1, home: 0, away: 0, lines: {} })
+export const initState = (): ReplayState => ({ cursor: 0, period: 1, home: 0, away: 0, lines: {}, court: null })
 
 function addPoints(l: LiveLine, period: number, n: number) {
   l.pts += n
@@ -75,23 +76,34 @@ function apply(lines: Record<string, LiveLine>, e: PlayEvent) {
 export function advanceTo(log: PlayEvent[], s: ReplayState, period: number, t: number): { state: ReplayState; fired: PlayEvent[] } {
   let i = s.cursor
   const lines = { ...s.lines }
-  let { home, away, period: cur } = s
+  let { home, away, period: cur, court } = s
   const fired: PlayEvent[] = []
   while (i < log.length) {
     const e = log[i]
     if (e.period > period || (e.period === period && e.t > t)) break
     apply(lines, e)
+    if (e.k === 'lineup') court = { home: court?.home ?? [], away: court?.away ?? [], [e.side]: [...e.players] }
+    else if (e.k === 'sub' && court) court = { ...court, [e.side]: court[e.side].map((id, k) => (k === e.slot ? e.in : id)) }
     if (e.k === 'fg' || e.k === 'ft') { home = e.home; away = e.away }
     cur = Math.max(cur, e.period)
     fired.push(e)
     i++
   }
   if (!fired.length) return { state: s, fired }
-  return { state: { cursor: i, period: cur, home, away, lines }, fired }
+  return { state: { cursor: i, period: cur, home, away, lines, court }, fired }
 }
 
 export function finalState(log: PlayEvent[]): ReplayState {
   return advanceTo(log, initState(), periodCount(log) || 1, 1).state
+}
+
+/** Everyone in `all` who is not in `court`, in input order. */
+export const sittingIds = (all: string[], court: string[]): string[] => all.filter((id) => !court.includes(id))
+
+/** The lineup slot (0 = PG … 4 = C) `playerId` is standing in on `side`, or null when sitting / unknown. */
+export function courtCard(state: ReplayState, side: Side, playerId: string): number | null {
+  const k = state.court?.[side].indexOf(playerId) ?? -1
+  return k < 0 ? null : k
 }
 
 /** Sum of the given players' live lines (byPeriod element-wise). */

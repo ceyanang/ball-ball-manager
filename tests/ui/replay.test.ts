@@ -6,7 +6,7 @@ import { boxFromLog, type PlayEvent } from '../../src/engine/sim/playlog'
 import type { GameResult, Team } from '../../src/engine/types'
 import {
   advanceTo, beatsAverage, benchLine, clockText, describePlays, elapsedFraction, finalState, initState, isHot, onPace, periodCount,
-  periodLabel, periodMs, shotDelays, shotMs, ftGapMs, standout,
+  periodLabel, periodMs, shotDelays, shotMs, ftGapMs, standout, sittingIds, courtCard,
 } from '../../src/ui/watch/replay'
 
 const league = createLeague({ seed: 1, userTeamIndex: 0, name: 'G' })
@@ -158,5 +158,51 @@ describe('replay model', () => {
     expect(shotDelays([ft(), ft(), ft(), reb], 2)).toEqual([0, ftGapMs(2), 2 * ftGapMs(2), 0])
     expect(shotDelays([fg(true), ast, ft('z')], 1)).toEqual([0, 0, 0])
     expect(shotDelays([fg(false), ft()], 1)).toEqual([0, 0])
+  })
+})
+
+describe('replay court model', () => {
+  const handCourt = (log: PlayEvent[]) => {
+    const c: Record<string, string[]> = {}
+    for (const e of log) {
+      if (e.k === 'lineup') c[e.side] = [...e.players]
+      else if (e.k === 'sub') c[e.side][e.slot] = e.in
+    }
+    return c
+  }
+  it('court is built from lineup and sub events and matches the hand-replayed final lineup', () => {
+    for (const { log } of games.slice(0, 50)) {
+      const f = finalState(log)
+      expect(f.court).toEqual(handCourt(log))
+      expect(f.court!.home).toHaveLength(5)
+      expect(f.court!.away).toHaveLength(5)
+    }
+  })
+  it('legacy logs without lineup events leave court null', () => {
+    const { log } = games[0]
+    const legacy = log.filter((e) => e.k !== 'lineup' && e.k !== 'sub')
+    expect(finalState(legacy).court).toBeNull()
+    expect(initState().court).toBeNull()
+  })
+  it('advanceTo never mutates the court of the previous state', () => {
+    const { log } = games[1]
+    const mid = advanceTo(log, initState(), 2, 0.5).state
+    const snap = JSON.stringify(mid.court)
+    const next = advanceTo(log, mid, 4, 1).state
+    expect(JSON.stringify(mid.court)).toBe(snap)
+    expect(next.court).not.toBe(mid.court)
+  })
+  it('sittingIds returns everyone not on court, in input order', () => {
+    expect(sittingIds(['a', 'b', 'c', 'd', 'e', 'f', 'g'], ['b', 'd', 'e', 'f', 'g'])).toEqual(['a', 'c'])
+  })
+  it('courtCard resolves the slot a player stands in right now', () => {
+    const { log } = games[2]
+    const sub = log.find((e): e is Extract<PlayEvent, { k: 'sub' }> => e.k === 'sub')!
+    const before = advanceTo(log, initState(), sub.period, Math.max(0, sub.t - 1e-9)).state
+    const after = advanceTo(log, before, sub.period, sub.t).state
+    expect(courtCard(before, sub.side, sub.out)).toBe(sub.slot)
+    expect(courtCard(after, sub.side, sub.out)).toBeNull()
+    expect(courtCard(after, sub.side, sub.in)).toBe(sub.slot)
+    expect(courtCard(initState(), 'home', 'x')).toBeNull()
   })
 })
