@@ -79,7 +79,8 @@ function startLoop(area: MusicArea) {
 function tick(l: Loop) {
   try {
     if (!ctx) return
-    if (l.next < ctx.currentTime - 0.5) l.next = ctx.currentTime
+    // After a main-thread stall (e.g. generating a league) drop missed steps instead of replaying them all at once as a machine-gun burst.
+    if (l.next < ctx.currentTime - 0.1) l.next = ctx.currentTime
     const track = TRACKS[l.area]
     const stepDur = 60 / track.bpm / 4
     const audible = !getSettings().muted && getSettings().music > 0
