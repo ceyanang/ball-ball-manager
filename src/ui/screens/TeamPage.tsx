@@ -14,7 +14,7 @@ const ord = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2
 export function TeamPage() {
   const { id } = useParams()
   const league = useStore((s) => s.league)!
-  const team = id ? league.teams[id] : undefined
+  const team = id && Object.hasOwn(league.teams, id) ? league.teams[id] : undefined
   if (!team) return <Navigate to="/teams" replace />
   const st = computeStandings(league, league.season)[team.conf]
   const row = st.find((r) => r.teamId === team.id)!

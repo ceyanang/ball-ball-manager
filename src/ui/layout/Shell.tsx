@@ -115,7 +115,7 @@ export function Shell() {
             <button className="btn" onClick={clearError}>Dismiss</button>
           </div>
         )}
-        <ErrorBoundary><Outlet /></ErrorBoundary>
+        <ErrorBoundary key={pathname}><Outlet /></ErrorBoundary>
       </main>
 
       {league && (

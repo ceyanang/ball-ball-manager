@@ -54,7 +54,7 @@ function Seasons({ league }: { league: League }) {
             <button className="season-row" onClick={() => setOpen(isOpen ? null : h.season)} aria-expanded={isOpen}>
               <span className="num" style={{ fontSize: '1.6rem' }}>S{h.season}</span>
               {champ && <TeamBadge team={champ} size={36} />}
-              <span style={{ flex: 1, textAlign: 'left' }}><strong>{champ ? teamFull(champ) : '—'}</strong>{runner && <span className="muted"> beat {runner.name} {h.finals}</span>}</span>
+              <span style={{ flex: 1, textAlign: 'left' }}><strong>{champ ? teamFull(champ) : '—'}</strong>{runner && <span className="muted"> beat {teamFull(runner)} {h.finals}</span>}</span>
               {mvp && <span className="muted">MVP {fullName(mvp)}</span>}
               <span aria-hidden="true">{isOpen ? '▾' : '▸'}</span>
             </button>

@@ -53,7 +53,7 @@ export function PlayerPage() {
   const league = useStore((s) => s.league)!
   const toggleFavorite = useStore((s) => s.toggleFavorite)
   const act = useStore((s) => s.act)
-  const p = id ? league.players[id] : undefined
+  const p = id && Object.hasOwn(league.players, id) ? league.players[id] : undefined
   if (!p) return <Navigate to="/" replace />
   const fav = league.favoritePlayerIds.includes(p.id)
   const team = p.teamId ? league.teams[p.teamId] : null
@@ -107,7 +107,7 @@ export function PlayerPage() {
           <div><dt>Height</dt><dd>{heightStr(p.heightIn)}</dd></div>
           <div><dt>Hometown</dt><dd>{p.hometown}</dd></div>
           <div><dt>College</dt><dd>{p.college}</dd></div>
-          <div><dt>Team</dt><dd>{team ? <Link className="link" to={`/team/${team.id}`}>{teamFull(team)}</Link> : 'Free agent'}</dd></div>
+          <div><dt>Team</dt><dd>{team ? <Link className="link" to={`/team/${team.id}`}>{teamFull(team)}</Link> : p.retired ? 'Retired' : 'Free agent'}</dd></div>
           <div><dt>Contract</dt><dd>{p.contract ? `${money(p.contract.salary)} through season ${p.contract.expires}` : 'None'}</dd></div>
           {!p.retired && <div><dt>Morale</dt><dd>{p.morale >= 70 ? '😄' : p.morale >= 45 ? '🙂' : p.morale >= 30 ? '😕' : '😠'} {p.morale}</dd></div>}
           {!p.retired && <div><dt>Fans</dt><dd>{fans > 25 ? '🔥 Loved' : fans < -25 ? '🥶 Getting roasted' : '😐 Neutral'} ({fans > 0 ? '+' : ''}{fans})</dd></div>}

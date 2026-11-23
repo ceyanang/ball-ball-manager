@@ -15,7 +15,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode; onReset?: ()
     return (
       <div className="panel stack" role="alert" style={{ maxWidth: 560, margin: '2rem auto' }}>
         <h2>This screen couldn’t load</h2>
-        <p className="muted" style={{ margin: 0 }}>{this.props.message ?? `The league data for this page looks damaged: ${this.state.error.message}`}</p>
+        <p className="muted" style={{ margin: 0 }}>{this.props.message ?? `This screen hit a snag: ${this.state.error.message}. Your save is fine — try another page.`}</p>
         <div className="row">
           <a className="btn btn-primary" href="#/saves" onClick={this.reset}>Go to saves</a>
           <a className="btn" href="#/" onClick={this.reset}>Back to home</a>
