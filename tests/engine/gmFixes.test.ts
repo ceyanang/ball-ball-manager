@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { MAX_SALARY, TEAM_MINUTES } from '../../src/engine/constants'
-import { committed, ovr, refreshRotation, syncRotation } from '../../src/engine/gm/cap'
+import { committed, ovr, payroll, refreshRotation, syncRotation } from '../../src/engine/gm/cap'
 import { makePick, setupDraft } from '../../src/engine/gm/draft'
-import { aiResign, currentAsk, offerFreeAgent, releasePlayer } from '../../src/engine/gm/roster'
-import { executeTrade, tradeProblem } from '../../src/engine/gm/trade'
-import { playerValue } from '../../src/engine/gm/value'
-import { askYears } from '../../src/engine/gm/value'
+import { aiResign, currentAsk, freeAgencyDay, offerFreeAgent, releasePlayer } from '../../src/engine/gm/roster'
+import { aiTrades, executeTrade, tradeProblem } from '../../src/engine/gm/trade'
+import { askYears, playerValue } from '../../src/engine/gm/value'
 import { createLeague } from '../../src/engine/league/create'
 import { Rng } from '../../src/engine/rng'
 import { simGame } from '../../src/engine/sim/game'
@@ -192,5 +191,36 @@ describe('refreshRotation keeps valid user rotations', () => {
     delete l.teams[l.userTeamId].rotation.auto
     refreshRotation(l, l.userTeamId)
     expect(l.teams[l.userTeamId].rotation.starters).toHaveLength(5)
+  })
+})
+
+describe('CPU markets', () => {
+  it('CPU teams trade with each other, and every deal leaves legal rosters', () => {
+    const l = fresh()
+    const made = aiTrades(l, Rng.fromSeed(9), 20)
+    expect(made).toBeGreaterThan(0)
+    for (const id of Object.keys(l.teams)) {
+      expect(committed(l, id).length).toBeLessThanOrEqual(15)
+      expect(payroll(l, id)).toBeLessThanOrEqual(150_000)
+    }
+  })
+  it('a star free agent draws offers from more than one CPU team on day one', () => {
+    const l = fresh()
+    l.phase = 'offseason'
+    l.offseason = { step: 'freeAgency', faDay: 1, report: { retired: [], changes: [], coaching: [] }, resignTries: {} }
+    const star = freeAgents(l)[0]
+    for (const k of Object.keys(star.ratings) as (keyof Player['ratings'])[]) star.ratings[k] = 92
+    star.age = 27
+    // Give every CPU team cap room so money isn't what stops them.
+    for (const p of Object.values(l.players)) if (p.contract) p.contract.salary = 1000
+    const seen = new Set<string>()
+    const orig = l.faOffers.push.bind(l.faOffers)
+    l.faOffers.push = (...os) => {
+      for (const o of os) if (o.playerId === star.id) seen.add(o.teamId)
+      return orig(...os)
+    }
+    freeAgencyDay(l, Rng.fromSeed(4))
+    expect(seen.size).toBeGreaterThan(1)
+    expect(l.players[star.id].teamId).not.toBeNull()
   })
 })

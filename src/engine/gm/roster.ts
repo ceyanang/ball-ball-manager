@@ -139,7 +139,11 @@ function offerScore(l: League, p: Player, o: { teamId: string; salary: number; y
   return o.salary * (1 + 0.15 * quality + 0.1 * role) * (1 - 0.03 * Math.abs(o.years - askYears(p)))
 }
 
-/** One day of offseason free agency: CPU offers, then every courted player picks his best legal offer. */
+/**
+ * One day of offseason free agency: CPU offers, then every courted player picks his best legal offer.
+ * A team with room for a difference-maker (someone who'd crack its top five) bids on him, a little over his ask,
+ * on top of its usual value signing, so the best free agents draw real competition.
+ */
 export function freeAgencyDay(l: League, rng: Rng): void {
   const perf = formOf(l)
   const fas = Object.values(l.players).filter((p) => isFreeAgent(l, p))
@@ -147,18 +151,40 @@ export function freeAgencyDay(l: League, rng: Rng): void {
   for (const teamId of rng.shuffle(Object.keys(l.teams).filter((id) => id !== l.userTeamId))) {
     const mine = committed(l, teamId)
     const n = mine.length
-    if (n >= ROSTER_MAX || (n >= AI_ROSTER_TARGET && !rng.chance(0.35))) continue
+    if (n >= ROSTER_MAX) continue
     const mode = teamMode(l, teamId)
-    const fits = fitsFrom(n, payroll(l, teamId))
     const counts = posCounts(mine)
-    const offered = new Set(l.faOffers.filter((o) => o.teamId === teamId).map((o) => o.playerId))
-    const eighth = mine.map(ovr).sort((a, b) => b - a)[7] ?? 0
-    const options = fas.filter((p) => !offered.has(p.id) && (n < AI_ROSTER_TARGET || ovr(p) > eighth) && fits(ask.get(p.id)!))
+    const pending = l.faOffers.filter((o) => o.teamId === teamId)
+    const offered = new Set(pending.map((o) => o.playerId))
+    // Size and payroll as if every offer already out lands, so a team never bids past what it could honour.
+    let size = n + pending.length
+    let pay = payroll(l, teamId) + pending.reduce((t, o) => t + o.salary, 0)
+    const fits = (salary: number) => fitsFrom(size, pay)(salary)
+    const bid = (p: Player, salary: number) => {
+      l.faOffers.push({ playerId: p.id, teamId, salary, years: askYears(p) })
+      offered.add(p.id)
+      size++
+      pay += salary
+    }
+    const sorted = mine.map(ovr).sort((a, b) => b - a)
+    const fifth = sorted[4] ?? 0
+    const eighth = sorted[7] ?? 0
+    const value = (p: Player) => playerValue(l, p, mode) * needFromCount(counts[p.pos] ?? 0)
+
+    const stars = fas.filter((p) => !offered.has(p.id) && ovr(p) > fifth && (mode === 'contend' || p.age <= 29))
+    if (stars.length) {
+      const star = stars.reduce((a, b) => (value(b) > value(a) ? b : a))
+      const salary = Math.min(MAX_SALARY, Math.round((ask.get(star.id)! * (1 + rng.next() * 0.08)) / 100) * 100)
+      if (fits(salary) && rng.chance(mode === 'contend' ? 0.8 : 0.6)) bid(star, salary)
+    }
+
+    if (size >= ROSTER_MAX || (size >= AI_ROSTER_TARGET && !rng.chance(0.35))) continue
+    const options = fas.filter((p) => !offered.has(p.id) && (size < AI_ROSTER_TARGET || ovr(p) > eighth) && fits(ask.get(p.id)!))
     if (!options.length) continue
-    const worth = (p: Player) => (playerValue(l, p, mode) * needFromCount(counts[p.pos] ?? 0)) / Math.sqrt(ask.get(p.id)!)
+    const worth = (p: Player) => value(p) / Math.sqrt(ask.get(p.id)!)
     const best = options.reduce((a, b) => (worth(b) > worth(a) ? b : a))
-    if (ovr(best) < eighth && n >= 10 && rng.chance(0.5)) continue
-    l.faOffers.push({ playerId: best.id, teamId, salary: ask.get(best.id)!, years: askYears(best) })
+    if (ovr(best) < eighth && size >= 10 && rng.chance(0.5)) continue
+    bid(best, ask.get(best.id)!)
   }
   resolveOffers(l, ask)
 }
