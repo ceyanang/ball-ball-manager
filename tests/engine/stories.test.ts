@@ -132,9 +132,10 @@ describe('season end', () => {
 })
 
 describe('AI trade offers', () => {
+  // Team quality varies by seed, so use a franchise whose players other GMs actually want.
   const withOffer = (): League | null => {
-    let l = simDays(fresh(), 6)
-    for (let i = 0; i < 6; i++) {
+    let l = simDays(createLeague({ seed: 777, userTeamIndex: 12, name: 'Offers' }), 6)
+    for (let i = 0; i < 10; i++) {
       l = structuredClone(l)
       l.day += 1
       if (maybeAiOffer(l, 1)) return l

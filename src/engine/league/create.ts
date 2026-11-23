@@ -2,7 +2,7 @@ import { generateCoach } from '../coach/generate'
 import { MIN_SALARY, SALARY_CAP } from '../constants'
 import { salaryForPlayer } from '../contracts'
 import { PARODY_TEAMS } from '../data/teams'
-import { generatePlayer } from '../player/generate'
+import { generatePlayer, RATING_MIN } from '../player/generate'
 import { computeOvr } from '../player/ratings'
 import { Rng } from '../rng'
 import { generateSchedule, tradeDeadline } from '../schedule/schedule'
@@ -14,6 +14,11 @@ import type { League, Player, Team } from '../types'
 const PER_TEAM = 14
 const FREE_AGENTS = 25
 const SUPERSTARS = 8
+/** How strongly a franchise's hidden pull sets its draft slot (0 = coin flip each round). */
+const PULL_WEIGHT = 2
+/** Franchise quality: rating shift = pull × QUALITY_SD, capped at ±QUALITY_MAX. */
+const QUALITY_SD = 2.5
+const QUALITY_MAX = 5
 
 const isG = (p: Player) => p.pos === 'PG' || p.pos === 'SG'
 const isF = (p: Player) => p.pos === 'SF' || p.pos === 'PF'
@@ -65,13 +70,17 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     make(teams.length * 2, () => clampT(rng.normal(66, 3), 58, 74)),
   ]
 
-  // Snake draft within each tier, respecting positional needs.
+  // Allocation draft within each tier, respecting positional needs. Each team gets a hidden,
+  // seed-driven "franchise pull": high-pull teams tend to pick early every round (contenders),
+  // low-pull teams tend to pick late (rebuilders). The noise keeps it from being a strict ladder,
+  // and because pull is random per seed, a reshuffle changes which franchises are good.
+  const pull = teams.map(() => rng.normal(0, 1))
   const rosters: Player[][] = teams.map(() => [])
-  let round = 0
   for (const tier of tiers) {
     const pool = tier.sort((a, b) => ovr(b) - ovr(a))
     while (pool.length) {
-      const order = round % 2 === 0 ? teams.map((_, i) => i) : teams.map((_, i) => teams.length - 1 - i)
+      const key = teams.map((_, i) => pull[i] * PULL_WEIGHT + rng.normal(0, 1))
+      const order = teams.map((_, i) => i).sort((a, b) => key[b] - key[a])
       for (const ti of order) {
         if (!pool.length) break
         const roster = rosters[ti]
@@ -92,9 +101,20 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
         }
         roster.push(pool.splice(idx, 1)[0])
       }
-      round++
     }
   }
+
+  // Contenders and rebuilders: shift each roster (superstars excepted) by the franchise's quality,
+  // so the league has real haves and have-nots instead of 30 near-identical teams.
+  const stars = new Set(tiers[0].map((p) => p.id))
+  teams.forEach((_, ti) => {
+    const q = Math.max(-QUALITY_MAX, Math.min(QUALITY_MAX, Math.round(pull[ti] * QUALITY_SD)))
+    if (q === 0) return
+    for (const p of rosters[ti]) {
+      if (stars.has(p.id)) continue
+      for (const k of Object.keys(p.ratings) as (keyof Player['ratings'])[]) p.ratings[k] = Math.max(RATING_MIN, Math.min(99, p.ratings[k] + q))
+    }
+  })
 
   const players: Record<string, Player> = {}
   teams.forEach((team, ti) => {

@@ -46,12 +46,29 @@ describe('createLeague', () => {
       }
     }
   })
-  it('balances teams: top-8 mean OVR spread <= 12', () => {
-    const means = Object.values(league.teams).map((t) => {
-      const top = rosterOf(league, t.id).map((p) => computeOvr(p.ratings, p.pos)).sort((a, b) => b - a).slice(0, 8)
-      return top.reduce((s, x) => s + x, 0) / 8
-    })
-    expect(Math.max(...means) - Math.min(...means)).toBeLessThanOrEqual(12)
+  const top8 = (l: League) => Object.values(l.teams).map((t) => {
+    const top = rosterOf(l, t.id).map((p) => computeOvr(p.ratings, p.pos)).sort((a, b) => b - a).slice(0, 8)
+    return { id: t.id, mean: top.reduce((s, x) => s + x, 0) / 8 }
+  })
+  it('has contenders and rebuilders, but no hopeless gap: top-8 mean spread 7..18', () => {
+    for (const seed of [99, 1, 2, 3]) {
+      const l = seed === 99 ? league : createLeague({ seed, userTeamIndex: 0, name: 'x' })
+      const means = top8(l).map((m) => m.mean)
+      const spread = Math.max(...means) - Math.min(...means)
+      expect(spread).toBeGreaterThanOrEqual(7)
+      expect(spread).toBeLessThanOrEqual(18)
+    }
+  })
+  it('reshuffles which franchises are good from seed to seed', () => {
+    const best = new Set<string>(), star = new Set<string>()
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      const l = createLeague({ seed, userTeamIndex: 0, name: 'x' })
+      best.add(top8(l).sort((a, b) => b.mean - a.mean)[0].id)
+      const ps = Object.values(l.players).filter((p) => p.teamId)
+      star.add(ps.reduce((a, b) => (computeOvr(a.ratings, a.pos) >= computeOvr(b.ratings, b.pos) ? a : b)).teamId!)
+    }
+    expect(best.size).toBeGreaterThanOrEqual(4)
+    expect(star.size).toBeGreaterThanOrEqual(4)
   })
   it('enforces positional balance', () => {
     const isG = (p: Player) => p.pos === 'PG' || p.pos === 'SG'

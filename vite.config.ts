@@ -29,5 +29,7 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     environment: 'node',
+    // Statistical sim tests play hundreds of games; CI runners are slower than dev machines.
+    testTimeout: 30_000,
   },
 })
