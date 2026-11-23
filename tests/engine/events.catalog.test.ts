@@ -8,9 +8,9 @@ import { simDays } from '../../src/engine/season/advance'
 import type { League } from '../../src/engine/types'
 
 const leagues = [1, 2, 3, 4, 5].map((seed) => createLeague({ seed, userTeamIndex: seed * 4, name: 'c' }))
-const ctxFor = (l: League, def: EventDef): EventCtx => ({
-  l, when: def.when, game: null,
-  userGame: def.when === 'postGame' ? { won: true, margin: 20 } : null,
+const GAMES = [{ won: true, margin: 20 }, { won: false, margin: 20 }, { won: true, margin: 2 }, { won: false, margin: 2 }]
+const ctxFor = (l: League, def: EventDef, userGame: EventCtx['userGame']): EventCtx => ({
+  l, when: def.when, game: null, userGame,
   roster: committed(l, l.userTeamId).sort((a, b) => Number(!!a.injury) - Number(!!b.injury) || ovr(b) - ovr(a)),
 })
 const asPlayoffs = (l: League) => ({ ...l, phase: 'playoffs' as const })
@@ -20,6 +20,10 @@ describe('event catalog', () => {
     const n = (f: (d: EventDef) => boolean) => CATALOG.filter(f).length
     expect(n((d) => d.when === 'preGame')).toBeGreaterThanOrEqual(12)
     expect(n((d) => d.kind === 'request')).toBeGreaterThanOrEqual(15)
+    expect(n((d) => d.when === 'postGame')).toBeGreaterThanOrEqual(12)
+    expect(n((d) => d.when === 'day')).toBeGreaterThanOrEqual(12)
+    expect(n((d) => !!d.playoffsOnly)).toBeGreaterThanOrEqual(4)
+    expect(CATALOG.length).toBeGreaterThanOrEqual(55)
   })
   it('has unique ids and sane shapes', () => {
     expect(new Set(CATALOG.map((d) => d.id)).size).toBe(CATALOG.length)
@@ -42,7 +46,8 @@ describe('event catalog', () => {
       let fired = 0
       for (const base of leagues) {
         const l = d.playoffsOnly ? asPlayoffs(base) : base
-        const s = d.pick(ctxFor(l, d))
+        for (const ug of d.when === 'postGame' ? GAMES : [null]) {
+        const s = d.pick(ctxFor(l, d, ug))
         if (!s) continue
         fired++
         const roster = new Set(committed(l, l.userTeamId).map((p) => p.id))
@@ -54,6 +59,7 @@ describe('event catalog', () => {
         for (const c of d.choices) for (const o of c.outcomes) for (const e of o.effects(s, l)) {
           const target = 'target' in e && e.target !== 'team' && e.target !== 'roster' ? e.target.player : 'player' in e ? e.player : null
           if (target) expect(s.playerIds, `${d.id} effect target`).toContain(target)
+        }
         }
       }
       expect(fired, `${d.id} never fires`).toBeGreaterThan(0)
