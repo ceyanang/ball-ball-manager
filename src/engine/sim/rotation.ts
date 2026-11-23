@@ -123,6 +123,14 @@ export function suggestedMinutes(rot: Rotation, players: Record<string, Player>)
 }
 
 /**
+ * Turns a partial or off-total minutes plan into a valid one for this depth chart: whole minutes, 0–48 each, summing
+ * to 240. Players the plan misses get the coach's default share for their spot; everyone is rescaled to fit.
+ */
+export function rescaleMinutes(rot: Rotation, players: Record<string, Player>, plan: Record<string, number>): Record<string, number> {
+  return roundTo(minutesTargets({ starters: rot.starters, bench: rot.bench }, players, 0, plan), TEAM_MINUTES)
+}
+
+/**
  * Comfortable minutes for a player before fatigue really bites, from his stamina rating
  * (≈ 30 for a 40-stamina big, ≈ 40 for a 90-stamina iron man).
  */
@@ -178,15 +186,20 @@ export function minutesTargets(
   const stamina = (id: string) => 0.9 + 0.2 * ((players[id]?.ratings.stam ?? 50) / 99)
   lineup.starters.forEach((id, i) => (raw[id] = (STARTER_BASE[i] ?? 30) * stamina(id)))
   lineup.bench.forEach((id, i) => (raw[id] = (BENCH_BASE[i] ?? 0) * stamina(id)))
-  if (plan) for (const id of Object.keys(raw)) if (plan[id] !== undefined) raw[id] = Math.max(0, plan[id])
+  const base = { ...raw }
+  // A planned 0 for someone now starting (an injury fill-in) keeps the default for his spot.
+  if (plan) for (const id of Object.keys(raw)) if (plan[id] !== undefined && !(plan[id] <= 0 && lineup.starters.includes(id))) raw[id] = Math.max(0, plan[id])
   const ids = Object.keys(raw)
   const capped = new Set<string>()
   const out: Record<string, number> = {}
   for (let iter = 0; iter < 10; iter++) {
     const free = ids.filter((id) => !capped.has(id))
     const left = total - capped.size * cap
-    const sum = free.reduce((s, id) => s + raw[id], 0)
-    for (const id of free) out[id] = sum > 0 ? (raw[id] * left) / sum : 0
+    // If the uncapped players have no planned minutes left to scale, fall back to the default shares (or an even split).
+    let w = raw
+    if (free.reduce((s, id) => s + raw[id], 0) <= 0) w = free.some((id) => base[id] > 0) ? base : Object.fromEntries(free.map((id) => [id, 1]))
+    const sum = free.reduce((s, id) => s + w[id], 0)
+    for (const id of free) out[id] = sum > 0 ? (w[id] * left) / sum : 0
     for (const id of capped) out[id] = cap
     const over = free.filter((id) => out[id] > cap)
     if (!over.length) break

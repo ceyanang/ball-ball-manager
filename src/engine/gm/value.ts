@@ -54,7 +54,8 @@ const talent = (o: number) => Math.max(0, o - 50) ** 2.3 / 100
 /** Trade value of a player to a team in `mode`. Deterministic so the same ask always gets the same answer. */
 export function playerValue(l: League, p: Player, mode: Mode): number {
   const o = ovr(p)
-  const ageMult = p.age <= 30 ? 1 : Math.max(0.15, 1 - 0.13 * (p.age - 30))
+  // Contenders care about this season, so age bites far more gently than for a rebuilder playing the long game.
+  const ageMult = p.age <= 30 ? 1 : mode === 'contend' ? Math.max(0.3, 1 - 0.065 * (p.age - 30)) : Math.max(0.15, 1 - 0.13 * (p.age - 30))
   const now = talent(o) * ageMult
   const fut = p.age <= 25 ? (talent(Math.max(o, p.pot)) - talent(o)) * Math.min(1, 0.35 + 0.1 * (25 - p.age)) : 0
   let v = mode === 'contend' ? now * 1.15 + fut * 0.5 : now * 0.85 + fut * 1.1

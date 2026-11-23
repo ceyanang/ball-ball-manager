@@ -110,6 +110,10 @@ export function simGame(
   rng: Rng,
   log?: PlayEvent[],
 ): GameResult {
+  for (const t of [home, away]) {
+    const n = new Set([...t.rotation.starters, ...t.rotation.bench, ...t.rotation.inactive].filter((id) => players[id])).size
+    if (n < STARTERS) throw new Error(`${t.name} has fewer than ${STARTERS} players and cannot play a game (has ${n}).`)
+  }
   const R = (id: string) => players[id].ratings
   const usage: Record<string, number> = {}
   const box: Record<string, BoxLine> = {}

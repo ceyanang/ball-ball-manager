@@ -115,6 +115,8 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
       if (stars.has(p.id)) continue
       for (const k of Object.keys(p.ratings) as (keyof Player['ratings'])[]) p.ratings[k] = Math.max(RATING_MIN, Math.min(99, p.ratings[k] + q))
       p.pot = Math.max(ovr(p), Math.min(99, p.pot + q)) // the ceiling moves with the ratings, or the shift just snaps back
+      // The shift is where he starts, not a change: restart the rating history from it.
+      p.ratingHistory = [{ season, ovr: ovr(p) }]
     }
   })
 
@@ -134,6 +136,8 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
         p.contract!.salary = Math.max(MIN_SALARY, Math.floor((p.contract!.salary * k) / 100) * 100)
     }
     team.rotation = autoRotation(rosters[ti])
+    // The user starts on the coach's auto depth chart, so new signings and picks play right away.
+    if (ti === opts.userTeamIndex) team.rotation.auto = true
     for (const p of rosters[ti]) players[p.id] = p
   })
 

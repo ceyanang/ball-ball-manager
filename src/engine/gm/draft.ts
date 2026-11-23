@@ -3,7 +3,9 @@ import { generatePlayer } from '../player/generate'
 import type { Rng } from '../rng'
 import { computeStandings } from '../standings'
 import type { DraftPick, DraftSlot, DraftState, League, LotteryEntry, Player, Team } from '../types'
-import { GmError, capProblem, committed, log, money, ovr, pname, refreshRotation, tname } from './cap'
+import { GmError, capProblem, committed, log, money, ovr, pname, refreshRotation, teamPlayers, tname } from './cap'
+import { aiWantsResign } from './roster'
+import { playerValue, teamMode } from './value'
 
 export const PROSPECTS = 70
 /** Lottery odds (per 1000) for the 14 non-playoff teams, worst record first. */
@@ -139,11 +141,23 @@ export function finishDraft(l: League): void {
   while (currentSlot(l)) aiPick(l)
   const d = l.draft!
   d.prospects = [] // undrafted prospects are now ordinary free agents
-  // CPU teams sign the picks they can fit; the rest are let go.
+  // CPU teams sign the picks they can fit, keeping roster spots for the expiring players they mean to re-sign;
+  // the rest are let go.
+  const keepers: Record<string, number[]> = {}
+  for (const teamId of Object.keys(l.teams)) {
+    if (teamId === l.userTeamId) continue
+    const mode = teamMode(l, teamId)
+    keepers[teamId] = teamPlayers(l, teamId)
+      .filter((p) => p.contract?.expires === l.season && aiWantsResign(l, teamId, p))
+      .map((p) => playerValue(l, p, mode))
+  }
   for (const [pid, teamId] of Object.entries(l.draftRights)) {
     if (teamId === l.userTeamId) continue
     const slot = d.order.find((s) => s.playerId === pid)!
-    if (committed(l, teamId).length < ROSTER_MAX && !capProblem(l, teamId, { addSalary: rookieSalary(slot), addCount: 1 })) signRights(l, pid)
+    const rookie = playerValue(l, l.players[pid], teamMode(l, teamId))
+    const held = keepers[teamId].filter((v) => v > rookie).length
+    const room = committed(l, teamId).length + held < ROSTER_MAX
+    if (room && !capProblem(l, teamId, { addSalary: rookieSalary(slot), addCount: 1 })) signRights(l, pid)
     else releaseRights(l, pid)
   }
   const teams = Object.values(l.teams)

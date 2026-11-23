@@ -21,7 +21,8 @@ describe('autoRotation', () => {
       const starters = rot.starters.map((id) => l.players[id])
       expect(starters.some((p) => p.pos === 'PG' || p.pos === 'SG')).toBe(true)
       expect(starters.some((p) => p.pos === 'PF' || p.pos === 'C')).toBe(true)
-      expect(t.rotation).toEqual(rot)
+      const { auto: _auto, ...set } = t.rotation
+      expect(set).toEqual(rot)
     }
   })
 })

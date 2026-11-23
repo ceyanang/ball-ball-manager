@@ -1,6 +1,7 @@
 import type { Rng } from '../rng'
 import type { League, Player, TradeAsset } from '../types'
-import { GmError, capProblem, capSeason, committed, log, pname, refreshRotation, tname, tradesOpen } from './cap'
+import { STARTERS } from '../constants'
+import { GmError, capProblem, capSeason, committed, log, pname, refreshRotation, teamPlayers, tname, tradesOpen } from './cap'
 import { type Mode, pickValue, playerValue, teamMode } from './value'
 
 export type Asset = TradeAsset
@@ -22,7 +23,11 @@ export function assetLabel(l: League, a: Asset): string {
 }
 
 function owns(l: League, teamId: string, a: Asset): boolean {
-  if (a.kind === 'pick') return l.picks.some((p) => p.id === a.id && p.ownerId === teamId)
+  if (a.kind === 'pick') {
+    // A pick whose draft slot has already been used is spent.
+    if (l.draft?.order.some((s) => s.pickId === a.id && s.playerId)) return false
+    return l.picks.some((p) => p.id === a.id && p.ownerId === teamId)
+  }
   const p = l.players[a.id]
   return !!p && p.teamId === teamId && !!p.contract && p.contract.expires >= capSeason(l)
 }
@@ -36,6 +41,9 @@ export function tradeProblem(l: League, t: Trade): string | null {
   for (const a of t.bGives) if (!owns(l, t.b, a)) return `${assetLabel(l, a)} can't be traded by ${tname(l, t.b)}.`
   const sa = salaryOf(l, t.aGives), sb = salaryOf(l, t.bGives)
   const na = playersIn(t.aGives), nb = playersIn(t.bGives)
+  if (l.phase !== 'offseason')
+    for (const [id, out, inn] of [[t.a, na, nb], [t.b, nb, na]] as const)
+      if (teamPlayers(l, id).length - out + inn < STARTERS) return `${tname(l, id)} would have fewer than ${STARTERS} players to play games.`
   const pa = capProblem(l, t.a, { addSalary: sb, addCount: nb, removeSalary: sa, removeCount: na }, `For ${tname(l, t.a)}, this`)
   if (pa) return pa
   return capProblem(l, t.b, { addSalary: sa, addCount: na, removeSalary: sb, removeCount: nb }, `For ${tname(l, t.b)}, this`)
@@ -76,7 +84,11 @@ export function executeTrade(l: League, t: Trade): void {
   const move = (assets: Asset[], to: string) => {
     for (const a of assets) {
       if (a.kind === 'player') l.players[a.id].teamId = to
-      else l.picks.find((p) => p.id === a.id)!.ownerId = to
+      else {
+        l.picks.find((p) => p.id === a.id)!.ownerId = to
+        // Once the order is set, the slot follows the pick to its new owner.
+        for (const s of l.draft?.order ?? []) if (s.pickId === a.id && !s.playerId) s.teamId = to
+      }
     }
   }
   move(t.aGives, t.b)
@@ -137,27 +149,65 @@ export function suggestPackage(l: League, fromTeam: string, toTeam: string, want
   return best?.give ?? null
 }
 
-/** CPU teams occasionally deal with each other; both must come out ahead by their own valuation. */
+/** Between two CPU teams each side only needs to come out a little ahead (the user still faces ACCEPT_MARGIN). */
+export const AI_AI_MARGIN = 1.05
+export const AI_AI_FLOOR = 1
+
+/**
+ * The cheapest package from `buyer` (singles, then pairs of its most useful pieces) that both sides like by their
+ * own valuation: the seller gets AI_AI_MARGIN more than it gives, the buyer at least breaks even.
+ */
+function aiPackage(l: League, buyer: string, seller: string, wanted: Asset[]): Asset[] | null {
+  const sMode = teamMode(l, seller), bMode = teamMode(l, buyer)
+  const sGives = assetsValue(l, wanted, sMode)
+  const pool = tradeableAssets(l, buyer)
+    .map((a) => ({ a, v: packageValue(l, seller, [a], wanted, sMode) }))
+    .filter((x) => x.v > 0)
+    .sort((x, y) => y.v - x.v)
+    .slice(0, 8)
+  const combos: { give: Asset[]; v: number }[] = []
+  for (let i = 0; i < pool.length; i++) {
+    combos.push({ give: [pool[i].a], v: pool[i].v })
+    for (let j = i + 1; j < pool.length; j++) combos.push({ give: [pool[i].a, pool[j].a], v: pool[i].v + pool[j].v })
+  }
+  combos.sort((x, y) => x.v - y.v || x.give.length - y.give.length)
+  for (const c of combos) {
+    if (c.v < sGives * AI_AI_MARGIN + AI_AI_FLOOR) continue
+    if (packageValue(l, seller, c.give, wanted, sMode) < sGives * AI_AI_MARGIN + AI_AI_FLOOR) continue
+    if (packageValue(l, buyer, wanted, c.give, bMode) < assetsValue(l, c.give, bMode)) continue
+    if (tradeProblem(l, { a: buyer, b: seller, aGives: c.give, bGives: wanted })) continue
+    return c.give
+  }
+  return null
+}
+
+/**
+ * CPU teams deal with each other a handful of times a season; both must come out ahead by their own valuation.
+ * Most talks are a contender shopping a rebuilder's veteran (or a rebuilder chasing a contender's youngster),
+ * where the two sides' different priorities leave room for a deal both like.
+ */
 export function aiTrades(l: League, rng: Rng, attempts: number): number {
   if (!tradesOpen(l)) return 0
   const ai = Object.keys(l.teams).filter((id) => id !== l.userTeamId)
+  const mode = Object.fromEntries(ai.map((id) => [id, teamMode(l, id)]))
   let made = 0
   for (let i = 0; i < attempts; i++) {
     const buyer = rng.pick(ai)
-    const seller = rng.pick(ai.filter((id) => id !== buyer))
-    const targets = committed(l, seller).filter((p) => !p.injury || p.injury.gamesRemaining < 10)
-    if (!targets.length) continue
-    const target = rng.pick(targets)
-    const wanted: Asset[] = [{ kind: 'player', id: target.id }]
-    const give = suggestPackage(l, buyer, seller, wanted)
-    if (!give) continue
-    // The buyer must also think it wins the deal, by its own (different) priorities.
-    const buyerMode = teamMode(l, buyer)
-    const buyerGets = packageValue(l, buyer, wanted, give, buyerMode)
-    const buyerGives = assetsValue(l, give, buyerMode)
-    if (buyerGets < buyerGives * 1.05) continue
-    executeTrade(l, { a: buyer, b: seller, aGives: give, bGives: wanted })
-    made++
+    const others = ai.filter((id) => id !== buyer)
+    const mismatched = others.filter((id) => mode[id] !== mode[buyer])
+    const seller = rng.pick(mismatched.length && rng.chance(0.8) ? mismatched : others)
+    const healthy = committed(l, seller).filter((p) => !p.injury || p.injury.gamesRemaining < 10)
+    // A contender shops for help now; a rebuilder for youth.
+    const fits = healthy.filter((p) => (mode[buyer] === 'contend' ? p.age >= 26 : p.age <= 25))
+    const targets = rng.shuffle(fits.length ? fits : healthy).slice(0, 3)
+    for (const target of targets) {
+      const wanted: Asset[] = [{ kind: 'player', id: target.id }]
+      const give = aiPackage(l, buyer, seller, wanted)
+      if (!give) continue
+      executeTrade(l, { a: buyer, b: seller, aGives: give, bGives: wanted })
+      made++
+      break
+    }
   }
   return made
 }
