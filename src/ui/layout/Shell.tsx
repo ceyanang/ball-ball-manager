@@ -77,7 +77,7 @@ export function Shell() {
             <Link to="/" className="mbar-team" aria-label={`${team.name} home`}>
               <TeamBadge team={team} size={36} />
               <span className="mbar-text">
-                <span className="mbar-title">{team.name}{record && <span className="mbar-rec"> {record}</span>}</span>
+                <span className="mbar-title"><span className="mbar-name">{team.name}</span>{record && <span className="mbar-rec">{record}</span>}</span>
                 <span className="mbar-sub">{phaseLabel(league, true)}</span>
               </span>
             </Link>
