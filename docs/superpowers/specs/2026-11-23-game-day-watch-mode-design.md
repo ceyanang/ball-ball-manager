@@ -1,6 +1,6 @@
 # Game Day Watch Mode + Playoff Hub — Design
 
-Date: 2026-11-23 · Status: draft for owner approval
+Date: 2026-11-23 · Status: approved by owner
 Mockup (throwaway, made-up players): https://claude.ai/artifact/QXs16a95SQHYHSECp34dKm
 
 ## Why
@@ -70,7 +70,8 @@ The owner picked **A**.
 - Also works in the playoffs (header shows the series, e.g. "Game 5 · Series tied 2–2").
 
 ### Playoff hub
-- When `league.phase === 'playoffs'`, Home becomes the playoff hub (Playoffs screen stays as it is).
+- When `league.phase === 'playoffs'`, the playoff hub sits at the top of Home (owner's pick). Below it, only **Inbox** and **Highlights** stay. The conference standings, Game Day card, progress report and top performers are hidden during the playoffs, since today's games covers the Game Day card. The Playoffs screen stays as it is.
+- The user's game in "today's games" carries the **Watch** button. The Game Day card is not used during the playoffs.
 - **Bracket on screen:** the existing bracket, with the user's series highlighted. On phones, show one conference at a time with a West/East toggle (defaulting to the user's conference) and the columns scrolling sideways inside the panel; on desktop show both like the Playoffs screen.
 - **Today's games:** every playoff game today, with game number and series state, and stakes tags: "elimination game", "sweep watch 🧹", "series-clincher".
 - **Buttons:** Watch game (on the user's game, when they play today), Sim day, **Sim series** (new: sim until the user's current series is decided; hidden once the user is eliminated), Sim playoffs.
