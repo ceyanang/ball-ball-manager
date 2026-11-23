@@ -4,7 +4,7 @@ import { capProblem, committed, isFreeAgent, ovr, payroll, tradesOpen } from '..
 import { autoPick, currentSlot, LOTTERY_DRAWS } from '../../src/engine/gm/draft'
 import { advanceOffseason, seasonStartProblem } from '../../src/engine/gm/offseason'
 import { claimWaiver, currentAsk, fillRoster, offerFreeAgent, processWaivers, releasePlayer } from '../../src/engine/gm/roster'
-import { aiVerdict, findOffers, proposeTrade, suggestPackage, type Asset } from '../../src/engine/gm/trade'
+import { aiVerdict, findOffers, findTargets, proposeTrade, suggestPackage, tradeProblem, type Asset } from '../../src/engine/gm/trade'
 import { askYears, playerValue } from '../../src/engine/gm/value'
 import { createLeague } from '../../src/engine/league/create'
 import { Rng } from '../../src/engine/rng'
@@ -191,5 +191,57 @@ describe('full offseason cycle', () => {
     expect(l.phase).toBe('offseason')
     expect(l.season).toBe(2)
     expect(l.playoffs!.championId).toBeTruthy()
+  })
+})
+
+describe('find a player', () => {
+  const key = (a: Asset) => `${a.kind}:${a.id}`
+  const mineOf = (l: League) => best(l, user(l)).slice(1, 6).map((p) => P(p.id))
+  const crit = { pos: 'SG', minOvr: 50 } as const
+
+  it('returns only matching players on other teams, best OVR first', () => {
+    const l = fresh()
+    const t0 = performance.now()
+    const deals = findTargets(l, user(l), crit, mineOf(l))
+    expect(performance.now() - t0).toBeLessThan(1500)
+    expect(deals.length).toBeGreaterThan(0)
+    deals.forEach((d, i) => {
+      const p = l.players[d.target.id]
+      expect(p.pos).toBe('SG')
+      expect(ovr(p)).toBeGreaterThanOrEqual(50)
+      expect(p.teamId).not.toBe(user(l))
+      expect(p.teamId).toBe(d.teamId)
+      if (i) expect(ovr(l.players[deals[i - 1].target.id])).toBeGreaterThanOrEqual(ovr(p))
+    })
+  })
+  it('only spends ticked assets, and every deal is legal and AI-acceptable', () => {
+    const l = fresh()
+    const mine = mineOf(l)
+    const ok = new Set(mine.map(key))
+    const deals = findTargets(l, user(l), crit, mine)
+    for (const d of deals) {
+      expect(d.gives.every((a) => ok.has(key(a)))).toBe(true)
+      expect(tradeProblem(l, { a: user(l), b: d.teamId, aGives: d.gives, bGives: [d.target] })).toBeNull()
+      expect(aiVerdict(l, d.teamId, d.gives, [d.target]).ok).toBe(true)
+    }
+    const v = proposeTrade(l, { a: user(l), b: deals[0].teamId, aGives: deals[0].gives, bGives: [deals[0].target] })
+    expect(v.ok).toBe(true)
+    expect(l.players[deals[0].target.id].teamId).toBe(user(l))
+  })
+  it('respects maxAge and maxSalary', () => {
+    const l = fresh()
+    const mine = mineOf(l)
+    for (const d of findTargets(l, user(l), { ...crit, maxAge: 24 }, mine)) expect(l.players[d.target.id].age).toBeLessThanOrEqual(24)
+    const cap = 3000
+    for (const d of findTargets(l, user(l), { ...crit, maxSalary: cap }, mine)) expect(l.players[d.target.id].contract!.salary).toBeLessThanOrEqual(cap)
+  })
+  it('returns nothing for empty picks, impossible filters, closed trades, and ignores stale assets', () => {
+    const l = fresh()
+    expect(findTargets(l, user(l), crit, [])).toEqual([])
+    expect(findTargets(l, user(l), { pos: 'C', minOvr: 99 }, mineOf(l))).toEqual([])
+    const stale = [P(best(l, other(l))[0].id)]
+    expect(findTargets(l, user(l), crit, stale)).toEqual([])
+    const later = simDays(simUntil(l, 'deadline'), 1)
+    expect(findTargets(later, user(later), crit, mineOf(later))).toEqual([])
   })
 })

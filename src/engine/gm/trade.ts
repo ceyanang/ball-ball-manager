@@ -1,7 +1,7 @@
 import type { Rng } from '../rng'
-import type { League, Player, TradeAsset } from '../types'
+import type { League, Player, Position, TradeAsset } from '../types'
 import { STARTERS } from '../constants'
-import { GmError, capProblem, capSeason, committed, log, pname, refreshRotation, teamPlayers, tname, tradesOpen } from './cap'
+import { GmError, capProblem, capSeason, committed, log, ovr, pname, refreshRotation, teamPlayers, tname, tradesOpen } from './cap'
 import { type Mode, pickValue, playerValue, teamMode } from './value'
 
 export type Asset = TradeAsset
@@ -120,9 +120,9 @@ export function tradeableAssets(l: League, teamId: string): Asset[] {
  * "What would it take?": the cheapest package from `fromTeam` that `toTeam` accepts for `wanted`.
  * Tries single assets, then pairs, then triples among the most valuable pieces.
  */
-export function suggestPackage(l: League, fromTeam: string, toTeam: string, wanted: Asset[]): Asset[] | null {
+export function suggestPackage(l: League, fromTeam: string, toTeam: string, wanted: Asset[], spend?: Asset[]): Asset[] | null {
   const mode = teamMode(l, toTeam)
-  const pool = tradeableAssets(l, fromTeam)
+  const pool = (spend ?? tradeableAssets(l, fromTeam))
     .map((a) => ({ a, v: packageValue(l, toTeam, [a], wanted, mode) }))
     .filter((x) => x.v > 0)
     .sort((x, y) => x.v - y.v)
@@ -250,4 +250,37 @@ export function findOffers(l: League, fromTeam: string, offered: Asset[], opts: 
     }
   }
   return offers.sort((x, y) => y.value - x.value)
+}
+
+export interface TargetCriteria { pos: Position; minOvr: number; maxAge?: number; maxSalary?: number }
+export interface TargetDeal { teamId: string; target: Asset; gives: Asset[] }
+const MAX_TARGETS = 12
+
+/**
+ * "Find a player": league-wide players matching `criteria`, best OVR first, each with a package built
+ * only from `available` (assets the user ticked) that the owning team would accept.
+ */
+export function findTargets(l: League, me: string, criteria: TargetCriteria, available: Asset[]): TargetDeal[] {
+  if (!available.length || !tradesOpen(l)) return []
+  const targets: { teamId: string; id: string; ovr: number }[] = []
+  for (const teamId of Object.keys(l.teams)) {
+    if (teamId === me) continue
+    for (const a of tradeableAssets(l, teamId)) {
+      if (a.kind !== 'player') continue
+      const p = l.players[a.id]
+      const o = ovr(p)
+      if (p.pos !== criteria.pos || o < criteria.minOvr) continue
+      if (criteria.maxAge !== undefined && p.age > criteria.maxAge) continue
+      if (criteria.maxSalary !== undefined && (p.contract?.salary ?? 0) > criteria.maxSalary) continue
+      targets.push({ teamId, id: p.id, ovr: o })
+    }
+  }
+  targets.sort((x, y) => y.ovr - x.ovr)
+  const deals: TargetDeal[] = []
+  for (const t of targets.slice(0, MAX_TARGETS)) {
+    const target: Asset = { kind: 'player', id: t.id }
+    const gives = suggestPackage(l, me, t.teamId, [target], available)
+    if (gives) deals.push({ teamId: t.teamId, target, gives })
+  }
+  return deals
 }

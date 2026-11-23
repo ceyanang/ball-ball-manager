@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { needLevels, needThresholds, teamNeeds, type Slot } from '../../src/engine/gm/needs'
+import { needLevels, needRank, needThresholds, neediestPosition, POSITIONS, teamNeeds, type Slot } from '../../src/engine/gm/needs'
 import { createLeague } from '../../src/engine/league/create'
 
 const th = { excellent: 75, good: 65, solid: 58 }
@@ -24,5 +24,14 @@ describe('teamNeeds', () => {
     const after = teamNeeds(l, l.userTeamId, { add: [{ pos: 'C', ovr: 99 }, { pos: 'C', ovr: 99 }] }, t)
     expect(after.C).toBe('green')
     expect(teamNeeds(l, l.userTeamId, {}, t)).toEqual(before)
+  })
+})
+
+describe('neediestPosition', () => {
+  it('picks the lowest-ranked position, ties broken by position order', () => {
+    const l = createLeague({ seed: 5, userTeamIndex: 0, name: 'N' })
+    const needs = teamNeeds(l, l.userTeamId)
+    const min = Math.min(...POSITIONS.map((p) => needRank[needs[p]]))
+    expect(neediestPosition(l, l.userTeamId)).toBe(POSITIONS.find((p) => needRank[needs[p]] === min))
   })
 })

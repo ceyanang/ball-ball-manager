@@ -44,3 +44,9 @@ export function teamNeeds(l: League, teamId: string, ch: { add?: Slot[]; removeI
 }
 
 export const needRank: Record<NeedLevel, number> = { red: 0, yellow: 1, green: 2 }
+
+/** The position this team most needs help at (lowest need rank; ties go to the earlier position). */
+export function neediestPosition(l: League, teamId: string): Position {
+  const needs = teamNeeds(l, teamId)
+  return POSITIONS.reduce((best, p) => (needRank[needs[p]] < needRank[needs[best]] ? p : best), POSITIONS[0])
+}
