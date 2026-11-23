@@ -6,7 +6,13 @@ export const ovrOf = (p: Player) => computeOvr(p.ratings, p.pos)
 export const fullName = (p: { firstName: string; lastName: string }) => `${p.firstName} ${p.lastName}`
 export const teamFull = (t: Team) => `${t.city} ${t.name}`
 export const rosterOf = (l: League, teamId: string) => Object.values(l.players).filter((p) => p.teamId === teamId)
-export const money = (k: number) => (k >= 1000 ? `$${(k / 1000).toFixed(1)}M` : `$${k}K`)
+/** Money in thousands: "$1.2M" / "$750K"; nothing is just "$0". */
+export function money(k: number): string {
+  if (k === 0) return '$0'
+  const sign = k < 0 ? '-' : ''
+  const a = Math.abs(k)
+  return a >= 1000 ? `${sign}$${(a / 1000).toFixed(1)}M` : `${sign}$${a}K`
+}
 export const heightStr = (inches: number) => `${Math.floor(inches / 12)}'${inches % 12}"`
 export const pct = (v: number) => (v === 0 ? '.000' : v >= 1 ? '1.000' : v.toFixed(3).replace(/^0/, ''))
 export const one = (v: number) => v.toFixed(1)
