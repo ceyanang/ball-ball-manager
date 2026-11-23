@@ -6,7 +6,7 @@ import { GameDayHero } from '../components/GameDay'
 import { NewsCard } from '../components/Stories'
 import { PlayoffHub } from './PlayoffHub'
 import { useStore } from '../store'
-import { didWin, fullName, nextGame, one, ovrOf, pct, rosterOf, seasonLine, teamFull, teamGames } from '../util'
+import { didWin, fullName, nextGame, one, ovrOf, pct, recentResults, rosterOf, seasonLine, teamFull } from '../util'
 
 export function Home() {
   const league = useStore((s) => s.league)!
@@ -18,8 +18,7 @@ export function Home() {
   const next = nextGame(league, team.id)
   const gameDay = next && next.day === league.day ? next : null
   const records = Object.fromEntries([...st.East, ...st.West].map((r) => [r.teamId, { w: r.w, l: r.l }]))
-  const played = teamGames(league, team.id).filter((g) => g.result)
-  const last5 = played.slice(-5)
+  const last5 = recentResults(league, team.id, 5)
   const champ = league.playoffs?.championId ? league.teams[league.playoffs.championId] : null
   const performers = rosterOf(league, team.id)
     .map((p) => ({ p, line: seasonLine(league, p) }))

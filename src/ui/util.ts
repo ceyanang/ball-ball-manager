@@ -17,7 +17,13 @@ export function teamOvr(l: League, teamId: string): number {
 }
 
 export function teamGames(l: League, teamId: string): Game[] {
-  return l.games.filter((g) => g.homeId === teamId || g.awayId === teamId).sort((a, b) => a.day - b.day)
+  // league.games holds every season's games, and `day` restarts each season.
+  return l.games.filter((g) => g.homeId === teamId || g.awayId === teamId).sort((a, b) => a.season - b.season || a.day - b.day)
+}
+
+/** The team's last `n` played games this season, oldest first. */
+export function recentResults(l: League, teamId: string, n: number): Game[] {
+  return teamGames(l, teamId).filter((g) => g.result && g.season === l.season).slice(-n)
 }
 
 export function nextGame(l: League, teamId: string): Game | undefined {
