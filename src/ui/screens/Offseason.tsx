@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { seasonStartProblem } from '../../engine/gm/offseason'
 import { FA_DAYS, offerResign, resignChance } from '../../engine/gm/roster'
+import { needThresholds, teamNeeds } from '../../engine/gm/needs'
 import { askSalary, askYears } from '../../engine/gm/value'
 import type { OffseasonStep } from '../../engine/types'
+import { AutoSignPanel } from '../components/AutoSignPanel'
 import { CapBar } from '../components/CapBar'
+import { NeedDot, NeedsStrip } from '../components/NeedDot'
 import { AwardsCeremony } from '../components/Stories'
 import { OfferForm } from '../components/OfferForm'
 import { OvrPill } from '../components/OvrPill'
@@ -36,6 +39,7 @@ export function Offseason() {
   const myChanges = r.changes.filter((c) => c.teamId === me).sort((a, b) => b.to - b.from - (a.to - a.from))
   const leagueMovers = r.changes.filter((c) => c.teamId !== me).sort((a, b) => Math.abs(b.to - b.from) - Math.abs(a.to - a.from)).slice(0, 8)
   const notableRetired = r.retired.filter((x) => x.teamId === me || x.ovr >= 74).sort((a, b) => b.ovr - a.ovr).slice(0, 10)
+  const th = needThresholds(league)
   const myRights = Object.values(league.draftRights).filter((t) => t === me).length
 
   return (
@@ -129,10 +133,14 @@ export function Offseason() {
           </p>
           {myRights > 0 && <p className="notice">You have {myRights} unsigned draft pick{myRights > 1 ? 's' : ''}. <Link className="link" to="/draft">Sign them in the draft room.</Link></p>}
           <CapBar league={league} teamId={me} />
+          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+            <NeedsStrip needs={teamNeeds(league, me, {}, th)} />
+            {expiring.length > 0 && <AutoSignPanel resign />}
+          </div>
           {expiring.length ? (
             <div className="table-wrap">
               <table className="stats">
-                <thead><tr><th>Player</th><th>Age</th><th>OVR</th><th>Mood</th><th>Asking</th><th>Odds at ask</th><th></th></tr></thead>
+                <thead><tr><th>Player</th><th>Need</th><th>Age</th><th>OVR</th><th>Mood</th><th>Asking</th><th>Odds at ask</th><th></th></tr></thead>
                 <tbody>
                   {expiring.map((p) => {
                     const ask = askSalary(league, p), yrs = askYears(p)
@@ -141,12 +149,13 @@ export function Offseason() {
                     return [
                       <tr key={p.id}>
                         <td><PlayerCell league={league} p={p} subtitle={`${p.pos} · was ${money(p.contract!.salary)}`} /></td>
+                        <td><NeedDot level={teamNeeds(league, me, {}, th)[p.pos]} after={teamNeeds(league, me, { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos]} /></td>
                         <td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td><td>{p.morale}</td>
                         <td>{money(ask)} × {yrs}y</td><td>{Math.round(resignChance(league, p, ask, yrs) * 100)}%</td>
                         <td>{done ? <span className="loss">Won’t talk</span> : <button className="btn" onClick={() => setOpen(open === p.id ? null : p.id)}>Offer{tries ? ` (${3 - tries} left)` : ''}</button>}</td>
                       </tr>,
                       open === p.id && (
-                        <tr key={p.id + 'o'} className="offer-row"><td colSpan={7}>
+                        <tr key={p.id + 'o'} className="offer-row"><td colSpan={8}>
                           <OfferForm ask={ask} years={yrs} onCancel={() => setOpen(null)} onSubmit={(salary, years) => {
                             act((l, rng) => {
                               const res = offerResign(l, rng, p.id, salary, years)

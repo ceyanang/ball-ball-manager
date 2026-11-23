@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom'
 import { isFreeAgent } from '../../engine/gm/cap'
 import { FA_DAYS, claimWaiver, currentAsk, offerFreeAgent } from '../../engine/gm/roster'
 import { askYears, formOf } from '../../engine/gm/value'
+import { needThresholds, teamNeeds } from '../../engine/gm/needs'
 import { archetypeFor } from '../../engine/player/archetype'
+import { AutoSignPanel } from '../components/AutoSignPanel'
 import { CapBar } from '../components/CapBar'
+import { NeedDot, NeedsStrip } from '../components/NeedDot'
 import { OfferForm } from '../components/OfferForm'
 import { OvrPill } from '../components/OvrPill'
 import { PlayerCell } from '../components/PlayerCell'
@@ -24,6 +27,8 @@ export function FreeAgents() {
   const os = league.offseason
   const faOpen = league.phase !== 'offseason' || os?.step === 'freeAgency' || os?.step === 'ready'
   const perf = useMemo(() => formOf(league), [league])
+  const th = useMemo(() => needThresholds(league), [league])
+  const needs = useMemo(() => teamNeeds(league, me, {}, th), [league, me, th])
   const fas = Object.values(league.players)
     .filter((p) => isFreeAgent(league, p) && (pos === 'All' || p.pos === pos))
     .sort((a, b) => ovrOf(b) - ovrOf(a))
@@ -50,6 +55,10 @@ export function FreeAgents() {
           : 'In season, free agents decide on the spot: anything at 90% of their ask or more gets it done.'}
       </p>
       <CapBar league={league} teamId={me} />
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <NeedsStrip needs={needs} />
+        {faOpen && <AutoSignPanel resign={false} />}
+      </div>
 
       {league.waivers.length > 0 && (
         <section className="panel stack">
@@ -93,7 +102,7 @@ export function FreeAgents() {
         </div>
         <div className="table-wrap">
           <table className="stats">
-            <thead><tr><th>Player</th><th>Pos</th><th>Age</th><th>OVR</th><th>Asking</th><th></th></tr></thead>
+            <thead><tr><th>Player</th><th>Pos</th><th>Need</th><th>Age</th><th>OVR</th><th>Asking</th><th></th></tr></thead>
             <tbody>
               {fas.map((p) => {
                 const ask = currentAsk(league, p, perf)
@@ -102,12 +111,12 @@ export function FreeAgents() {
                   <Fragment key={p.id}>
                     <tr>
                       <td><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
-                      <td>{p.pos}</td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
+                      <td>{p.pos}</td><td><NeedDot level={needs[p.pos]} after={teamNeeds(league, me, { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos]} /></td><td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
                       <td>{money(ask)} × {yrs}y</td>
                       <td><button className="btn" disabled={!faOpen} onClick={() => setOpen(open === p.id ? null : p.id)}>Offer</button></td>
                     </tr>
                     {open === p.id && (
-                      <tr className="offer-row"><td colSpan={6}>
+                      <tr className="offer-row"><td colSpan={7}>
                         <OfferForm ask={ask} years={yrs} onCancel={() => setOpen(null)} onSubmit={(salary, years) => {
                           let res = ''
                           const ok = act((l) => {

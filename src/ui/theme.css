@@ -502,3 +502,12 @@ button, a, select, input, label { touch-action: manipulation; }
 /* Potential next to OVR (trade, free agents, rosters): a small grade chip, highlighted when there's real room to grow. */
 .pot-chip { display: inline-block; margin-left: 0.35rem; padding: 0.05rem 0.35rem; border-radius: 6px; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.03em; color: var(--ink-2); background: var(--surface-2); white-space: nowrap; }
 .pot-chip.up { color: #6fe3a2; background: color-mix(in srgb, #3ecf8e 18%, transparent); }
+
+/* Position-need indicators */
+.need-chip { display: inline-flex; align-items: center; gap: 0.25rem; }
+.need-dot { display: inline-block; width: 0.8rem; height: 0.8rem; border-radius: 50%; box-shadow: 0 0 0 1px rgba(0,0,0,0.25) inset; }
+.need-red { background: #e5484d; }
+.need-yellow { background: #f5b301; }
+.need-green { background: #30a46c; }
+.needs-strip { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; }
+.need-pos { display: inline-flex; align-items: center; gap: 0.3rem; }

@@ -1,3 +1,5 @@
+import { needThresholds, teamNeeds } from '../../engine/gm/needs'
+import { NeedDot, NeedsStrip } from '../components/NeedDot'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { capSeason, payroll, tradesOpen } from '../../engine/gm/cap'
@@ -19,6 +21,9 @@ export function AssetList({ league, teamId, assets, picked, toggle, pos, q }: {
   league: League; teamId: string; assets: Asset[]; picked: Set<string>; toggle: (a: Asset) => void; pos: PosFilter; q: string
 }) {
   const team = league.teams[teamId]
+  const me = league.userTeamId
+  const th = useMemo(() => needThresholds(league), [league])
+  const myNeeds = useMemo(() => teamNeeds(league, me, {}, th), [league, me, th])
   const filtering = pos !== 'All' || !!q.trim()
   // Filters hide unpicked players only, so a filter never makes a chosen piece vanish from the deal.
   const shown = new Set(filterPlayers(assets.filter((a) => a.kind === 'player').map((a) => league.players[a.id]), { pos, q }).map((p) => p.id))
@@ -39,6 +44,7 @@ export function AssetList({ league, teamId, assets, picked, toggle, pos, q }: {
               <span className="asset-sub">{p.pos} · {p.age}y · {archetypeFor(p)}</span>
             </span>
             <span className="asset-money">{p.contract ? `${money(p.contract.salary)} · ${yrs}y` : ''}</span>
+            <NeedDot level={myNeeds[p.pos]} after={teamNeeds(league, me, teamId === me ? { removeIds: [p.id] } : { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos]} />
             <OvrPill value={ovrOf(p)} pot={p.pot} />
           </label>
         )
@@ -86,6 +92,7 @@ export function Trade() {
     return filterPlayers(ids, { pos, q })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [league, findTeam, pos, q])
+  const myNeeds = useMemo(() => teamNeeds(league, me, {}, needThresholds(league)), [league, me])
   const parse = (s: Set<string>, pool: Asset[]) => pool.filter((a) => s.has(key(a)))
   const trade: TradeT = { a: me, b: partner, aGives: parse(give, myAssets), bGives: parse(get, theirAssets) }
   const problem = trade.aGives.length || trade.bGives.length ? tradeProblem(league, trade) : null
@@ -202,6 +209,7 @@ export function Trade() {
         {problem && <div className="notice">{problem}</div>}
         {hint && <div className="notice">{hint}</div>}
         <CapBar league={league} teamId={me} />
+        <NeedsStrip needs={myNeeds} />
       </section>
     </div>
   )

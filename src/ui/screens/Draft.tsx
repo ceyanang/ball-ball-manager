@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { autoPick, currentSlot, draftUntilUser, makePick, releaseRights, rookieSalary, rookieYears, signRights } from '../../engine/gm/draft'
+import { needThresholds, teamNeeds } from '../../engine/gm/needs'
 import { archetypeFor } from '../../engine/player/archetype'
+import { NeedDot, NeedsStrip } from '../components/NeedDot'
 import { TeamBadge } from '../components/TeamBadge'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
@@ -25,6 +27,8 @@ export function Draft() {
   const shown = new Set(lotteryByPick.slice(0, revealed).map((e) => e.teamId))
   const board = d.prospects.map((id) => league.players[id]).filter((p) => pos === 'All' || p.pos === pos)
     .sort((a, b) => (d.scout[b.id].ovrLo + d.scout[b.id].ovrHi + 2 * d.scout[b.id].pot) - (d.scout[a.id].ovrLo + d.scout[a.id].ovrHi + 2 * d.scout[a.id].pot))
+  const th = needThresholds(league)
+  const needs = teamNeeds(league, me, {}, th)
   const rights = Object.entries(league.draftRights).filter(([, t]) => t === me).map(([id]) => league.players[id])
 
   const pick = (id: string) => act((l) => {
@@ -95,13 +99,14 @@ export function Draft() {
 
       {d.prospects.length > 0 && (
         <section className="panel stack">
+          <NeedsStrip needs={needs} />
           <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
             <h2>Big board</h2>
             <div className="seg">{['All', 'PG', 'SG', 'SF', 'PF', 'C'].map((x) => <button key={x} className="btn" aria-pressed={pos === x} onClick={() => setPos(x)}>{x}</button>)}</div>
           </div>
           <div className="table-wrap">
             <table className="stats">
-              <thead><tr><th>Prospect</th><th>Pos</th><th>Age</th><th>Ht</th><th>OVR est.</th><th>POT</th><th></th></tr></thead>
+              <thead><tr><th>Prospect</th><th>Pos</th><th>Need</th><th>Age</th><th>Ht</th><th>OVR est.</th><th>POT</th><th></th></tr></thead>
               <tbody>
                 {board.map((p, i) => {
                   const sc = d.scout[p.id]
@@ -114,7 +119,7 @@ export function Draft() {
                           <span><span className="pname">{fullName(p)}</span><span className="sub">{archetypeFor(p)}</span></span>
                         </div>
                       </td>
-                      <td>{p.pos}</td><td>{p.age}</td><td>{heightStr(p.heightIn)}</td>
+                      <td>{p.pos}</td><td><NeedDot level={needs[p.pos]} after={teamNeeds(league, me, { add: [{ pos: p.pos, ovr: Math.round((sc.ovrLo + sc.ovrHi) / 2) }] }, th)[p.pos]} /></td><td>{p.age}</td><td>{heightStr(p.heightIn)}</td>
                       <td>{sc.ovrLo}–{sc.ovrHi}</td>
                       <td><span className="grade-chip">{sc.pot}</span></td>
                       <td>{onClock && <button className="btn btn-primary" onClick={() => pick(p.id)}>Draft</button>}</td>
