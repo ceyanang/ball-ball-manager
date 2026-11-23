@@ -20,4 +20,17 @@ describe('worker client', () => {
     await expect(runSim(l, { type: 'simDays', days: 1 })).rejects.toThrow()
     expect(made).toBe(2)
   })
+  it('runWatch resolves to the league and capture from the worker response', async () => {
+    const l = createLeague({ seed: 1, userTeamIndex: 0, name: 'W' })
+    const watch = { gameId: 'g1', log: [] }
+    class OkWorker {
+      onmessage: ((e: unknown) => void) | null = null
+      postMessage(m: { id: number }) { setTimeout(() => this.onmessage?.({ data: { id: m.id, league: l, watch } })) }
+      terminate() {}
+    }
+    vi.stubGlobal('Worker', OkWorker)
+    vi.resetModules()
+    const { runWatch } = await import('../../src/worker/client')
+    await expect(runWatch(l)).resolves.toEqual({ league: l, watch })
+  })
 })

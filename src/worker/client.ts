@@ -1,9 +1,10 @@
+import type { WatchCapture } from '../engine/season/advance'
 import type { League } from '../engine/types'
 import type { SimCommand, SimResponse } from './protocol'
 
 let worker: Worker | null = null
 let nextId = 1
-const pending = new Map<number, { resolve: (l: League) => void; reject: (e: Error) => void }>()
+const pending = new Map<number, { resolve: (r: { league: League; watch: WatchCapture | null }) => void; reject: (e: Error) => void }>()
 
 function getWorker(): Worker {
   if (worker) return worker
@@ -13,7 +14,7 @@ function getWorker(): Worker {
     if (!p) return
     pending.delete(e.data.id)
     if ('error' in e.data) p.reject(new Error(e.data.error))
-    else p.resolve(e.data.league)
+    else p.resolve({ league: e.data.league, watch: e.data.watch ?? null })
   }
   const fail = (msg: string) => {
     for (const p of pending.values()) p.reject(new Error(msg))
@@ -26,10 +27,19 @@ function getWorker(): Worker {
   return worker
 }
 
-export function runSim(league: League, cmd: SimCommand): Promise<League> {
+function request(league: League, cmd: SimCommand): Promise<{ league: League; watch: WatchCapture | null }> {
   const id = nextId++
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject })
     getWorker().postMessage({ id, cmd, league })
   })
+}
+
+export function runSim(league: League, cmd: SimCommand): Promise<League> {
+  return request(league, cmd).then((r) => r.league)
+}
+
+/** Plays one day and returns the user's game as a play log (null on an off day). */
+export function runWatch(league: League): Promise<{ league: League; watch: WatchCapture | null }> {
+  return request(league, { type: 'watchDay' })
 }
