@@ -22,6 +22,12 @@ export interface Swap { slot: number; out: string; in: string }
 export const SUB = {
   /** A swap happens when its combined score clears this. */
   threshold: 2,
+  /** Nobody comes out before this many straight minutes (unless a blowout/comeback shoves them). */
+  minStint: 3,
+  /** A sitter needs at least this many minutes owed vs the plan to come in. */
+  minOwed: 1.5,
+  /** Minutes ahead of plan tolerated before it counts toward resting a player. */
+  aheadSlack: 3,
   /** Minutes of stint a player can take: base + stamina·scale. */
   allowBase: 7,
   allowStam: 6,
@@ -56,7 +62,9 @@ export function chooseSubs(i: SubInput): Swap[] {
   const outScore = (id: string) => {
     const stam = i.players[id]?.ratings.stam ?? 50
     const allow = SUB.allowBase + SUB.allowStam * (stam / 99)
-    let s = Math.max(0, (i.stint[id] ?? 0) - allow) + ahead(id)
+    const shoved = (rest && isStarter(id)) || (comeback && !isStarter(id))
+    if ((i.stint[id] ?? 0) < SUB.minStint && !shoved) return -Infinity
+    let s = Math.max(0, (i.stint[id] ?? 0) - allow) + Math.max(0, ahead(id) - SUB.aheadSlack)
     if (rest && isStarter(id)) s += SUB.blowoutShove
     if (comeback && !isStarter(id)) s += SUB.blowoutShove / 2
     return s
@@ -65,7 +73,7 @@ export function chooseSubs(i: SubInput): Swap[] {
     let s = -ahead(id)
     if (rest && !isStarter(id)) s += SUB.blowoutShove / 2
     if (comeback && isStarter(id)) s += SUB.blowoutShove
-    return s
+    return s >= SUB.minOwed ? s : -Infinity
   }
 
   const court = [...i.onCourt]
@@ -78,16 +86,19 @@ export function chooseSubs(i: SubInput): Swap[] {
       const out = court[slot]
       if (used.has(out)) continue
       const o = outScore(out)
+      if (!(o > 0)) continue
       for (let k = 0; k < sit.length; k++) {
         if (used.has(sit[k])) continue
         const p = i.players[sit[k]]
         if (!p) continue
         const pen = OFF_POS_PENALTY[Math.abs(SLOT_IDX[p.pos] - SLOT_IDX[SLOTS[Math.min(slot, 4)]])]
-        const v = o + inScore(sit[k]) - pen / SUB.posCost + slotFit(p, SLOTS[Math.min(slot, 4)]) / 100
+        const base = o + inScore(sit[k]) - pen / SUB.posCost
+        if (base < SUB.threshold) continue
+        const v = base + slotFit(p, SLOTS[Math.min(slot, 4)]) / 100
         if (!best || v > best.v) best = { slot, k, v }
       }
     }
-    if (!best || best.v < SUB.threshold) break
+    if (!best) break
     const out = court[best.slot], inn = sit[best.k]
     swaps.push({ slot: best.slot, out, in: inn })
     used.add(out)

@@ -3,6 +3,7 @@ import { createLeague } from '../../src/engine/league/create'
 import { Rng } from '../../src/engine/rng'
 import { simGame } from '../../src/engine/sim/game'
 import { boxFromLog, quartersFromLog, type PlayEvent } from '../../src/engine/sim/playlog'
+import { SLOT_IDX } from '../../src/engine/sim/rotation'
 import type { GameResult, Team } from '../../src/engine/types'
 
 const league = createLeague({ seed: 1, userTeamIndex: 0, name: 'G' })
@@ -95,5 +96,46 @@ describe('lineup and sub events', () => {
     expect(Object.keys(box)).toEqual(['a'])
     expect(box.a).toMatchObject({ pts: 2, fgm: 1, fga: 1, ast: 0, tov: 0 })
     expect(quartersFromLog(log)).toEqual({ home: [2], away: [0] })
+  })
+})
+
+describe('simGame substitutions in the log', () => {
+  const subGames = games.slice(0, 100)
+
+  it('logs a lineup per side and replaying subs always leaves 5 distinct players', () => {
+    let subs = 0
+    for (const { log } of subGames) {
+      const court: Record<string, string[]> = {}
+      for (const e of log) {
+        if (e.k === 'lineup') {
+          expect(e.period).toBe(1)
+          expect(court[e.side]).toBeUndefined()
+          expect(e.players).toHaveLength(5)
+          court[e.side] = [...e.players]
+        } else if (e.k === 'sub') {
+          subs++
+          const c = court[e.side]
+          expect(c[e.slot]).toBe(e.out)
+          expect(c).not.toContain(e.in)
+          c[e.slot] = e.in
+          expect(new Set(c).size).toBe(5)
+        }
+      }
+      expect(Object.keys(court).sort()).toEqual(['away', 'home'])
+    }
+    expect(subs).toBeGreaterThan(100)
+  })
+
+  it('most swaps are the same or an adjacent position', () => {
+    let near = 0, all = 0
+    for (const { log } of subGames) {
+      for (const e of log) {
+        if (e.k !== 'sub') continue
+        all++
+        if (Math.abs(SLOT_IDX[league.players[e.in].pos] - e.slot) <= 1) near++
+      }
+    }
+    expect(all).toBeGreaterThan(100)
+    expect(near / all).toBeGreaterThanOrEqual(0.7)
   })
 })

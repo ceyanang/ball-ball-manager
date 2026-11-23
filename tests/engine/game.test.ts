@@ -3,7 +3,7 @@ import { createLeague } from '../../src/engine/league/create'
 import { generatePlayer } from '../../src/engine/player/generate'
 import { Rng } from '../../src/engine/rng'
 import { simGame } from '../../src/engine/sim/game'
-import { autoRotation } from '../../src/engine/sim/rotation'
+import { autoRotation, gameLineup, minutesTargets } from '../../src/engine/sim/rotation'
 import type { GameResult, League, Player, Position, Team } from '../../src/engine/types'
 
 const league = createLeague({ seed: 1, userTeamIndex: 0, name: 'G' })
@@ -183,5 +183,50 @@ describe('out-of-position play', () => {
       return m / 300
     }
     expect(margin(a.team) - margin(scrambled)).toBeGreaterThan(2)
+  })
+})
+
+describe('simGame substitutions', () => {
+  it('blowouts rest the winners\' starters', () => {
+    const good = cloneTeam(88, 't_good', 1, teams[0])
+    const bad = cloneTeam(55, 't_bad', 2, teams[1])
+    const players = { ...good.players, ...bad.players }
+    const lu = gameLineup(good.team, players)
+    const plan = minutesTargets(lu, players, 0)
+    const rng = Rng.fromSeed(11)
+    let planned = 0, actual = 0
+    for (let i = 0; i < 40; i++) {
+      const r = simGame(good.team, bad.team, players, league.coaches, rng)
+      for (const id of lu.starters) {
+        planned += plan[id]
+        actual += r.box.find((b) => b.playerId === id)!.min
+      }
+    }
+    expect((planned - actual) / (40 * 5)).toBeGreaterThanOrEqual(2)
+  })
+
+  it('minutes stay near the plan', () => {
+    const lus = Object.fromEntries(teams.map((t) => [t.id, gameLineup(t, league.players)]))
+    let diff = 0, n = 0
+    for (const { res, home, away } of games.slice(0, 150)) {
+      if (res.ot) continue
+      for (const t of [home, away]) {
+        const plan = minutesTargets(lus[t.id], league.players, 0)
+        for (const b of res.box.filter((x) => x.teamId === t.id)) { diff += Math.abs(b.min - plan[b.playerId]); n++ }
+      }
+    }
+    expect(diff / n).toBeLessThanOrEqual(3)
+  })
+
+  it('a team with only five healthy players still plays a full game', () => {
+    const a = cloneTeam(70, 't_a', 3, teams[0])
+    const b = cloneTeam(70, 't_b', 4, teams[1])
+    const hurt = Object.values(a.players).slice(5)
+    for (const p of hurt) p.injury = { type: 'Sprain', gamesRemaining: 9, severity: 'short' }
+    const players = { ...a.players, ...b.players }
+    const r = simGame(a.team, b.team, players, league.coaches, Rng.fromSeed(2))
+    const box = r.box.filter((x) => x.teamId === 't_a')
+    expect(Math.round(sum(box.map((x) => x.min)) * 10)).toBe((240 + 25 * r.ot) * 10)
+    expect(box.filter((x) => x.min > 0).length).toBeGreaterThanOrEqual(5)
   })
 })

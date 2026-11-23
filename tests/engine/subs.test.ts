@@ -35,12 +35,16 @@ function base(over: Partial<SubInput> = {}): SubInput {
   }
 }
 
+/** Sitters who have rested the whole game so far, so they are owed their plan minutes. */
+const rested = (i: SubInput) => { for (const id of i.sitting) i.played[id] = 0; return i }
+
 describe('chooseSubs', () => {
   it('rests a starter with a long stint and brings in the best-fitting sitter', () => {
     const i = base()
     i.stint.s0 = 13
     i.played.s0 = 13
     i.sitting = ['b4', 'b0', 'b1']
+    rested(i)
     expect(chooseSubs(i)).toEqual([{ slot: 0, out: 's0', in: 'b0' }])
   })
 
@@ -54,6 +58,7 @@ describe('chooseSubs', () => {
     i.played.bigC = 5.5
     i.stint.bigC = 0
     i.sitting = ['bigC', 'b0']
+    rested(i)
     const swaps = chooseSubs(i)
     expect(swaps).toHaveLength(1)
     expect(swaps[0]).toEqual({ slot: 1, out: 's1', in: 'b0' })
@@ -62,6 +67,7 @@ describe('chooseSubs', () => {
   it('never makes more than 2 swaps and keeps 5 distinct on court', () => {
     const i = base()
     for (const id of i.onCourt) { i.stint[id] = 14; i.played[id] = 14 }
+    rested(i)
     const swaps = chooseSubs(i)
     expect(swaps.length).toBeGreaterThan(0)
     expect(swaps.length).toBeLessThanOrEqual(2)
@@ -114,6 +120,7 @@ describe('chooseSubs', () => {
   it('is deterministic and adjacent-leaning', () => {
     const i = base()
     for (const id of i.onCourt) { i.stint[id] = 12; i.played[id] = 12 }
+    rested(i)
     const a = chooseSubs(i), b = chooseSubs(i)
     expect(a).toEqual(b)
     for (const s of a) expect(Math.abs(SLOT_IDX[players[s.in].pos] - s.slot)).toBeLessThanOrEqual(1)

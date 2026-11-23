@@ -3,7 +3,8 @@ import { computeOvr } from '../player/ratings'
 import type { Rng } from '../rng'
 import type { BoxLine, Coach, CoachStyle, GameResult, Player, Team } from '../types'
 import type { PlayEvent, Side } from './playlog'
-import { courtPenalties, gameLineup, minutesTargets } from './rotation'
+import { courtPenalties, gameLineup, minutesTargets, SLOTS, slotFit } from './rotation'
+import { chooseSubs, SUB } from './subs'
 
 /** Tuning constants (calibrated by the realism tests). */
 export const K = {
@@ -47,6 +48,8 @@ interface Ctx {
   onCourt: string[]
   pen: Record<string, number>
   played: Record<string, number>
+  /** Consecutive game-minutes each player has been on the floor (0 when sitting). */
+  stint: Record<string, number>
   target: Record<string, number>
   quarters: number[]
 }
@@ -80,7 +83,7 @@ export function simGame(
     }
     return {
       team, style: coaches[team.coachId]?.style ?? 'balanced', ids, starters: lu.starters, onCourt: [], pen: {},
-      played: Object.fromEntries(ids.map((id) => [id, 0])), target: minutesTargets(lu, players, 0), quarters: [],
+      played: Object.fromEntries(ids.map((id) => [id, 0])), stint: Object.fromEntries(ids.map((id) => [id, 0])), target: minutesTargets(lu, players, 0), quarters: [],
     }
   }
   const sides: Record<Side, Ctx> = { home: makeSide(home), away: makeSide(away) }
@@ -91,24 +94,6 @@ export function simGame(
 
   const paceOf = (s: CoachStyle) => K.basePace + (s === 'pace' ? K.paceStyle : s === 'defense' ? K.defenseStylePace : 0)
   const poss48 = (paceOf(sides.home.style) + paceOf(sides.away.style)) / 2 + rng.normal(0, 3)
-
-  const chooseFive = (c: Ctx, forceStarters: boolean) => {
-    if (forceStarters) {
-      c.onCourt = [...c.starters]
-      c.pen = courtPenalties(c.onCourt, players, true)
-      return
-    }
-    const ranked = [...c.ids].sort((a, b) => {
-      const ra = c.target[a] - c.played[a] + (c.onCourt.includes(a) ? 1.5 : 0)
-      const rb = c.target[b] - c.played[b] + (c.onCourt.includes(b) ? 1.5 : 0)
-      return rb - ra
-    })
-    const next = ranked.slice(0, STARTERS)
-    // Same five as the opening lineup keep their set positions; any other group gets re-slotted by the coach.
-    const same = next.length === c.starters.length && next.every((id) => c.starters.includes(id))
-    c.onCourt = same ? [...c.starters] : next
-    c.pen = courtPenalties(c.onCourt, players, same)
-  }
 
   // Story tracking only (no RNG): the last lead change and each side's biggest deficit.
   let possNo = 0, periodNo = 0, lastStint = false
@@ -127,6 +112,41 @@ export function simGame(
   }
   const emitScore = (e: { k: 'fg'; side: Side; player: string; made: boolean; three: boolean } | { k: 'ft'; side: Side; player: string; made: boolean }) =>
     emit({ ...e, home: score.home, away: score.away })
+  /** Second-half tip: each sitting starter replaces the non-starter whose slot he fits best (logged as subs). */
+  const returnStarters = (side: Side) => {
+    const c = sides[side]
+    for (const id of c.starters) {
+      if (c.onCourt.includes(id)) continue
+      let slot = -1
+      c.onCourt.forEach((cur, k) => {
+        if (c.starters.includes(cur)) return
+        if (slot < 0 || slotFit(players[id], SLOTS[k]) > slotFit(players[id], SLOTS[slot])) slot = k
+      })
+      if (slot < 0) break
+      emit({ k: 'sub', side, out: c.onCourt[slot], in: id, slot })
+      c.onCourt[slot] = id
+    }
+    c.pen = courtPenalties(c.onCourt, players, true)
+  }
+  /** The coach's per-minute swaps (no RNG), then re-slot the out-of-position costs. */
+  const subStep = (side: Side, minuteInPeriod: number, periodMinutes: number) => {
+    const c = sides[side]
+    if (c.onCourt.length !== STARTERS) return
+    const swaps = chooseSubs({
+      period: periodNo, minuteInPeriod, periodMinutes, elapsed, gameMinutes: 48 + OT_MIN * ot,
+      margin: score[side] - score[other(side)], onCourt: c.onCourt, sitting: c.ids.filter((id) => !c.onCourt.includes(id)),
+      stint: c.stint, played: c.played, target: c.target, starters: c.starters, players,
+    })
+    if (!swaps.length) return
+    const next = [...c.onCourt]
+    for (const w of swaps) {
+      next[w.slot] = w.in
+      emit({ k: 'sub', side, out: w.out, in: w.in, slot: w.slot })
+    }
+    c.onCourt = next
+    c.pen = courtPenalties(c.onCourt, players, true)
+  }
+
   const addPoints = (off: Side, pts: number, shooter: string, shot = true) => {
     const wasAhead = score[off] > score[other(off)]
     score[off] += pts
@@ -254,9 +274,9 @@ export function simGame(
     emit({ k: 'ast', side: sideOf[passer], player: passer })
   }
 
-  let carry = 0
+  let carry = 0, elapsed = 0, ot = 0
   let offense: Side = rng.chance(0.5) ? 'home' : 'away'
-  const runPeriod = (isPeriodStart: boolean, stints: number[]) => {
+  const runPeriod = (opening: boolean, stints: number[]) => {
     sides.home.quarters.push(0)
     sides.away.quarters.push(0)
     periodNo++
@@ -264,8 +284,20 @@ export function simGame(
     periodStart = pending.length
     stints.forEach((sl, i) => {
       lastStint = i === stints.length - 1
-      for (const s of ['home', 'away'] as Side[]) chooseFive(sides[s], isPeriodStart && i === 0)
+      for (const s of ['home', 'away'] as Side[]) {
+        const c = sides[s]
+        if (periodNo === 1 && i === 0) {
+          c.onCourt = [...c.starters]
+          c.pen = courtPenalties(c.onCourt, players, true)
+          emit({ k: 'lineup', side: s, players: [...c.onCourt] })
+        } else if (opening && i === 0) {
+          // Second-half tip: the starters return unless the game is already decided.
+          if (Math.abs(score.home - score.away) < SUB.blowoutQ3) returnStarters(s)
+        } else subStep(s, i, stints.length)
+      }
       for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].onCourt) sides[s].played[id] += sl
+      for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) sides[s].stint[id] = sides[s].onCourt.includes(id) ? sides[s].stint[id] + sl : 0
+      elapsed += sl
       carry += (2 * poss48 * sl) / 48
       const n = Math.floor(carry)
       carry -= n
@@ -286,7 +318,6 @@ export function simGame(
 
   const quarterStints = Array.from({ length: QUARTER_MIN }, () => 1)
   for (let q = 1; q <= 4; q++) runPeriod(q === 1 || q === 3, quarterStints)
-  let ot = 0
   while (score.home === score.away) {
     ot++
     for (const s of ['home', 'away'] as Side[]) {
