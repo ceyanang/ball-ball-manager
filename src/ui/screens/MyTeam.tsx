@@ -14,6 +14,7 @@ import { MinutesPanel, cleanMinutes } from '../components/MinutesPanel'
 import { capSeason } from '../../engine/gm/cap'
 import { releasePlayer } from '../../engine/gm/roster'
 import { fullName, money, one, ovrOf, rosterOf, seasonLine } from '../util'
+import { useUnsavedGuard } from '../useUnsavedGuard'
 
 const LABEL: Record<Section, string> = { starters: 'Starting five', bench: 'Bench', inactive: 'Inactive' }
 const BENCH_SLOTS = ACTIVE_MAX - STARTERS
@@ -45,6 +46,13 @@ export function MyTeam() {
   useEffect(() => setDraft(team.rotation), [savedKey])
   const problems = validateRotation(draft, roster.map((p) => p.id))
   const dirty = JSON.stringify(draft) !== JSON.stringify(team.rotation)
+  const [saved, setSaved] = useState(false)
+  useEffect(() => {
+    if (!saved) return
+    const t = setTimeout(() => setSaved(false), 2200)
+    return () => clearTimeout(t)
+  }, [saved])
+  useUnsavedGuard(dirty, 'Leave without saving your rotation changes?')
 
   const locked = !!draft.auto
   const drop = (id: string, target: DropTarget) => { if (!locked) setDraft((d) => dropInRotation(d, id, target)) }
@@ -53,7 +61,13 @@ export function MyTeam() {
     if (on) setDraft(coachRotation(roster))
     else setDraft((d) => { const { auto: _auto, ...rest } = d; void _auto; return rest })
   }
-  const save = () => setRotation(team.id, cleanMinutes(draft))
+  const save = () => {
+    setRotation(team.id, cleanMinutes(draft))
+    // setRotation refuses an invalid rotation (and shows why); only confirm when it went through.
+    if (useStore.getState().league?.teams[team.id].rotation === team.rotation) return
+    setSaved(true)
+  }
+  const reset = () => { setPicked(null); setDraft(team.rotation) }
 
   /** Tap/click: pick a player, then tap where they should go. */
   const tap = (target: DropTarget, id?: string) => {
@@ -167,7 +181,7 @@ export function MyTeam() {
         <h1>{team.name} rotation</h1>
         <div className="row">
           <button className="btn" disabled={locked} title="Best starters and bench, with the coach's suggested minutes" onClick={() => { setPicked(null); setDraft(autoRotation(roster)) }}>Best lineup</button>
-          <button className="btn" disabled={!dirty} onClick={() => { setPicked(null); setDraft(team.rotation) }}>Reset</button>
+          <button className="btn" disabled={!dirty} onClick={reset}>Reset</button>
           <button className="btn btn-primary" disabled={!dirty || problems.length > 0 || busy} onClick={save}>Save rotation</button>
         </div>
       </div>
@@ -212,6 +226,15 @@ export function MyTeam() {
         void _m
         return minutes ? { ...rest, minutes } : rest
       })} />
+
+      {dirty && (
+        <div className="save-bar" role="region" aria-label="Unsaved rotation changes">
+          <span className="save-bar-msg">{problems.length ? '⚠️ Not valid yet' : 'Unsaved changes'}</span>
+          <button className="btn" onClick={reset}>Reset</button>
+          <button className="btn btn-primary" disabled={problems.length > 0 || busy} onClick={save}>Save rotation</button>
+        </div>
+      )}
+      {saved && <div className="toast" role="status">✓ Rotation saved</div>}
 
       <section className="panel stack">
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>

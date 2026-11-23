@@ -98,8 +98,8 @@ export function MinutesPanel({ rot, players, disabled, onChange }: {
                       </span>
                     </span>
                   </td>
-                  <td className="num">
-                    {sug[id] ?? 0}
+                  <td className="num mins-sug">
+                    <span className="mins-narrow muted">Sugg. </span>{sug[id] ?? 0}
                     {diff !== 0 && <span className={diff > 0 ? 'mins-up' : 'mins-down'}> {diff > 0 ? '▲' : '▼'}{Math.abs(diff)}</span>}
                   </td>
                 </tr>
