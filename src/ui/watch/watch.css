@@ -58,9 +58,23 @@
   background: radial-gradient(circle at 35% 35%, #ffb070, var(--accent) 55%, #a33f0b); box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4); }
 .w-float { position: absolute; font: 900 1.4rem var(--display); color: var(--gold); text-shadow: 0 2px 6px rgba(0,0,0,0.6); }
 
-.w-feed { padding: 7px 12px 9px; min-height: 2.4em; font-size: 0.85rem; background: rgba(0,0,0,0.35); }
+/* Play-by-play: newest on top, four lines on a phone (more beside the court on wide screens). */
+.w-feed { list-style: none; margin: 0; padding: 8px 12px; display: flex; flex-direction: column; gap: 3px; min-height: calc(4 * 1.45em + 16px);
+  font-size: 0.85rem; line-height: 1.35; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .w-ev { display: block; }
+.w-ev:first-child { font-weight: 600; }
+.w-ev:nth-child(n+2) { opacity: 0.72; }
+.w-ev.sub { color: var(--ink-2); font-size: 0.78rem; font-weight: 400; }
+.w-ev.info { color: var(--ink-2); font-style: italic; }
 .w-ev.hot { color: var(--hot); font-weight: 700; animation: w-fade 0.3s; }
+@media (max-width: 1023px) { .w-ev:nth-child(n+5) { display: none; } }
+@media (min-width: 1024px) {
+  .w-wrap { max-width: 900px; display: grid; grid-template-columns: minmax(0, 1fr) 300px; align-items: start; column-gap: 14px; }
+  .w-top { grid-column: 1 / -1; }
+  .w-court { grid-column: 1; grid-row: 2; }
+  .w-feed { grid-column: 2; grid-row: 2 / span 2; align-self: stretch; overflow: hidden; }
+  .w-controls { grid-column: 1; grid-row: 3; }
+}
 @keyframes w-fade { from { opacity: 0; transform: translateY(4px); } }
 
 /* Controls under the court */
@@ -87,6 +101,7 @@
 .w-pl:hover { color: var(--hot); }
 .w-hint { font-size: 0.75rem; color: var(--ink-2); }
 .w-next { min-height: 44px; padding: 0 1.4rem; }
+.w-break-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 
 /* Player sheet */
 .w-sheet { display: flex; flex-direction: column; gap: 0.9rem; }

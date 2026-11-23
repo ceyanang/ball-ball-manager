@@ -7,7 +7,7 @@ import type { GameResult, Team } from '../../src/engine/types'
 import {
   advanceTo, beatsAverage, benchLine, clockText, describePlays, elapsedFraction, finalState, initState, isHot, onPace, periodCount,
   periodLabel, periodMs, shotDelays, shotMs, ftGapMs, standout, sittingIds, courtCard,
-  cardIdFor, describeSub, eventCards,
+  cardIdFor, describeSub, eventCards, feedItems, pushFeed, FEED_KEEP,
 } from '../../src/ui/watch/replay'
 
 const league = createLeague({ seed: 1, userTeamIndex: 0, name: 'G' })
@@ -84,8 +84,9 @@ describe('replay model', () => {
     expect(periodLabel(1)).toBe('Q1')
     expect(periodLabel(5)).toBe('OT')
     expect(periodLabel(6)).toBe('2OT')
-    expect(periodMs(4)).toBe(15000)
-    expect(periodMs(5)).toBe(6250)
+    // ~45 s per quarter at 1x so the play-by-play is readable; OT is 5/12 of that.
+    expect(periodMs(4)).toBe(45000)
+    expect(periodMs(5)).toBe(18750)
   })
 
   it('isHot / onPace / elapsedFraction', () => {
@@ -231,5 +232,29 @@ describe('watch card helpers', () => {
   })
   it('eventCards on a legacy log uses the old card ids', () => {
     expect(eventCards(null, [fg('h1'), fg('h5')], sideOf, legacy)).toEqual(['h1', 'bench-home'])
+  })
+})
+
+describe('play-by-play feed', () => {
+  const last = (id: string) => id.toUpperCase()
+  const fg = (player: string, made: boolean): PlayEvent => ({ k: 'fg', period: 1, t: 0.1, side: 'home', player, made, three: false, home: made ? 2 : 0, away: 0 } as PlayEvent)
+  const sub = (inn: string, out: string): PlayEvent => ({ k: 'sub', period: 1, t: 0.1, side: 'home', slot: 0, in: inn, out } as PlayEvent)
+
+  it('keeps a scoring play and a sub in the same batch as separate lines, sub marked secondary', () => {
+    const items = feedItems([fg('a', true), sub('b', 'c')], last)
+    expect(items).toEqual([
+      { text: 'A scores', kind: 'play' },
+      { text: '🔁 B in for C', kind: 'sub' },
+    ])
+  })
+
+  it('pushes newest first and caps the history', () => {
+    let feed = pushFeed([], [{ text: 'one', kind: 'play' }])
+    feed = pushFeed(feed, [{ text: 'two', kind: 'play' }, { text: 'sub', kind: 'sub' }])
+    expect(feed.map((f) => f.text)).toEqual(['sub', 'two', 'one'])
+    expect(new Set(feed.map((f) => f.id)).size).toBe(3)
+    for (let i = 0; i < 30; i++) feed = pushFeed(feed, [{ text: `p${i}`, kind: 'play' }])
+    expect(feed).toHaveLength(FEED_KEEP)
+    expect(feed[0].text).toBe('p29')
   })
 })
