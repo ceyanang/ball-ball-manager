@@ -27,6 +27,8 @@ import { Highlights } from './screens/Highlights'
 import { AllStar } from './screens/AllStar'
 import { Social } from './screens/Social'
 import { History } from './screens/History'
+import { EventLog } from './screens/EventLog'
+import { EventModal } from './components/EventModal'
 import { useStore } from './store'
 import './theme.css'
 
@@ -53,6 +55,7 @@ export default function App() {
   const guarded = (el: React.ReactNode) => <RequireLeague>{el}</RequireLeague>
   return (
     <HashRouter>
+      <EventModal />
       <Routes>
         <Route path="/dev/faces" element={<FaceGallery />} />
         <Route element={<Shell />}>
@@ -80,6 +83,7 @@ export default function App() {
           <Route path="/all-star" element={guarded(<AllStar />)} />
           <Route path="/social" element={guarded(<Social />)} />
           <Route path="/history" element={guarded(<History />)} />
+          <Route path="/events" element={guarded(<EventLog />)} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

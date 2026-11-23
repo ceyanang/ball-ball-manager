@@ -40,7 +40,7 @@ export function GameDayHero({ league, game, team, records }: {
   const busy = useStore((s) => s.busy)
   const startWatch = useStore((s) => s.startWatch)
   const sim = useStore((s) => s.sim)
-  const blocked = busy || !!rosterProblem(league)
+  const blocked = busy || !!rosterProblem(league) || !!league.events.pending
   const home = game.homeId === team.id
   const opp = league.teams[home ? game.awayId : game.homeId]
   const them = todaysFive(league, opp)

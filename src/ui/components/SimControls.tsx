@@ -48,15 +48,17 @@ export function useSim() {
     ? [
         { key: 'day', label: 'Sim day', short: 'Next day', run: () => sim({ type: 'simDays', days: 1 }) },
         { key: 'week', label: 'Sim week', short: 'Next 7 days', run: () => void simWeek(sim) },
+        { key: 'event', label: 'Sim to next event', short: 'Until the next pop-up', run: () => sim({ type: 'simUntil', target: 'event' }) },
         ...(league.day < league.tradeDeadlineDay ? [{ key: 'deadline', label: 'Sim to deadline', short: `Up to the trade deadline (day ${league.tradeDeadlineDay})`, run: () => sim({ type: 'simUntil', target: 'deadline' }) }] : []),
         { key: 'end', label: 'Sim to end of season', short: 'Play out the regular season', primary: true, run: () => sim({ type: 'simUntil', target: 'regularEnd' }) },
       ]
     : [
         { key: 'day', label: 'Sim day', short: 'Next playoff day', run: () => sim({ type: 'simDays', days: 1 }) },
+        { key: 'event', label: 'Sim to next event', short: 'Until the next pop-up', run: () => sim({ type: 'simUntil', target: 'event' }) },
         { key: 'end', label: 'Sim playoffs', short: 'Play out the playoffs', primary: true, run: () => sim({ type: 'simUntil', target: 'playoffsEnd' }) },
       ]
   const actions = [...watch, ...base.slice(0, 1), ...series, ...base.slice(1)].map((a) => (playsToday && a.primary && a.key !== 'watch' ? { ...a, primary: false } : a))
-  return { problem, actions, disabled: busy || !!problem, busy }
+  return { problem, actions, disabled: busy || !!problem || !!league.events.pending, busy }
 }
 
 const OFFSEASON_STEP: Record<string, string> = { awards: 'Awards', recap: 'Recap', lottery: 'Lottery', draft: 'Draft', resign: 'Re-signing', freeAgency: 'Free agency', ready: 'Ready to start' }

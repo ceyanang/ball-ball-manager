@@ -143,3 +143,30 @@ describe('store', () => {
     expect(useStore.getState().league!.favoritePlayerIds).toEqual([])
   })
 })
+
+describe('random events in the store', () => {
+  const evt = {
+    id: 'ui1', when: 'preGame' as const, weight: 1, emoji: '🧪',
+    pick: () => null, title: () => 'T', text: () => 'X',
+    choices: [{ label: 'A', outcomes: [{ weight: 1, tone: 'good' as const, text: () => 'ok', effects: (s: { playerIds: string[] }) => [{ kind: 'morale' as const, target: { player: s.playerIds[0] }, delta: 5 }] }] }],
+  }
+  it('answering clears the pending event, logs it and saves; frequency can be changed', async () => {
+    const { setCatalogForTests } = await import('../../src/engine/events/engine')
+    setCatalogForTests([evt])
+    await useStore.getState().newLeague({ seed: 3, userTeamIndex: 1, name: 'E' })
+    const l = structuredClone(useStore.getState().league!)
+    const me = Object.values(l.players).find((p) => p.teamId === l.userTeamId)!
+    l.events.pending = { eventId: 'ui1', season: l.season, phase: l.phase, day: l.day, subjects: { playerIds: [me.id] } }
+    useStore.setState({ league: l })
+    const entry = useStore.getState().answerEvent(0)
+    expect(entry?.outcomeText).toBe('ok')
+    const after = useStore.getState().league!
+    expect(after.events.pending).toBeNull()
+    expect(after.events.history).toHaveLength(1)
+    expect(after.players[me.id].morale).toBe(Math.min(100, me.morale + 5))
+    expect(useStore.getState().answerEvent(0)).toBeNull()
+    useStore.getState().setEventFrequency('off')
+    expect(useStore.getState().league!.events.frequency).toBe('off')
+    setCatalogForTests(null)
+  })
+})

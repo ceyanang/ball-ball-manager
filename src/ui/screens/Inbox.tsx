@@ -38,6 +38,7 @@ export function Inbox() {
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <h1>Inbox {unread > 0 && <span className="count-pill">{unread}</span>}</h1>
         <div className="row">
+          <Link className="btn" to="/events">🎲 Events</Link>
           {unread > 0 && <button className="btn" onClick={() => act((l) => { for (const i of l.inbox) i.read = true })}>Mark all read</button>}
           <label className="row" style={{ gap: '0.4rem' }}><input type="checkbox" checked={showDismissed} onChange={(e) => setShowDismissed(e.target.checked)} /> Show dismissed</label>
         </div>

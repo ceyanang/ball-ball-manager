@@ -3,6 +3,8 @@ import { createLeague } from '../engine/league/create'
 import { validateRotation } from '../engine/sim/rotation'
 import { GmError } from '../engine/gm/cap'
 import { Rng } from '../engine/rng'
+import { answerEvent as answerEventEngine, skipEvent as skipEventEngine } from '../engine/events/engine'
+import type { EventFrequency, EventLogEntry } from '../engine/events/state'
 import { eventGame, playAllStarEvent, userSideIndex } from '../engine/allstar/allstar'
 import type { AllStarKind, Game, League, Rotation } from '../engine/types'
 import { deleteSave, listSaves, loadSave, onSaveWritten, parseImport, rememberOpenedSave, writeSave } from '../save/db'
@@ -44,6 +46,11 @@ interface State {
    * its message (if any) shown as a notice. Returns whether it went through.
    */
   act: (fn: (l: League, rng: Rng) => string | void) => boolean
+  /** Answers the pending pop-up event with the chosen option; returns what happened (null if nothing was pending). */
+  answerEvent: (choice: number) => EventLogEntry | null
+  /** Skips a between-day pop-up (game-day ones must be answered). */
+  skipEvent: () => void
+  setEventFrequency: (f: EventFrequency) => void
 }
 
 /** Keeps a tab from overwriting newer progress made in another tab/window on the same save. */
@@ -221,6 +228,20 @@ export const useStore = create<State>((set, get) => {
     set({ league: next, error: null, notice: msg || null })
     if (saveId) void writeSave(saveId, next).catch((e) => set({ error: `Couldn’t save: ${(e as Error).message}` }))
     return true
+  },
+
+  answerEvent(choice) {
+    let entry = null as EventLogEntry | null
+    get().act((l) => { entry = answerEventEngine(l, choice) })
+    return entry
+  },
+
+  skipEvent() {
+    get().act((l) => { skipEventEngine(l) })
+  },
+
+  setEventFrequency(f) {
+    get().act((l) => { l.events.frequency = f })
   },
 }
 })
