@@ -1,3 +1,4 @@
+import { allStarDayFor } from '../allstar/allstar'
 import { ROSTER_MAX, ROSTER_MIN, SALARY_CAP } from '../constants'
 import { generateCoach } from '../coach/generate'
 import { POSITION_WEIGHTS, RATING_KEYS } from '../player/ratings'
@@ -272,6 +273,7 @@ export function startNewSeason(l: League, rng: Rng): void {
   const games = generateSchedule(teams, l.season, rng)
   l.games.push(...games)
   l.tradeDeadlineDay = tradeDeadline(games, teams)
+  l.allStarDay = allStarDayFor(games, l.season)
   l.deadMoney = l.deadMoney.filter((d) => d.expires >= l.season)
   for (const t of teams) refreshRotation(l, t.id)
   onNewSeason(l)

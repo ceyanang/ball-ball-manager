@@ -52,9 +52,15 @@ export function Home() {
   )
 
   const inPlayoffs = league.phase === 'playoffs'
+  const asgPending = league.allStars.filter((e) => e.season === league.season && !e.result).length > 0
 
   return (
     <div className="stack">
+      {asgPending && (
+        <Link to="/all-star" className="panel row" style={{ justifyContent: 'space-between', textDecoration: 'none', color: 'inherit' }}>
+          <span>🌟 <strong>All-Star Weekend is here!</strong> The rosters are set — watch the game live.</span><span className="link">Open →</span>
+        </Link>
+      )}
       {champ && (
         <div className="scoreboard" style={{ background: `linear-gradient(120deg, ${champ.colors.primary}, ${champ.colors.secondary})` }}>
           <TeamBadge team={champ} size={64} />

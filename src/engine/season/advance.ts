@@ -1,3 +1,4 @@
+import { playPendingAllStar, selectAllStars } from '../allstar/allstar'
 import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
@@ -48,11 +49,14 @@ export function refreshAiRotations(league: League): void {
   for (const t of Object.values(league.teams)) if (t.id !== league.userTeamId && byTeam[t.id]) t.rotation = autoRotation(byTeam[t.id])
 }
 
-/** Mutates `league`: plays the current day and advances the calendar. Returns true when the user should look (a trade offer). */
+/** Mutates `league`: plays the current day and advances the calendar. Returns true when the user should look (a trade offer, or All-Star Weekend just got set). */
 function stepDay(league: League, rng: Rng, capture?: Capture): boolean {
   if (league.phase === 'offseason') return false
   const newsFrom = league.news.length, txFrom = league.transactions.length
+  let allStarNow = false
   const played: Game[] = []
+  // Skipped the All-Star Weekend broadcast: the games play themselves.
+  if (league.phase === 'regular') playPendingAllStar(league)
   for (const g of league.games) {
     if (g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null)) {
       playGame(league, g, rng, capture)
@@ -63,6 +67,7 @@ function stepDay(league: League, rng: Rng, capture?: Capture): boolean {
   if (league.phase === 'regular') {
     if (league.day % 7 === 0 && league.day <= league.tradeDeadlineDay) aiTrades(league, rng, 3)
     aiFillRosters(league)
+    if (league.day === league.allStarDay && selectAllStars(league)) allStarNow = true
     if (league.day % PROGRESS_EVERY === 0) {
       league.progress.push(...progressTick(league, rng))
       refreshAiRotations(league)
@@ -86,7 +91,7 @@ function stepDay(league: League, rng: Rng, capture?: Capture): boolean {
   }
   const offer = afterDay(league, played, newsFrom, txFrom)
   league.day++
-  return offer
+  return offer || allStarNow
 }
 
 /** `stopOnOffer`: pause when a CPU team sends the user a trade offer (the app does; scripts and tests don't). */

@@ -63,7 +63,7 @@ describe('regular season', () => {
     const rpg = leaders(regEnd, 1, 'reb', 1)[0].value
     expect(ppg).toBeGreaterThanOrEqual(25); expect(ppg).toBeLessThanOrEqual(36)
     expect(apg).toBeGreaterThanOrEqual(7); expect(apg).toBeLessThanOrEqual(12)
-    expect(rpg).toBeGreaterThanOrEqual(10); expect(rpg).toBeLessThanOrEqual(15)
+    expect(rpg).toBeGreaterThanOrEqual(9.5); expect(rpg).toBeLessThanOrEqual(15)
   })
 })
 

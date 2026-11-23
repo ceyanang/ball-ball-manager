@@ -67,14 +67,14 @@ describe('save versions', () => {
   it('loads a v1 save from IndexedDB and migrates it', async () => {
     await writeSave('old', v1())
     const l = await loadSave('old')
-    expect(l.version).toBe(5)
+    expect(l.version).toBe(6)
     expect(l.progress).toEqual([])
     expect(l.picks).toHaveLength(120)
     expect(l.tradeDeadlineDay).toBe(league.tradeDeadlineDay)
   })
   it('imports a v1 file', () => {
     const l = parseImport(JSON.stringify(v1()))
-    expect(l.version).toBe(5)
+    expect(l.version).toBe(6)
     expect(l.progress).toEqual([])
     expect(l.waivers).toEqual([])
   })
@@ -83,7 +83,7 @@ describe('save versions', () => {
     l.version = 3
     Object.assign(l, { progress: [], picks: [], draft: null, draftRights: {}, transactions: [], deadMoney: [], waivers: [], faOffers: [], offseason: null, tradeDeadlineDay: 20 })
     const m = parseImport(JSON.stringify(l))
-    expect(m.version).toBe(5)
+    expect(m.version).toBe(6)
     expect(m.news).toEqual([])
     expect(m.inbox).toEqual([])
     expect(m.records.league.game).toEqual({})
@@ -91,14 +91,21 @@ describe('save versions', () => {
   })
   it('migrates a v4 save to v5 with no favorites', () => {
     const m = parseImport(JSON.stringify({ ...league, version: 4, favoritePlayerIds: undefined }))
-    expect(m.version).toBe(5)
+    expect(m.version).toBe(6)
     expect(m.favoritePlayerIds).toEqual([])
   })
   it('loads a v5 save missing favoritePlayerIds with an empty list', () => {
     const m = parseImport(JSON.stringify({ ...league, version: 5, favoritePlayerIds: undefined }))
     expect(m.favoritePlayerIds).toEqual([])
   })
-  it('rejects version 6', () => {
-    expect(() => parseImport(JSON.stringify({ ...league, version: 6 }))).toThrow(SaveImportError)
+  it('migrates a v5 save to v6 with All-Star Weekend and empty development slots', () => {
+    const m = parseImport(JSON.stringify({ ...league, version: 5, allStarDay: undefined, allStars: undefined, training: undefined }))
+    expect(m.version).toBe(6)
+    expect(m.allStars).toEqual([])
+    expect(m.training).toEqual([])
+    expect(m.allStarDay).toBeGreaterThan(0)
+  })
+  it('rejects version 7', () => {
+    expect(() => parseImport(JSON.stringify({ ...league, version: 7 }))).toThrow(SaveImportError)
   })
 })

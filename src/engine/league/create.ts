@@ -1,3 +1,4 @@
+import { allStarDayFor } from '../allstar/allstar'
 import { generateCoach } from '../coach/generate'
 import { MIN_SALARY, SALARY_CAP } from '../constants'
 import { salaryForPlayer } from '../contracts'
@@ -155,7 +156,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
   const games = generateSchedule(teams, season, rng)
 
   return {
-    version: 5,
+    version: 6,
     favoritePlayerIds: [],
     name: opts.name,
     seed: opts.seed,
@@ -180,6 +181,9 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     faOffers: [],
     offseason: null,
     tradeDeadlineDay: tradeDeadline(games, teams),
+    allStarDay: allStarDayFor(games, 1),
+    allStars: [],
+    training: [],
     ...emptyStories(),
   }
 }

@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { capSeason, tradesOpen } from '../../engine/gm/cap'
 import { archetypeFor } from '../../engine/player/archetype'
-import { gradeFor } from '../../engine/player/grades'
 import type { Player } from '../../engine/types'
 import { OvrPill } from '../components/OvrPill'
 import { Face } from '../face/Face'
@@ -37,7 +36,7 @@ export function Roster() {
       <div className="rq-detail">
         <div className="rq-facts">
           <span>{heightStr(p.heightIn)} · {p.age}y · #{p.jersey}</span>
-          <span>Potential <strong>{gradeFor(p.pot)}</strong></span>
+          <span>Potential <strong>{p.pot}</strong></span>
           <span>{p.contract ? `${money(p.contract.salary)} through S${p.contract.expires}${p.contract.expires < capSeason(league) ? ' (expiring)' : ''}` : 'No contract'}</span>
           {line && <span>{one(line.pg.pts)} pts · {one(line.pg.reb)} reb · {one(line.pg.ast)} ast ({line.s.gp} gp)</span>}
         </div>

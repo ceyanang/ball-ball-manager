@@ -83,7 +83,7 @@ export function PlayerPage() {
         </div>
         <div style={{ textAlign: 'center' }}>
           <div className="big-num" style={{ color: ratingColor(ovr), textShadow: '0 1px 0 rgba(0,0,0,0.35)', background: 'rgba(0,0,0,0.35)', borderRadius: 12, padding: '0.2rem 0.6rem' }}>{ovr}</div>
-          <div className="sub">Overall {gradeFor(ovr)} · potential {gradeFor(p.pot)}</div>
+          <div className="sub">Overall {ovr} · potential {p.pot}</div>
           {delta !== 0 && <div className={delta > 0 ? 'delta-up' : 'delta-down'} style={{ color: '#fff' }}>{delta > 0 ? `▲ +${delta}` : `▼ ${delta}`} this season</div>}
         </div>
       </div>

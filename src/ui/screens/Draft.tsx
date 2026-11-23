@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { autoPick, currentSlot, draftUntilUser, makePick, releaseRights, rookieSalary, rookieYears, signRights } from '../../engine/gm/draft'
 import { archetypeFor } from '../../engine/player/archetype'
-import { gradeFor } from '../../engine/player/grades'
 import { TeamBadge } from '../components/TeamBadge'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
@@ -83,7 +82,7 @@ export function Draft() {
               <button className="btn btn-primary" disabled={busy} onClick={() => sim({ type: 'offseason' })}>Finish draft</button>
             </div>
           </div>
-          <p className="muted" style={{ margin: 0 }}>Pick #{slot.pick} (round {slot.round}). Ratings are scouting estimates: OVR is a range, POT a grade. “Finish draft” auto-picks for you.</p>
+          <p className="muted" style={{ margin: 0 }}>Pick #{slot.pick} (round {slot.round}). Ratings are scouting estimates: OVR is a range, POT a fuzzy number. “Finish draft” auto-picks for you.</p>
         </section>
       )}
 
@@ -117,7 +116,7 @@ export function Draft() {
                       </td>
                       <td>{p.pos}</td><td>{p.age}</td><td>{heightStr(p.heightIn)}</td>
                       <td>{sc.ovrLo}–{sc.ovrHi}</td>
-                      <td><span className="grade-chip">{gradeFor(sc.pot)}</span></td>
+                      <td><span className="grade-chip">{sc.pot}</span></td>
                       <td>{onClock && <button className="btn btn-primary" onClick={() => pick(p.id)}>Draft</button>}</td>
                     </tr>
                   )

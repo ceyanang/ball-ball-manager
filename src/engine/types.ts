@@ -122,9 +122,24 @@ export interface SeasonHistory {
 }
 export interface HofEntry { playerId: string; season: number; score: number }
 export interface CareerHigh { gp: number; pts: number; reb: number; ast: number }
+export type AllStarKind = 'allstar' | 'rising'
+/**
+ * An All-Star Weekend game. Its two sides are synthetic teams (ids start with "asg-") that exist only here; the game
+ * never touches stat lines, records, career highs or standings.
+ */
+export interface AllStarEvent {
+  season: number; kind: AllStarKind; day: number
+  /** [East, West] for the All-Star game; [Rookies, Sophomores] for Rising Stars. Index 0 is the home side. */
+  teams: [Team, Team]
+  /** Fan vote totals for everyone selected. */
+  votes: Record<string, number>
+  result: GameResult | null; mvp: string | null
+}
+/** A player the GM is investing in: he develops faster and can break out past his ceiling. */
+export interface TrainingSlot { playerId: string; season: number; day: number }
 
 export interface League {
-  version: 5; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 6; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]
@@ -136,6 +151,12 @@ export interface League {
   transactions: Transaction[]; deadMoney: DeadMoney[]; waivers: Waiver[]; faOffers: FaOffer[]
   offseason: OffseasonState | null
   tradeDeadlineDay: number
+  /** Mid-season day when All-Star Weekend is held (0 = none). */
+  allStarDay: number
+  /** Every All-Star Weekend game played or pending, oldest first. */
+  allStars: AllStarEvent[]
+  /** Development slots: the players the user is investing in. */
+  training: TrainingSlot[]
   news: NewsItem[]; social: Post[]; inbox: InboxItem[]
   awards: SeasonAwards[]; history: SeasonHistory[]; records: Records; hof: HofEntry[]
   /** Fan sentiment, −100..100. */

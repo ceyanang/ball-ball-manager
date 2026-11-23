@@ -135,7 +135,13 @@ export function playerAwards(l: League, playerId: string): { season: number; lab
     a.allDefense.forEach((t, i) => t.includes(playerId) && out.push({ season: a.season, label: `All-Defense ${['1st', '2nd'][i]} team` }))
     if (a.allRookie.includes(playerId)) out.push({ season: a.season, label: 'All-Rookie team' })
   }
-  return out
+  for (const e of l.allStars) {
+    const label = e.kind === 'allstar' ? 'All-Star' : 'Rising Stars'
+    const played = e.teams.some((t) => [...t.rotation.starters, ...t.rotation.bench, ...t.rotation.inactive].includes(playerId))
+    if (played) out.push({ season: e.season, label: `🌟 ${label}` })
+    if (e.mvp === playerId) out.push({ season: e.season, label: `${label} MVP` })
+  }
+  return out.sort((a, b) => b.season - a.season)
 }
 
 /** Hall of Fame threshold on the career score. */

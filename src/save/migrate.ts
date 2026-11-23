@@ -1,17 +1,18 @@
 import { createPicks } from '../engine/gm/draft'
+import { allStarDayFor } from '../engine/allstar/allstar'
 import { tradeDeadline } from '../engine/schedule/schedule'
 import type { League } from '../engine/types'
 import { SaveImportError } from './errors'
 import { backfillRecords } from '../engine/stories/records'
 import { emptyStories } from '../engine/stories/state'
 
-export const CURRENT_VERSION = 5
+export const CURRENT_VERSION = 6
 
 /**
  * Upgrades an older save to the current shape.
  * v1 → v2 adds in-season progress events. v2 → v3 adds the GM layer (picks, draft, waivers, free agency, offseason).
  * v3 → v4 adds stories (news, social, inbox, awards, history, records, Hall of Fame, fan sentiment).
- * v4 → v5 adds the user's favorite players.
+ * v4 → v5 adds the user's favorite players. v5 → v6 adds All-Star Weekend and development slots.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function migrateLeague(raw: any): League {
@@ -42,6 +43,11 @@ export function migrateLeague(raw: any): League {
       backfillRecords(raw as League)
   }
   if (raw?.version === 4) raw = { ...raw, version: 5, favoritePlayerIds: [] }
+  if (raw?.version === 5) {
+    // A save already past the break just never had its weekend; otherwise the break lands at mid-season.
+    const games = Array.isArray(raw.games) ? raw.games.filter((g: { season?: number }) => g?.season === raw.season) : []
+    raw = { ...raw, version: 6, allStarDay: raw.phase === 'regular' && games.length ? allStarDayFor(games, raw.season) : 0, allStars: [], training: [] }
+  }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)
   if (!Array.isArray(raw.favoritePlayerIds)) raw = { ...raw, favoritePlayerIds: [] }

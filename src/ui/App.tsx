@@ -24,6 +24,7 @@ import { Draft } from './screens/Draft'
 import { Offseason } from './screens/Offseason'
 import { Inbox } from './screens/Inbox'
 import { Highlights } from './screens/Highlights'
+import { AllStar } from './screens/AllStar'
 import { Social } from './screens/Social'
 import { History } from './screens/History'
 import { useStore } from './store'
@@ -72,6 +73,7 @@ export default function App() {
           <Route path="/offseason" element={guarded(<Offseason />)} />
           <Route path="/inbox" element={guarded(<Inbox />)} />
           <Route path="/highlights" element={guarded(<Highlights />)} />
+          <Route path="/all-star" element={guarded(<AllStar />)} />
           <Route path="/social" element={guarded(<Social />)} />
           <Route path="/history" element={guarded(<History />)} />
           <Route path="*" element={<Navigate to="/" replace />} />

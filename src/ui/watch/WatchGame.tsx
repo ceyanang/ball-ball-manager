@@ -30,13 +30,13 @@ export function WatchGame() {
   const league = useStore((s) => s.league)
   const endWatch = useStore((s) => s.endWatch)
   const navigate = useNavigate()
-  const game = watch && league ? league.games.find((g) => g.id === watch.gameId) : undefined
+  const game = watch && league ? (watch.game ?? league.games.find((g) => g.id === watch.gameId)) : undefined
   if (!watch || !league || !game?.result) {
     return (
       <div className="w-screen">
         <div className="w-wrap">
           <p className="muted">This game can’t be replayed.</p>
-          <button className="btn btn-primary" onClick={() => { endWatch(); navigate('/'); window.scrollTo(0, 0) }}>Done</button>
+          <button className="btn btn-primary" onClick={() => { endWatch(); navigate(watch?.doneTo ?? '/'); window.scrollTo(0, 0) }}>Done</button>
         </div>
       </div>
     )
@@ -77,7 +77,7 @@ function useMatchup(watch: WatchSession, game: Game) {
       const r = rows.find((x) => x.teamId === t.id)
       return r ? `${r.w}–${r.l}` : ''
     }
-    let meta = `Day ${game.day} · ${userHome ? 'Home' : 'Road'}`
+    let meta = watch.meta ?? `Day ${game.day} · ${userHome ? 'Home' : 'Road'}`
     const series = game.playoff && before.playoffs?.series.find((s) => s.id === game.playoff!.seriesId)
     if (game.playoff && series) {
       const hi = Math.max(series.highWins, series.lowWins), lo = Math.min(series.highWins, series.lowWins)
@@ -287,7 +287,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     setFeed({ text: 'Final', hot: false })
     setPhase('final')
   }
-  const done = () => { endWatch(); navigate('/'); window.scrollTo(0, 0) }
+  const done = () => { endWatch(); navigate(watch.doneTo ?? '/'); window.scrollTo(0, 0) }
 
   const frac = elapsedFraction(clock.period, clock.t)
   const lineOf = (id: string) => rs.lines[id] ?? benchLine(rs, [])

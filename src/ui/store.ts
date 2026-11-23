@@ -3,7 +3,8 @@ import { createLeague } from '../engine/league/create'
 import { validateRotation } from '../engine/sim/rotation'
 import { GmError } from '../engine/gm/cap'
 import { Rng } from '../engine/rng'
-import type { League, Rotation } from '../engine/types'
+import { eventGame, playAllStarEvent, userSideIndex } from '../engine/allstar/allstar'
+import type { AllStarKind, Game, League, Rotation } from '../engine/types'
 import { deleteSave, loadSave, parseImport, writeSave } from '../save/db'
 import { runSim, runWatch } from '../worker/client'
 import type { PlayEvent } from '../engine/sim/playlog'
@@ -11,7 +12,11 @@ import type { WatchCapture } from '../engine/season/advance'
 import type { SimCommand } from '../worker/protocol'
 
 /** A game being watched live. `before` is the league as it stood before the game, for replaying it. Never saved. */
-export interface WatchSession { gameId: string; log: PlayEvent[]; before: League }
+export interface WatchSession {
+  gameId: string; log: PlayEvent[]; before: League
+  /** All-Star Weekend games aren't in `league.games`: they carry their own game, headline and exit route. */
+  game?: Game; meta?: string; doneTo?: string
+}
 
 interface State {
   saveId: string | null
@@ -26,6 +31,8 @@ interface State {
   remove: (id: string) => Promise<void>
   sim: (cmd: SimCommand) => Promise<void>
   startWatch: () => Promise<void>
+  /** Plays the queued All-Star Weekend game (watching it live, or just simming it). Doesn't count for stats. */
+  playAllStar: (kind: AllStarKind, watch: boolean) => void
   endWatch: () => void
   toggleFavorite: (playerId: string) => void
   setRotation: (teamId: string, rot: Rotation) => void
@@ -61,7 +68,9 @@ export const useStore = create<State>((set, get) => {
       if (get().saveId === saveId)
         set({
           league: next,
-          notice: openOffers(next) > openOffers(league) ? '📞 A team just called with a trade offer. Check your inbox — the sim paused so you can answer.' : null,
+          notice: openOffers(next) > openOffers(league)
+            ? '📞 A team just called with a trade offer. Check your inbox — the sim paused so you can answer.'
+            : next.allStars.length > league.allStars.length ? '🌟 All-Star Weekend! The rosters are set — head to the All-Star page to watch, or keep simming.' : null,
           watch: res.watch ? { ...res.watch, before: league } : null,
         })
       if (saveId) await writeSave(saveId, next)
@@ -109,6 +118,22 @@ export const useStore = create<State>((set, get) => {
 
   async startWatch() {
     await runAndSave(runWatch)
+  },
+
+  playAllStar(kind, watchIt) {
+    const { league, saveId, busy } = get()
+    if (!league || busy) return
+    const next = structuredClone(league)
+    const ev = next.allStars.find((e) => e.season === next.season && e.kind === kind && !e.result)
+    if (!ev) return
+    const log: PlayEvent[] = []
+    playAllStarEvent(next, ev, watchIt ? log : undefined)
+    const [a, b] = ev.teams
+    const before: League = { ...league, teams: { ...league.teams, [a.id]: a, [b.id]: b }, userTeamId: ev.teams[userSideIndex(league, ev)].id }
+    const game = eventGame(ev)
+    const meta = kind === 'allstar' ? 'All-Star Game · East vs West' : 'Rising Stars · Rookies vs Sophomores'
+    set({ league: next, error: null, notice: null, watch: watchIt ? { gameId: game.id, log, before, game, meta, doneTo: '/all-star' } : null })
+    if (saveId) void writeSave(saveId, next).catch((e) => set({ error: `Couldn’t save: ${(e as Error).message}` }))
   },
 
   endWatch: () => set({ watch: null }),
