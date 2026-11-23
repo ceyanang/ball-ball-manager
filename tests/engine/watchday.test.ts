@@ -4,7 +4,7 @@ import { simDays, simUntil, userSeries, watchDay } from '../../src/engine/season
 import { boxFromLog } from '../../src/engine/sim/playlog'
 import type { League } from '../../src/engine/types'
 
-const fresh = () => createLeague({ seed: 404, userTeamIndex: 3, name: 'W' })
+const fresh = () => createLeague({ seed: 405, userTeamIndex: 3, name: 'W' })
 const plays = (l: League) => l.games.some((g) => g.day === l.day && !g.result && !g.playoff && (g.homeId === l.userTeamId || g.awayId === l.userTeamId))
 const userGameToday = (l: League) => l.games.find((g) => g.day === l.day && !g.result && (g.homeId === l.userTeamId || g.awayId === l.userTeamId))
 

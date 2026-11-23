@@ -66,9 +66,9 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
       ...make(SUPERSTARS - 1, () => clampT(rng.normal(92, 2.5), 89, 97)),
       ...make(teams.length - SUPERSTARS, () => clampT(rng.normal(85, 4), 78, 88)),
     ],
-    make(teams.length * 4, () => clampT(rng.normal(78, 3), 70, 88)),
-    make(teams.length * 7, () => clampT(rng.normal(71, 3), 63, 80)),
-    make(teams.length * 2, () => clampT(rng.normal(66, 3), 58, 74)),
+    make(teams.length * 4, () => clampT(rng.normal(74.5, 3), 68, 84)),
+    make(teams.length * 7, () => clampT(rng.normal(70, 3), 62, 79)),
+    make(teams.length * 2, () => clampT(rng.normal(64, 3), 56, 72)),
   ]
 
   // Allocation draft within each tier, respecting positional needs. Each team gets a hidden,
@@ -138,8 +138,8 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
 
   for (let i = 0; i < FREE_AGENTS; i++) {
     let p: Player
-    do p = generatePlayer(rng, { season, targetOvr: clampT(rng.normal(64, 2.5), 60, 68) })
-    while (ovr(p) < 60 || ovr(p) > 68)
+    do p = generatePlayer(rng, { season, targetOvr: clampT(rng.normal(62, 2.5), 58, 66) })
+    while (ovr(p) < 58 || ovr(p) > 66)
     players[p.id] = p
   }
 

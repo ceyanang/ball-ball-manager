@@ -115,17 +115,17 @@ describe('createLeague', () => {
     expect(league.favoritePlayerIds).toEqual([])
     expect(league.progress).toEqual([])
   })
-  it('is stacked: most starters 76+, bench averages 70+', () => {
+  it('is stacked: most starters 72+, bench averages 66+', () => {
     const starters = Object.values(league.teams).flatMap((t) => t.rotation.starters.map((id) => computeOvr(league.players[id].ratings, league.players[id].pos)))
-    expect(starters.filter((o) => o >= 76).length / starters.length).toBeGreaterThanOrEqual(0.7)
+    expect(starters.filter((o) => o >= 72).length / starters.length).toBeGreaterThanOrEqual(0.7)
     const bench = Object.values(league.teams).flatMap((t) => t.rotation.bench.map((id) => computeOvr(league.players[id].ratings, league.players[id].pos)))
-    expect(bench.reduce((s, x) => s + x, 0) / bench.length).toBeGreaterThanOrEqual(70)
+    expect(bench.reduce((s, x) => s + x, 0) / bench.length).toBeGreaterThanOrEqual(66)
   })
-  it('keeps free agents between 60 and 68', () => {
+  it('keeps free agents between 58 and 66', () => {
     for (const p of Object.values(league.players).filter((x) => x.teamId === null)) {
       const o = computeOvr(p.ratings, p.pos)
-      expect(o).toBeGreaterThanOrEqual(60)
-      expect(o).toBeLessThanOrEqual(68)
+      expect(o).toBeGreaterThanOrEqual(58)
+      expect(o).toBeLessThanOrEqual(66)
     }
   })
   it('has a handful of genuine 90+ superstars (2K scale)', () => {
