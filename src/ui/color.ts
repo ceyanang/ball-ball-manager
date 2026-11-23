@@ -41,3 +41,32 @@ export function distinctColor(colors: { primary: string; secondary: string }, ot
   if (distance(colors.primary, other) >= 150) return colors.primary
   return distance(colors.secondary, other) > distance(colors.primary, other) ? colors.secondary : colors.primary
 }
+
+const hex = (c: Rgb) => '#' + c.map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')
+/** Blend `a` toward `b` (t = 0..1). */
+export function blend(a: string, b: string, t: number): string {
+  const x = rgb(a), y = rgb(b)
+  return hex([0, 1, 2].map((i) => x[i] * (1 - t) + y[i] * t) as Rgb)
+}
+
+/** `color`, lightened step by step until it reads (3:1) on `bg`. */
+export function readableOn(color: string, bg: string): string {
+  let c = color
+  for (let t = 0; contrastRatio(c, bg) < 3 && t < 1; t += 0.1) c = blend(color, '#ffffff', t + 0.1)
+  return c
+}
+
+/** Watch-mode court: the home team's colours. Court is a dark take on its primary; score inks always read on it and differ from each other. */
+export function courtTheme(home: { primary: string; secondary: string }, away: { primary: string; secondary: string }) {
+  const court = blend(home.primary, '#000000', 0.5)
+  const court2 = blend(home.primary, '#000000', 0.68)
+  const line = blend(home.secondary, home.primary, 0.35)
+  const homeInk = readableOn(contrastRatio(home.secondary, court) >= 3 ? home.secondary : home.primary, court)
+  let awayInk = readableOn(away.primary, court)
+  if (distance(awayInk, homeInk) < 150) {
+    const alt = readableOn(away.secondary, court)
+    awayInk = distance(alt, homeInk) > distance(awayInk, homeInk) ? alt : awayInk
+  }
+  if (distance(awayInk, homeInk) < 150) awayInk = blend(awayInk, '#ffffff', 0.55)
+  return { court, court2, line, homeInk, awayInk }
+}

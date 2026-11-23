@@ -16,7 +16,10 @@ export function Face({ seed, age, colors, size = 64, jersey, title }: FaceProps)
   const f = useMemo(() => ageFace(generateFace(seed), seed, age), [seed, age])
   const skin = SKIN[f.skin]
   const hair = greyed(HAIR[f.hairColor], f.grey)
-  const browColor = greyed(shade(HAIR[f.hairColor], 0.15), f.grey * 0.8)
+  // Dyed hair (the newer colours) stays on the head; beards and brows stay natural.
+  const natural = f.hairColor >= 8 ? 1 : f.hairColor
+  const beard = greyed(HAIR[natural], f.grey)
+  const browColor = greyed(shade(HAIR[natural], 0.15), f.grey * 0.8)
   return (
     <svg viewBox="0 0 100 120" width={size} height={size * 1.2} role="img" aria-label={title ?? 'Player portrait'}>
       {/* jersey */}
@@ -29,7 +32,7 @@ export function Face({ seed, age, colors, size = 64, jersey, title }: FaceProps)
       <path d="M40,78 L40,98 Q50,104 60,98 L60,78 Z" fill={shade(skin, 0.12)} stroke={OUTLINE} strokeWidth={1.4} />
       <Ears v={f.ears} skin={skin} />
       <path d={HEADS[f.head]} fill={skin} stroke={OUTLINE} strokeWidth={1.6} />
-      <FacialHair v={f.facialHair} color={hair} />
+      <FacialHair v={f.facialHair} color={beard} />
       <Mouth v={f.mouth} />
       <Nose v={f.nose} skin={shade(skin, 0.08)} />
       <Eyes v={f.eyes} color={EYE[f.eyeColor]} />

@@ -20,6 +20,14 @@ Reggie Remy Ricky Riley Robert Rodney Roman Ronnie Rudy Russell Ryan Sam Santiag
 Shane Shawn Silas Simon Spencer Stefan Sterling Steve Tariq Taylor Terrence Theo Thomas Tim Tobias Tony Torrey Trae Travis
 Trevor Tristan Troy Tyler Tyrese Tyson Usman Victor Vince Wade Walker Wendell Wes Willie Xavier Yannick Yusuf Zach Zaire Zion
 Ajay Bertrand Cyrus Delon Eamon Florian Gustavo Hiro Ilya Jovan Kwame Lars Marek Nikolai Oren Pavel Quinn Rasmus Sekou Tomas
+Abe Achilles Adnan Aiden Akeem Alden Alistair Amir Anders Anselm Apollo Arlo Atlas Augustus Axel Barrett Beau Bennett Bijan Boone
+Booker Bowie Braxton Brock Bryson Cade Callum Cassius Cayden Cesar Chandler Chidi Cillian Clay Cristian Cyril Dag Dario Deandre Declan
+Deion Demarcus Denzel Dev Dmitri Dominick Dru Easton Eli Emilio Esteban Everett Farid Felipe Finley Flynn Gage Giovanni Griffin Gunnar
+Hakim Hank Harlan Hendrix Idris Ishmael Jabbar Jaxon Jedidiah Jericho Jett Joaquim Jonas Jovani Judah Kaden Kareem Kaz Keanu Kellen
+Kiran Knox Kobi Koa Kolby Landry Lazarus Lennox Levi Lex Lonzo Maddox Marlon Maverick Mekhi Memphis Messiah Mickey Mo Nash
+Nelson Niklas Nnamdi Odell Orlando Orion Osei Otis Phoenix Pierce Prince Rafferty Rashaad Reuben Rex Rocco Roscoe Royce Rufus Sahir
+Salim Santino Sergio Sky Soren Stellan Sy Tajh Tavion Teddy Thaddeus Titus Tomasz Toby Tre Ulises Valentin Vaughn Wayne Wiley
+Winston Wolfgang Yosef Yuri Zane Zeke Zeus Zorion
 `)
 
 export const LAST_NAMES = w(`
@@ -40,6 +48,12 @@ Richardson Riley Rivera Roberts Robinson Rodgers Rodriguez Rogers Romero Rose Ro
 Saric Schmidt Schroeder Scott Sexton Shaw Silva Simmons Simpson Smart Smith Snyder Soto Spencer Stanley Stewart Stokes Stone Sullivan Sutton
 Swanson Tate Taylor Terry Thomas Thompson Torres Tucker Turner Ugwu Valdez Vasquez Vaughn Vega Wade Wagner Walker Wallace Walsh Walton
 Ward Warren Washington Watkins Watson Weaver Webb Wells West Wheeler White Whitfield Wiggins Wilkins Williams Willis Wilson Wolfe Wood Wright Young Yurtseven Zubac
+Abernathy Adewale Albright Amadi Arroyo Ashworth Baptiste Barajas Beaumont Benedetti Blackwell Bonilla Boyle Brannigan Brightman Calloway Cardenas Cashman Castellano Chaudhry
+Cisneros Cobb Colbert Crowley Dagostino Dalziel Dawson Delacroix Dempsey Devereaux Dimitrov Donahue Dumont Eastwood Eberhart Egan Eze Fairbanks Falcone Farrow
+Finnegan Fitzgerald Fontaine Gaines Galloway Gannon Geary Gillespie Goldberg Gutierrez Haddad Halloran Hargrove Haskins Hendricks Hightower Holloway Huang Ikeda Iverson
+Jaramillo Jovanovic Kapoor Kessler Kowalski Lachance Langston Larkin Lemieux Lockhart Lombardi Madsen Maloney Marchetti Mbeki McAllister McCarthy Merrick Montague Moreau
+Nakamura Navarro Nwosu Oduya Okonkwo Oyelaran Pagano Pemberton Pickett Prescott Quintero Radcliffe Rasmussen Rousseau Rutherford Saldana Sandoval Sato Scarborough Sheridan
+Sinclair Solomon Stavros Strickland Tanaka Thibodeaux Tolliver Underwood Vandermeer Villanueva Voss Waddell Whitaker Winters Yamamoto Yoon Zielinski Zimmerman
 `)
 
 export const HOMETOWNS = w(`

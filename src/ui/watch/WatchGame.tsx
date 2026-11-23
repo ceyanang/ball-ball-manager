@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { setIntensity } from '../../audio/engine'
@@ -15,7 +16,7 @@ import {
   advanceTo, beatsAverage, benchLine, clockText, elapsedFraction, eventCards, feedItems, finalState, initState, isHot,
   periodCount, periodLabel, periodMs, pushFeed, shotDelays, shotMs, sittingIds, standout, type FeedItem, type ReplayState,
 } from './replay'
-import { distinctColor } from '../color'
+import { courtTheme, distinctColor } from '../color'
 import { Sheet } from '../components/Sheet'
 import { recapRows } from './recap'
 import { WatchCard } from './WatchCard'
@@ -148,7 +149,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   useEffect(() => { setIntensity(0); return () => setIntensity(0) }, [])
 
   /** Flies a ball from a card to the rim: made = through the net, miss = off the rim, blocked = swatted away. */
-  function shoot(cardId: string, kind: ShotKind, pts: number, ft: boolean, salt: number) {
+  function shoot(cardId: string, side: Side, kind: ShotKind, pts: number, ft: boolean, salt: number) {
     const fx = fxRef.current, card = cards.current.get(cardId), rim = rimRef.current
     if (!fx || !card || !rim) return
     const box = fx.getBoundingClientRect(), c = card.getBoundingClientRect(), r = rim.getBoundingClientRect()
@@ -194,6 +195,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
       const pop = document.createElement('div')
       pop.className = 'w-float'
       pop.textContent = `+${pts}`
+      pop.style.color = ink[side]
       pop.style.left = `${cx + 30}px`
       pop.style.top = `${rimY - 10}px`
       fx.appendChild(pop)
@@ -209,9 +211,9 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
       const idx = start + i
       if (e.k === 'fg') {
         const kind: ShotKind = e.made ? 'made' : log[idx + 1]?.k === 'blk' ? 'blocked' : 'miss'
-        shoot(cardIds[i], kind, e.three ? 3 : 2, false, idx)
+        shoot(cardIds[i], e.side, kind, e.three ? 3 : 2, false, idx)
       } else if (e.k === 'ft') {
-        later(() => shoot(cardIds[i], e.made ? 'made' : 'miss', 1, true, idx), delays[i])
+        later(() => shoot(cardIds[i], e.side, e.made ? 'made' : 'miss', 1, true, idx), delays[i])
       } else if (e.k === 'sub') {
         const el = cards.current.get(`${e.side}-slot-${e.slot}`)
         if (!el) return
@@ -319,6 +321,12 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   const lineOf = (id: string) => rs.lines[id] ?? benchLine(rs, [])
   const us = m.teamOf[m.userSide], them = m.teamOf[m.oppSide]
   const score = (side: Side) => rs[side]
+  const theme = courtTheme(m.teamOf.home.colors, m.teamOf.away.colors)
+  const ink: Record<Side, string> = { home: theme.homeInk, away: theme.awayInk }
+  const screenStyle = {
+    '--court': theme.court, '--court-2': theme.court2, '--court-line': theme.line,
+    '--them-ink': ink[m.oppSide], '--us-ink': ink[m.userSide],
+  } as CSSProperties
 
   const card = (side: Side, cardId: string, id: string) => {
     const l = lineOf(id)
@@ -379,7 +387,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   const sheetTeam = sheetId ? m.teamOf[m.sideOfPlayer[sheetId] ?? 'away'] : null
 
   return (
-    <div className="w-screen">
+    <div className="w-screen" style={screenStyle}>
       <div className="w-wrap">
         <div className="w-top">
           <span className="w-meta">🏀 {m.meta}</span>

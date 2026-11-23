@@ -11,6 +11,8 @@ export const HEADS = [
   'M50,17 C66,17 75,31 75,52 C75,75 64,88 50,88 C36,88 25,75 25,52 C25,31 34,17 50,17 Z',
   'M24,40 Q24,18 50,18 Q76,18 76,40 L76,62 Q74,85 50,86 Q26,85 24,62 Z',
   'M23,44 Q23,18 50,18 Q77,18 77,44 Q77,70 50,87 Q23,70 23,44 Z',
+  'M30,19 L70,19 Q80,19 79,32 L77,62 Q75,86 50,87 Q25,86 23,62 L21,32 Q20,19 30,19 Z',
+  'M50,18 C72,18 80,36 78,54 C76,74 64,87 50,87 C36,87 24,74 22,54 C20,36 28,18 50,18 Z',
 ]
 
 export function Ears({ v, skin }: { v: number; skin: string }) {
@@ -57,7 +59,9 @@ export function Brows({ v, color }: { v: number; color: string }) {
     case 2: return <g {...s} strokeWidth={3.6}><path d="M33,44 Q39,42 45,43.5" /><path d="M55,43.5 Q61,42 67,44" /></g>
     case 3: return <g {...s} strokeWidth={1.2}><path d="M34,44 Q39,42 44,44" /><path d="M56,44 Q61,42 66,44" /></g>
     case 4: return <g {...s} strokeWidth={2.4}><path d="M33,42 L45,45.5" /><path d="M55,45.5 L67,42" /></g>
-    default: return <g {...s} strokeWidth={2.8}><path d="M33,44 Q41,41 50,44 Q59,41 67,44" /></g>
+    case 5: return <g {...s} strokeWidth={2.8}><path d="M33,44 Q41,41 50,44 Q59,41 67,44" /></g>
+    case 6: return <g {...s} strokeWidth={2.6}><path d="M33,46 L45,42" /><path d="M55,42 L67,46" /></g>
+    default: return <g {...s} strokeWidth={3}><path d="M33,43 Q39,40 45,43" /><path d="M55,43 Q61,40 67,43" /><path d="M35,46 L43,46" strokeWidth={1} /></g>
   }
 }
 
@@ -71,7 +75,8 @@ export function Nose({ v, skin }: { v: number; skin: string }) {
     case 4: return <path {...s} d="M51,52 Q53,60 49,64" />
     case 5: return <ellipse cx={50} cy={62} rx={4} ry={2.6} fill="none" stroke={OUTLINE} strokeWidth={1.2} />
     case 6: return <g {...s}><path d="M48,54 L46,62" /><path d="M43,62 Q50,68 57,62" /></g>
-    default: return <path {...s} d="M45,64 Q50,60 55,64" />
+    case 7: return <path {...s} d="M45,64 Q50,60 55,64" />
+    default: return <g {...s}><path d="M50,54 L50,62" /><path d="M46,64 Q50,67 54,64" /></g>
   }
 }
 
@@ -85,7 +90,9 @@ export function Mouth({ v }: { v: number }) {
     case 4: return <path {...s} d="M43,74 Q50,70 57,74" />
     case 5: return <ellipse cx={50} cy={73} rx={2.6} ry={2} fill="#6b2d2d" stroke={OUTLINE} strokeWidth={1.1} />
     case 6: return <g><path d="M40,70 Q50,81 60,70 Q50,73 40,70 Z" fill="#7a2e2e" stroke={OUTLINE} strokeWidth={1.3} /><path d="M42,71 Q50,73.5 58,71 L57,73 Q50,75 43,73 Z" fill="#fff" /></g>
-    default: return <path {...s} d="M44,73 Q50,75.5 56,73" />
+    case 7: return <path {...s} d="M44,73 Q50,75.5 56,73" />
+    case 8: return <g><path {...s} d="M42,72 Q50,78 58,72" /><path {...s} d="M58,72 L60,70" /></g>
+    default: return <g><path d="M42,71 Q50,79 58,71 Z" fill="#fff" stroke={OUTLINE} strokeWidth={1.3} strokeLinejoin="round" /><path d="M46,75 L54,75" stroke={OUTLINE} strokeWidth={0.8} /></g>
   }
 }
 
@@ -119,6 +126,10 @@ export function Hair({ v, color, recede }: { v: number; color: string; recede: n
     14: <path d={`M23,46 Q20,14 52,13 Q80,15 77,42 Q66,${26 + top} 42,${30 + top} Q30,${34 + top} 23,46 Z`} />,
     15: <path d={`M24,42 L22,22 L30,26 L33,12 L40,22 L46,8 L52,20 L60,9 L64,22 L71,13 L72,27 L78,23 L76,42 Q70,${30 + top} 50,${29 + top} Q30,${30 + top} 24,42 Z`} />,
     16: <path d={`M26,40 L26,4 Q50,-2 74,4 L74,40 Q70,${28 + top} 50,${28 + top} Q30,${28 + top} 26,40 Z`} />,
+    18: <g><path d={`M24,42 Q22,17 50,15 Q78,17 76,42 Q70,${30 + top} 50,${29 + top} Q30,${30 + top} 24,42 Z`} /><circle cx={50} cy={6} r={9} /><rect x={44} y={12} width={12} height={4} rx={2} /></g>,
+    19: <g><path d={`M20,86 Q12,24 50,13 Q88,24 80,86 L72,86 Q74,${34 + top} 50,${30 + top} Q26,${34 + top} 28,86 Z`} /></g>,
+    20: <g><path d={`M23,44 Q20,14 50,13 Q80,14 77,44 Q72,${30 + top} 50,${29 + top} Q28,${30 + top} 23,44 Z`} />{[26, 36, 46, 56, 66, 74].map((x, i) => <path key={x} d={`M${x},${22 + (i % 2) * 2} Q${x + 3},34 ${x - 1},${42 + (i % 3) * 3}`} fill="none" stroke={OUTLINE} strokeWidth={1.2} />)}</g>,
+    21: <g><path d={`M24,42 Q22,18 50,16 Q78,18 76,42 Q70,${30 + top} 50,${29 + top} Q30,${30 + top} 24,42 Z`} /><path d={`M30,27 Q55,22 74,32`} fill="none" stroke={OUTLINE} strokeWidth={1} /><path d={`M24,42 L24,52 L28,48 Z M76,42 L76,52 L72,48 Z`} /></g>,
     17: <g><path d={`M27,40 Q26,30 30,26 L30,${33 + top} Z`} opacity={0.8} /><path d={`M73,40 Q74,30 70,26 L70,${33 + top} Z`} opacity={0.8} /><path d={`M38,${31 + top} Q38,6 50,4 Q62,6 62,${31 + top} Z`} /></g>,
   }
   return <g {...f}>{P[v]}</g>
@@ -137,7 +148,10 @@ export function FacialHair({ v, color }: { v: number; color: string }) {
     case 7: return <path {...f} d="M48,76 L52,76 L51,80 L49,80 Z" />
     case 8: return <g {...f}><path d="M23,48 L28,48 L30,70 L24,66 Z" /><path d="M77,48 L72,48 L70,70 L76,66 Z" /></g>
     case 9: return <g {...f}><path d="M41,68 Q50,64 59,68 Q57,70.5 50,69 Q43,70.5 41,68 Z" /><path d="M45,77 Q50,75.5 55,77 L54,84 Q50,86 46,84 Z" /></g>
-    default: return <path {...f} d="M41,67 Q50,63 59,67 L60,79 L57,79 L56,70 Q50,68 44,70 L43,79 L40,79 Z" />
+    case 10: return <path {...f} d="M41,67 Q50,63 59,67 L60,79 L57,79 L56,70 Q50,68 44,70 L43,79 L40,79 Z" />
+    case 11: return <g {...f}><path d="M41,68 Q50,64 59,68 Q57,70.5 50,69 Q43,70.5 41,68 Z" /><path d="M47,77 L53,77 L52,81 L48,81 Z" /></g>
+    case 12: return <g {...f}><path d="M38,70 Q50,66 62,70 L64,80 Q50,90 36,80 Z" /></g>
+    default: return <g {...f}><path d="M23,50 L29,50 L31,72 L24,68 Z" /><path d="M77,50 L71,50 L69,72 L76,68 Z" /><path d="M41,68 Q50,64 59,68 Q57,70.5 50,69 Q43,70.5 41,68 Z" /></g>
   }
 }
 
@@ -152,6 +166,9 @@ export function Accessory({ v, team }: { v: number; team: { primary: string; sec
     case 7: return <rect x={46} y={57} width={8} height={3.2} rx={1.2} fill="#f4efe6" stroke={OUTLINE} strokeWidth={0.6} />
     case 8: return <path d="M26,40 Q50,30 74,40 L76,62 Q74,72 66,72 L62,58 Q50,54 38,58 L34,72 Q26,72 24,62 Z" fill="#cfe6ff" fillOpacity={0.35} stroke={OUTLINE} strokeWidth={1} />
     case 9: return <g fill="#e8f6ff" stroke={OUTLINE} strokeWidth={0.6}><circle cx={21} cy={61} r={1.6} /><circle cx={79} cy={61} r={1.6} /></g>
+    case 11: return <g fill="#111"><rect x={30} y={57} width={9} height={2.6} rx={1} /><rect x={61} y={57} width={9} height={2.6} rx={1} /></g>
+    case 12: return <g><path d="M24,46 L76,46" stroke={OUTLINE} strokeWidth={2} /><path d="M29,45 L47,45 L46,56 Q38,60 31,56 Z M71,45 L53,45 L54,56 Q62,60 69,56 Z" fill="#161a24" stroke={OUTLINE} strokeWidth={1.2} /><path d="M33,48 L40,48" stroke="#fff" strokeOpacity={0.5} strokeWidth={1.2} /></g>
+    case 13: return <g><rect x={58} y={60} width={13} height={6} rx={2} fill="#f2d3a8" stroke={OUTLINE} strokeWidth={0.9} transform="rotate(-18 64 63)" /><path d="M62,61 L62,65 M66,60 L66,64" stroke="#c99a6a" strokeWidth={0.8} /></g>
     case 10: return <path d="M22,36 Q22,14 50,13 Q78,14 78,36 Q50,30 22,36 Z M76,30 L86,36 L80,40 Z" fill={team.primary} stroke={OUTLINE} strokeWidth={1.2} />
     default: return null
   }

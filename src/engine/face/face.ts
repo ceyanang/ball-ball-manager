@@ -9,17 +9,23 @@ export interface FaceSpec {
 
 type VariantKey = Exclude<keyof FaceSpec, 'grey' | 'recede'>
 
-export const FACE_VARIANTS: { [K in VariantKey]: number } = {
+/** The original variant counts. Their draws stay first and unchanged, so existing players keep their look. */
+const BASE_VARIANTS: { [K in VariantKey]: number } = {
   head: 6, skin: 12, ears: 3, eyes: 8, eyeColor: 5, brows: 6, nose: 8, mouth: 8,
   hair: 18, hairColor: 8, facialHair: 11, accessory: 11,
+}
+
+export const FACE_VARIANTS: { [K in VariantKey]: number } = {
+  head: 8, skin: 12, ears: 3, eyes: 8, eyeColor: 8, brows: 8, nose: 9, mouth: 10,
+  hair: 22, hairColor: 12, facialHair: 14, accessory: 14,
 }
 
 /** Uses its own RNG seeded from `seed`; never touches the league RNG. */
 export function generateFace(seed: number): FaceSpec {
   const rng = Rng.fromSeed(seed)
-  const any = (k: VariantKey) => rng.int(0, FACE_VARIANTS[k] - 1)
-  const nonZero = (k: VariantKey) => rng.int(1, FACE_VARIANTS[k] - 1)
-  return {
+  const any = (k: VariantKey) => rng.int(0, BASE_VARIANTS[k] - 1)
+  const nonZero = (k: VariantKey) => rng.int(1, BASE_VARIANTS[k] - 1)
+  const base: FaceSpec = {
     head: any('head'),
     skin: any('skin'),
     ears: any('ears'),
@@ -35,6 +41,19 @@ export function generateFace(seed: number): FaceSpec {
     grey: 0,
     recede: 0,
   }
+  // The newer parts come from a separate stream so they never shift the draws above.
+  const extra = Rng.fromSeed((seed ^ 0x5bd1e995) >>> 0)
+  const out = { ...base }
+  for (const k of Object.keys(BASE_VARIANTS) as VariantKey[]) {
+    if (FACE_VARIANTS[k] === BASE_VARIANTS[k]) continue
+    const roll = extra.chance(k === 'hairColor' ? 0.12 : k === 'accessory' || k === 'facialHair' ? 0.2 : 0.3)
+    const pick = extra.int(BASE_VARIANTS[k], FACE_VARIANTS[k] - 1)
+    if (!roll) continue
+    // Don't turn "none" into something for hair/facial hair/accessory; only swap an existing choice.
+    if ((k === 'hair' || k === 'facialHair' || k === 'accessory') && base[k] === 0) continue
+    out[k] = pick
+  }
+  return out
 }
 
 /** Deterministic aging: greying after 30, receding (for ~half of players) after a per-seed onset. */
