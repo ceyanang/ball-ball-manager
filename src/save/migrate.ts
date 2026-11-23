@@ -5,12 +5,13 @@ import { SaveImportError } from './errors'
 import { backfillRecords } from '../engine/stories/records'
 import { emptyStories } from '../engine/stories/state'
 
-export const CURRENT_VERSION = 4
+export const CURRENT_VERSION = 5
 
 /**
  * Upgrades an older save to the current shape.
  * v1 → v2 adds in-season progress events. v2 → v3 adds the GM layer (picks, draft, waivers, free agency, offseason).
  * v3 → v4 adds stories (news, social, inbox, awards, history, records, Hall of Fame, fan sentiment).
+ * v4 → v5 adds the user's favorite players.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function migrateLeague(raw: any): League {
@@ -40,6 +41,7 @@ export function migrateLeague(raw: any): League {
     if (Array.isArray(raw.games) && raw.statLines && typeof raw.statLines === 'object' && raw.players && typeof raw.players === 'object')
       backfillRecords(raw as League)
   }
+  if (raw?.version === 4) raw = { ...raw, version: 5, favoritePlayerIds: [] }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)
   if (!Array.isArray(raw.progress)) raw = { ...raw, progress: [] }

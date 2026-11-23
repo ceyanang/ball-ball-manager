@@ -4,13 +4,15 @@ import type { League } from '../../src/engine/types'
 
 let resolveSim: ((l: League) => void) | null = null
 const runSim = vi.fn((_l: League, _c: unknown) => new Promise<League>((r) => (resolveSim = r)))
-vi.mock('../../src/worker/client', () => ({ runSim: (l: League, c: unknown) => runSim(l, c) }))
+const runWatch = vi.fn()
+vi.mock('../../src/worker/client', () => ({ runSim: (l: League, c: unknown) => runSim(l, c), runWatch: (l: League) => runWatch(l) }))
 
 const { useStore } = await import('../../src/ui/store')
 
 describe('store', () => {
   beforeEach(() => {
     runSim.mockClear()
+    runWatch.mockReset()
     useStore.setState({ saveId: null, league: null, busy: false, error: null })
   })
   it('creates a league and saves it', async () => {
@@ -94,5 +96,50 @@ describe('store', () => {
     expect(useStore.getState().league!.name).toBe('Renamed')
     expect(before.name).toBe('N')
     expect(useStore.getState().notice).toBe('Done!')
+  })
+  it('startWatch stores the capture with the pre-game league and saves the new one', async () => {
+    const { loadSave } = await import('../../src/save/db')
+    await useStore.getState().newLeague({ seed: 3, userTeamIndex: 1, name: 'N' })
+    const before = useStore.getState().league!
+    const id = useStore.getState().saveId!
+    const capture = { gameId: 'g1', log: [] }
+    runWatch.mockResolvedValue({ league: { ...before, day: 2 }, watch: capture })
+    await useStore.getState().startWatch()
+    const s = useStore.getState()
+    expect(s.busy).toBe(false)
+    expect(s.league!.day).toBe(2)
+    expect(s.watch).toEqual({ gameId: 'g1', log: [], before })
+    expect((await loadSave(id)).day).toBe(2)
+    s.endWatch()
+    expect(useStore.getState().watch).toBeNull()
+  })
+  it('startWatch without a capture behaves like sim', async () => {
+    await useStore.getState().newLeague({ seed: 3, userTeamIndex: 1, name: 'N' })
+    const before = useStore.getState().league!
+    runWatch.mockResolvedValue({ league: { ...before, day: 2 }, watch: null })
+    await useStore.getState().startWatch()
+    expect(useStore.getState().watch).toBeNull()
+    expect(useStore.getState().league!.day).toBe(2)
+    expect(useStore.getState().busy).toBe(false)
+  })
+  it('startWatch reports a failure and clears busy', async () => {
+    await useStore.getState().newLeague({ seed: 3, userTeamIndex: 1, name: 'N' })
+    runWatch.mockRejectedValue(new Error('boom'))
+    await useStore.getState().startWatch()
+    expect(useStore.getState().error).toMatch(/boom/)
+    expect(useStore.getState().busy).toBe(false)
+    expect(useStore.getState().watch).toBeNull()
+  })
+  it('toggleFavorite adds and removes, persists, and shows no notice', async () => {
+    const { loadSave } = await import('../../src/save/db')
+    await useStore.getState().newLeague({ seed: 3, userTeamIndex: 1, name: 'N' })
+    const id = useStore.getState().saveId!
+    const pid = Object.keys(useStore.getState().league!.players)[0]
+    useStore.getState().toggleFavorite(pid)
+    expect(useStore.getState().league!.favoritePlayerIds).toEqual([pid])
+    expect(useStore.getState().notice).toBeNull()
+    await vi.waitFor(async () => expect((await loadSave(id)).favoritePlayerIds).toEqual([pid]))
+    useStore.getState().toggleFavorite(pid)
+    expect(useStore.getState().league!.favoritePlayerIds).toEqual([])
   })
 })

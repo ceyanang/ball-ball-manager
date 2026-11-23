@@ -61,20 +61,20 @@ describe('save versions', () => {
   const v1 = () => {
     const l = JSON.parse(JSON.stringify(league))
     l.version = 1
-    for (const k of ['progress', 'picks', 'draft', 'draftRights', 'transactions', 'deadMoney', 'waivers', 'faOffers', 'offseason', 'tradeDeadlineDay', 'news', 'social', 'inbox', 'awards', 'history', 'records', 'hof', 'fans', 'careerHighs', 'storySeq']) delete l[k]
+    for (const k of ['progress', 'picks', 'draft', 'draftRights', 'transactions', 'deadMoney', 'waivers', 'faOffers', 'offseason', 'tradeDeadlineDay', 'news', 'social', 'inbox', 'awards', 'history', 'records', 'hof', 'fans', 'careerHighs', 'storySeq', 'favoritePlayerIds']) delete l[k]
     return l
   }
   it('loads a v1 save from IndexedDB and migrates it', async () => {
     await writeSave('old', v1())
     const l = await loadSave('old')
-    expect(l.version).toBe(4)
+    expect(l.version).toBe(5)
     expect(l.progress).toEqual([])
     expect(l.picks).toHaveLength(120)
     expect(l.tradeDeadlineDay).toBe(league.tradeDeadlineDay)
   })
   it('imports a v1 file', () => {
     const l = parseImport(JSON.stringify(v1()))
-    expect(l.version).toBe(4)
+    expect(l.version).toBe(5)
     expect(l.progress).toEqual([])
     expect(l.waivers).toEqual([])
   })
@@ -83,13 +83,18 @@ describe('save versions', () => {
     l.version = 3
     Object.assign(l, { progress: [], picks: [], draft: null, draftRights: {}, transactions: [], deadMoney: [], waivers: [], faOffers: [], offseason: null, tradeDeadlineDay: 20 })
     const m = parseImport(JSON.stringify(l))
-    expect(m.version).toBe(4)
+    expect(m.version).toBe(5)
     expect(m.news).toEqual([])
     expect(m.inbox).toEqual([])
     expect(m.records.league.game).toEqual({})
     expect(m.fans).toEqual({ players: {}, teams: {} })
   })
-  it('rejects version 5', () => {
-    expect(() => parseImport(JSON.stringify({ ...league, version: 5 }))).toThrow(SaveImportError)
+  it('migrates a v4 save to v5 with no favorites', () => {
+    const m = parseImport(JSON.stringify({ ...league, version: 4, favoritePlayerIds: undefined }))
+    expect(m.version).toBe(5)
+    expect(m.favoritePlayerIds).toEqual([])
+  })
+  it('rejects version 6', () => {
+    expect(() => parseImport(JSON.stringify({ ...league, version: 6 }))).toThrow(SaveImportError)
   })
 })

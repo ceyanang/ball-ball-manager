@@ -5,8 +5,13 @@ import { GmError } from '../engine/gm/cap'
 import { Rng } from '../engine/rng'
 import type { League, Rotation } from '../engine/types'
 import { deleteSave, loadSave, parseImport, writeSave } from '../save/db'
-import { runSim } from '../worker/client'
+import { runSim, runWatch } from '../worker/client'
+import type { PlayEvent } from '../engine/sim/playlog'
+import type { WatchCapture } from '../engine/season/advance'
 import type { SimCommand } from '../worker/protocol'
+
+/** A game being watched live. `before` is the league as it stood before the game, for replaying it. Never saved. */
+export interface WatchSession { gameId: string; log: PlayEvent[]; before: League }
 
 interface State {
   saveId: string | null
@@ -15,10 +20,14 @@ interface State {
   error: string | null
   /** Short confirmation of the last GM move. */
   notice: string | null
+  watch: WatchSession | null
   newLeague: (opts: { seed: number; userTeamIndex: number; name: string }) => Promise<void>
   load: (id: string) => Promise<void>
   remove: (id: string) => Promise<void>
   sim: (cmd: SimCommand) => Promise<void>
+  startWatch: () => Promise<void>
+  endWatch: () => void
+  toggleFavorite: (playerId: string) => void
   setRotation: (teamId: string, rot: Rotation) => void
   importFile: (file: File) => Promise<void>
   clearError: () => void
@@ -32,12 +41,44 @@ interface State {
 
 const newId = () => 'save_' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36)
 
-export const useStore = create<State>((set, get) => ({
+export const useStore = create<State>((set, get) => {
+  /** Runs a sim step on the open league, saves the result and shows an offer notice. A watch capture, if any, starts a watch session. */
+  async function runAndSave(run: (league: League) => Promise<{ league: League; watch: WatchCapture | null }>) {
+    const { league, busy, saveId } = get()
+    if (busy || !league) return
+    set({ busy: true, error: null, notice: null, watch: null })
+    let res: { league: League; watch: WatchCapture | null }
+    try {
+      res = await run(league)
+    } catch (e) {
+      set({ error: `The sim stopped unexpectedly: ${(e as Error).message}`, busy: false })
+      return
+    }
+    const next = res.league
+    try {
+      // Only show the result if the same save is still open; always persist it to the save it came from.
+      const openOffers = (l: League) => l.inbox.filter((i) => i.offer?.status === 'open').length
+      if (get().saveId === saveId)
+        set({
+          league: next,
+          notice: openOffers(next) > openOffers(league) ? '📞 A team just called with a trade offer. Check your inbox — the sim paused so you can answer.' : null,
+          watch: res.watch ? { ...res.watch, before: league } : null,
+        })
+      if (saveId) await writeSave(saveId, next)
+    } catch (e) {
+      set({ error: `The sim finished but couldn’t be saved: ${(e as Error).message}` })
+    } finally {
+      set({ busy: false })
+    }
+  }
+
+  return {
   saveId: null,
   league: null,
   busy: false,
   error: null,
   notice: null,
+  watch: null,
 
   async newLeague(opts) {
     if (get().busy) return
@@ -63,26 +104,21 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async sim(cmd) {
-    const { league, busy, saveId } = get()
-    if (busy || !league) return
-    set({ busy: true, error: null, notice: null })
-    let next: League
-    try {
-      next = await runSim(league, cmd)
-    } catch (e) {
-      set({ error: `The sim stopped unexpectedly: ${(e as Error).message}`, busy: false })
-      return
-    }
-    try {
-      // Only show the result if the same save is still open; always persist it to the save it came from.
-      const openOffers = (l: League) => l.inbox.filter((i) => i.offer?.status === 'open').length
-      if (get().saveId === saveId) set({ league: next, notice: openOffers(next) > openOffers(league) ? '📞 A team just called with a trade offer. Check your inbox — the sim paused so you can answer.' : null })
-      if (saveId) await writeSave(saveId, next)
-    } catch (e) {
-      set({ error: `The sim finished but couldn’t be saved: ${(e as Error).message}` })
-    } finally {
-      set({ busy: false })
-    }
+    await runAndSave((league) => runSim(league, cmd).then((next) => ({ league: next, watch: null })))
+  },
+
+  async startWatch() {
+    await runAndSave(runWatch)
+  },
+
+  endWatch: () => set({ watch: null }),
+
+  toggleFavorite(playerId) {
+    get().act((l) => {
+      const fav = new Set(l.favoritePlayerIds)
+      if (!fav.delete(playerId)) fav.add(playerId)
+      l.favoritePlayerIds = [...fav]
+    })
   },
 
   setRotation(teamId, rot) {
@@ -132,4 +168,5 @@ export const useStore = create<State>((set, get) => ({
     if (saveId) void writeSave(saveId, next).catch((e) => set({ error: `Couldn’t save: ${(e as Error).message}` }))
     return true
   },
-}))
+}
+})

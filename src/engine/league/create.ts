@@ -155,7 +155,8 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
   const games = generateSchedule(teams, season, rng)
 
   return {
-    version: 4,
+    version: 5,
+    favoritePlayerIds: [],
     name: opts.name,
     seed: opts.seed,
     rng: { ...rng.state },

@@ -124,10 +124,12 @@ export interface HofEntry { playerId: string; season: number; score: number }
 export interface CareerHigh { gp: number; pts: number; reb: number; ast: number }
 
 export interface League {
-  version: 4; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 5; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]
+  /** Players the user follows (shown with a star). */
+  favoritePlayerIds: string[]
   picks: DraftPick[]; draft: DraftState | null
   /** Drafted but unsigned players: playerId → teamId. */
   draftRights: Record<string, string>
