@@ -1,0 +1,114 @@
+import { describe, expect, it } from 'vitest'
+import { createLeague } from '../../src/engine/league/create'
+import { Rng } from '../../src/engine/rng'
+import { simGame } from '../../src/engine/sim/game'
+import { boxFromLog, type PlayEvent } from '../../src/engine/sim/playlog'
+import type { GameResult, Team } from '../../src/engine/types'
+import {
+  advanceTo, benchLine, elapsedFraction, finalState, initState, isHot, onPace, periodCount, periodLabel, periodMs, standout,
+} from '../../src/ui/watch/replay'
+
+const league = createLeague({ seed: 1, userTeamIndex: 0, name: 'G' })
+const teams = Object.values(league.teams)
+
+function game(s: number) {
+  const r = Rng.fromSeed(1000 + s)
+  const home: Team = r.pick(teams)
+  let away: Team = r.pick(teams)
+  while (away.id === home.id) away = r.pick(teams)
+  const log: PlayEvent[] = []
+  const res: GameResult = simGame(home, away, league.players, league.coaches, Rng.fromSeed(s), log)
+  return { res, log }
+}
+const games = Array.from({ length: 100 }, (_, i) => game(i + 1))
+const keys = ['pts', 'oreb', 'dreb', 'ast', 'stl', 'blk', 'tov', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta'] as const
+
+describe('replay model', () => {
+  it('finalState matches boxFromLog and the final score', () => {
+    for (const { res, log } of games) {
+      const f = finalState(log)
+      const box = boxFromLog(log)
+      for (const [id, b] of Object.entries(box)) {
+        for (const k of keys) expect(f.lines[id][k], `${id} ${k}`).toBe(b[k])
+        expect(f.lines[id].reb).toBe(b.oreb + b.dreb)
+        expect(f.lines[id].byPeriod.reduce((s, x) => s + x, 0)).toBe(b.pts)
+      }
+      expect(f.home).toBe(res.homeScore)
+      expect(f.away).toBe(res.awayScore)
+    }
+  })
+
+  it('random stepping ends in finalState and never mutates', () => {
+    const r = Rng.fromSeed(7)
+    for (const { log } of games.slice(0, 30)) {
+      let s = initState()
+      const n = periodCount(log)
+      const steps = 1000
+      for (let i = 1; i <= steps; i++) {
+        const x = (i / steps) * n
+        const period = Math.min(n, Math.floor(x) + 1)
+        const t = Math.min(1, x - (period - 1) + r.next() * 0.001)
+        s = advanceTo(log, s, period, t).state
+      }
+      s = advanceTo(log, s, n, 1).state
+      expect(s).toEqual(finalState(log))
+    }
+  })
+
+  it('advanceTo is immutable and reports fired events', () => {
+    const { log } = games[0]
+    const s0 = initState()
+    const snap = JSON.stringify(s0)
+    const { state, fired } = advanceTo(log, s0, 1, 0.5)
+    expect(JSON.stringify(s0)).toBe(snap)
+    expect(fired.length).toBe(state.cursor)
+    expect(fired.every(e => e.period === 1 && e.t <= 0.5)).toBe(true)
+    const again = advanceTo(log, state, 1, 0.5)
+    expect(again.fired).toEqual([])
+    expect(again.state).toEqual(state)
+  })
+
+  it('min/pm update only at period end', () => {
+    const { log } = games[0]
+    const mid = advanceTo(log, initState(), 1, 0.99).state
+    expect(Object.values(mid.lines).every(l => l.min === 0 && l.pm === 0)).toBe(true)
+    const end = advanceTo(log, initState(), 1, 1).state
+    expect(Object.values(end.lines).some(l => l.min > 0)).toBe(true)
+  })
+
+  it('handles overtime labels and counts', () => {
+    const ot = games.find(g => periodCount(g.log) >= 5)
+    expect(ot).toBeTruthy()
+    expect(periodLabel(1)).toBe('Q1')
+    expect(periodLabel(5)).toBe('OT')
+    expect(periodLabel(6)).toBe('2OT')
+    expect(periodMs(4)).toBe(15000)
+    expect(periodMs(5)).toBe(6250)
+  })
+
+  it('isHot / onPace / elapsedFraction', () => {
+    expect(isHot(18, 10, 0.5)).toBe(true)
+    expect(isHot(12, 10, 0.5)).toBe(false)
+    expect(isHot(9, 0, 0.5)).toBe(false)
+    expect(isHot(30, null, 0.5)).toBe(false)
+    expect(onPace(10, 0.5)).toBe(20)
+    expect(onPace(0, 0)).toBe(0)
+    expect(elapsedFraction(2, 0.5)).toBe(0.375)
+    expect(elapsedFraction(5, 1)).toBe(53 / 48)
+  })
+
+  it('benchLine sums and standout picks the biggest over-performer', () => {
+    const { log } = games[0]
+    const f = finalState(log)
+    const ids = Object.keys(f.lines).slice(0, 3)
+    const b = benchLine(f, ids)
+    expect(b.pts).toBe(ids.reduce((s, i) => s + f.lines[i].pts, 0))
+    expect(b.min).toBe(ids.reduce((s, i) => s + f.lines[i].min, 0))
+    expect(b.byPeriod.reduce((s, x) => s + x, 0)).toBe(b.pts)
+    expect(benchLine(f, []).pts).toBe(0)
+    const st = { ...f, lines: { a: { ...b, pts: 10 }, b: { ...b, pts: 12 } } }
+    expect(standout(st, { a: 2, b: 20 }, 1, ['a', 'b'])).toBe('a')
+    expect(standout(st, { a: 2 }, 1, ['a', 'b'])).toBe('b')
+    expect(standout(st, {}, 1, [])).toBeNull()
+  })
+})
