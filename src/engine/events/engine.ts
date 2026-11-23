@@ -6,10 +6,10 @@ import { applyEffects } from './effects'
 import type { EventCtx, EventDef, EventWhen } from './types'
 import type { EventLogEntry, Subjects } from './state'
 
-/** Chance a roll fires an event, by frequency setting and moment. ~15–25 a season on "lots". */
+/** Chance a roll fires an event, by frequency setting and moment. ~20 a season on "lots" (a season is 40 games per team). */
 export const EVENT_TUNING = {
-  some: { preGame: 0.05, day: 0.02, postGame: 0.02 },
-  lots: { preGame: 0.12, day: 0.05, postGame: 0.05 },
+  some: { preGame: 0.12, day: 0.05, postGame: 0.04 },
+  lots: { preGame: 0.28, day: 0.12, postGame: 0.1 },
 } as const
 
 const HISTORY_MAX = 100
