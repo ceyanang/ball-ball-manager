@@ -25,14 +25,36 @@ export function rookieSalary(slot: DraftSlot): number {
 }
 export const rookieYears = (slot: DraftSlot) => (slot.round === 1 ? 3 : 2)
 
-function generateProspects(l: League, rng: Rng): { ids: string[]; scout: DraftState['scout'] } {
+const FIRST_ROUND = 30
+const FIRST_ROUND_FLOOR = 68
+
+/** Target OVR of each prospect, best first. Slot-shaped: a Flagg/Wemby type up top, then 68+ through the first round. */
+export function prospectTargets(rng: Rng): { target: number; generational: boolean }[] {
+  const out: { target: number; generational: boolean }[] = []
+  for (let r = 0; r < PROSPECTS; r++) {
+    if (r >= FIRST_ROUND) {
+      out.push({ target: Math.max(42, Math.min(62, Math.round(rng.normal(54, 5.5)))), generational: false })
+      continue
+    }
+    const generational = r < 2 && rng.chance(0.6)
+    if (generational) {
+      out.push({ target: Math.max(77, Math.min(84, Math.round(rng.normal(80, 1.5)))), generational })
+      continue
+    }
+    const base = r === 0 ? 77 : r < 5 ? 79 - 0.9 * r : r < 14 ? 74.5 - 0.55 * (r - 5) : 70.5 - 0.15 * (r - 14)
+    out.push({ target: Math.max(FIRST_ROUND_FLOOR, Math.round(base + rng.normal(0, 1.2))), generational })
+  }
+  return out.sort((a, b) => b.target - a.target)
+}
+
+export function generateProspects(l: League, rng: Rng): { ids: string[]; scout: DraftState['scout'] } {
   const ids: string[] = []
   const scout: DraftState['scout'] = {}
+  const targets = prospectTargets(rng)
   for (let i = 0; i < PROSPECTS; i++) {
     const elite = i < 8
-    const generational = i < 2 && rng.chance(0.6)
-    const target = Math.round(generational ? rng.normal(69, 2) : elite ? rng.normal(65, 3) : rng.normal(54, 5.5))
-    const p = generatePlayer(rng, { season: l.season + 1, age: rng.int(19, 22), targetOvr: Math.max(42, Math.min(74, target)) })
+    const { target, generational } = targets[i]
+    const p = generatePlayer(rng, { season: l.season + 1, age: rng.int(19, 22), targetOvr: target })
     const o = ovr(p)
     p.pot = Math.max(o + 3, Math.min(97, Math.round(o + rng.normal(generational ? 30 : elite ? 20 : 16, generational ? 3 : 6) - (p.age - 19) * 2)))
     p.morale = 60
