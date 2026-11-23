@@ -5,7 +5,7 @@ import { bestStartingFive } from '../sim/rotation'
 import { simGame } from '../sim/game'
 import type { PlayEvent } from '../sim/playlog'
 import { computeStandings } from '../standings'
-import { addNews, isRookie } from '../stories/highlights'
+import { addNews, isRookie, isSophomore } from '../stories/highlights'
 import { ping } from '../stories/inbox'
 import { fanOf, gameScore, popularity } from '../stories/sentiment'
 import { clamp, storyRng } from '../stories/state'
@@ -26,7 +26,8 @@ export function allStarDayFor(games: Game[], season: number): number {
 }
 
 const isGuard = (p: Player) => p.pos === 'PG' || p.pos === 'SG'
-const isSoph = (l: League, p: Player) => (p.draft ? p.draft.season === l.season - 2 : l.season === 1 && p.age >= 22 && p.age <= 23)
+/** Second-year players; in season 1 (no drafts yet) the slightly older young players stand in for the class. */
+const isSoph = (l: League, p: Player) => isSophomore(l, p) || (!p.draft && l.season === 1 && p.age >= 22 && p.age <= 23)
 
 interface Form { gsPg: number; mpg: number; gp: number }
 

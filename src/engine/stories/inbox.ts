@@ -26,6 +26,22 @@ export function ping(l: League, kind: InboxKind, key: string, title: string, bod
   return item
 }
 
+/** Summer notes that still matter once the new season starts: slipping contracts, Hall of Fame calls, breakouts. */
+const summerKeeper = (i: InboxItem) => i.kind === 'contract' || i.key.startsWith('hof:') || i.key.startsWith('breakout:')
+
+/**
+ * New season, clean desk: everything from earlier seasons is time-bound (injuries, All-Star, deadline, coach and
+ * morale warnings, expiring deals), so it is dismissed. Open offers and the past summer's keepers stay.
+ */
+export function clearStaleInbox(l: League): void {
+  for (const i of l.inbox) {
+    if (i.dismissed || i.season >= l.season || i.offer?.status === 'open') continue
+    if (i.season === l.season - 1 && i.phase === 'offseason' && summerKeeper(i)) continue
+    i.dismissed = true
+    i.read = true
+  }
+}
+
 const stamp = (l: League) => (l.phase === 'offseason' ? `${l.season}o${l.offseason?.faDay ?? 0}` : `${l.season}d${l.day}`)
 
 export function injuryPing(l: League, p: Player, inj: Injury): void {

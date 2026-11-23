@@ -125,9 +125,11 @@ describe('season end', () => {
     // Fake a long career: induction is all about the score.
     l.awards.push(...Array.from({ length: 10 }, (_, i) => ({ ...l.awards[0], season: 10 + i })))
     expect(careerScore(l, mvp)).toBeGreaterThanOrEqual(HOF_SCORE)
+    // Season 1's retirements may already have sent an original-roster great to the Hall.
+    const before = l.hof.length
     expect(induct(l, [mvp])).toEqual([mvp])
     expect(induct(l, [mvp])).toEqual([])
-    expect(l.hof).toHaveLength(1)
+    expect(l.hof).toHaveLength(before + 1)
   })
 })
 
