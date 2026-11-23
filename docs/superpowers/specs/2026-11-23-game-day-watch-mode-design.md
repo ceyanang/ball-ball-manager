@@ -64,7 +64,7 @@ The owner picked **A**.
 - **Shots:** each field-goal attempt launches a ball from the shooter's card. Makes arc into the rim, drop through the net (net swish, "+2/+3" pops). Misses clank off and bounce away. **Free throws get a ball too** (owner asked): one short, flatter shot per attempt, a beat apart, "+1" on makes, feed line "🎯 X at the line: 1/2". Rebounds, assists, steals, blocks update numbers and the feed without a flying ball (builder may add a small effect).
 - **Speed:** 1× / 2× / 4× toggle, changeable mid-quarter. **Skip to final** jumps straight to the final recap.
 - **Quarter breaks:** after each quarter the replay pauses. The court blurs behind a recap: score, who leads, the standout performer, and a compact line (PTS/REB/AST/FG/3P) for all ten starters plus the two bench totals. A button starts the next quarter.
-- **Player sheet:** at a break, tapping any player (either team) opens a sheet with the full game line so far (PTS, REB, AST, STL, BLK, TOV, FG, 3P, FG%, MIN, +/-), points by quarter, "on pace for X tonight, ±Y vs his average", and a link to his player page.
+- **Player sheet:** at a break, tapping any player (either team) opens a sheet with the full game line so far (PTS, REB, AST, STL, BLK, TOV, FG, 3P, FG%, MIN, +/-), points by quarter, and "on pace for X tonight, ±Y vs his average". The link to his player page appears only on the final recap, because that page already includes tonight's game (my call, to keep the no-spoilers rule).
 - **End of game:** final recap (win/loss), then back to Home showing the result normally.
 - **Overtime:** each OT period plays like a short quarter ("OT", "2OT"), with a break before it.
 - Also works in the playoffs (header shows the series, e.g. "Game 5 · Series tied 2–2").
@@ -84,6 +84,8 @@ The owner picked **A**.
 - **The result is final before you watch.** The day is simmed and saved when you hit Watch. If the app closes mid-game, the game already counted; watch mode does not resume (it just isn't shown). Acceptable trade-off for approach A.
 - **The play log is not saved.** It lives in memory only for the game being watched, so saves don't grow. No other screen uses it in this version.
 - **Quarter length:** about 15 seconds of real time at 1× for a 12-minute quarter (≈ 4 s at 4×). OT proportionally shorter.
+- **Numbers from before the game:** records, series state and season averages on the watch screen come from the league as it was before the sim (the store still holds it). This matters when a Finals clincher moves the league into the offseason. Hot-streak and "on pace" use the averages for the current part of the season (regular season, or playoffs once he has playoff games).
+- **Blocks and and-ones:** a blocked shot is a ball that gets swatted away, with "BLK" in the feed. An and-one is a make followed by its free throw.
 - **Reduced motion:** with `prefers-reduced-motion`, no flying balls or pops; numbers and feed still update.
 - **Stat ticks:** a stat bumps the moment its play is reached (rebound on the rebound event, assist with the make).
 
