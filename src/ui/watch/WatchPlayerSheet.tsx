@@ -29,7 +29,7 @@ export function WatchPlayerSheet({ player, team, line, ppg, frac, periods, final
   const signed = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n)}`
   const cells: [string, string | number][] = [
     ['PTS', line.pts], ['REB', line.reb], ['AST', line.ast], ['STL', line.stl], ['BLK', line.blk], ['TOV', line.tov],
-    ['FG', `${line.fgm}/${line.fga}`], ['3P', `${line.tpm}/${line.tpa}`],
+    ['FG', `${line.fgm}/${line.fga}`], ['3P', `${line.tpm}/${line.tpa}`], ['FT', `${line.ftm}/${line.fta}`],
     ['FG%', line.fga ? `${Math.round((line.fgm / line.fga) * 100)}%` : '—'], ['MIN', Math.round(line.min)], ['+/-', signed(line.pm)],
   ]
 

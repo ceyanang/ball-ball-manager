@@ -39,7 +39,7 @@ export function QuarterBreak({ title, scoreText, leader, standout, rows, button,
       <div className="w-lines" role="table" aria-label="Box score so far">
         <div role="row" className="w-lines-head">
           <span role="columnheader" />
-          {['PTS', 'REB', 'AST', 'FG', '3P'].map((h) => <span key={h} role="columnheader">{h}</span>)}
+          {['PTS', 'REB', 'AST', 'FG', '3P', 'FT'].map((h) => <span key={h} role="columnheader">{h}</span>)}
         </div>
         {rows.flatMap((r) => [{ r, sub: false }, ...(r.children && open.has(r.key) ? r.children.map((c) => ({ r: c, sub: true })) : [])]).map(({ r, sub }, i) => {
           return (
@@ -57,6 +57,7 @@ export function QuarterBreak({ title, scoreText, leader, standout, rows, button,
               <span role="cell">{r.line.ast}</span>
               <span role="cell">{r.line.fgm}/{r.line.fga}</span>
               <span role="cell">{r.line.tpm}/{r.line.tpa}</span>
+              <span role="cell">{r.line.ftm}/{r.line.fta}</span>
             </div>
           )
         })}
