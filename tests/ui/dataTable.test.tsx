@@ -120,4 +120,12 @@ describe('DataTable', () => {
       expect(render({ filters, cards: true, collapseFilters: false })).not.toContain('<details')
     })
   })
+  it('leaves a custom cell blank when it returns null instead of showing a dash', () => {
+    const cols: Column<Row>[] = [
+      { key: 'name', label: 'Player', defaultDir: 'asc', value: (r) => r.name },
+      { key: 'act', label: '', defaultDir: 'asc', sortable: false, value: () => null, cell: () => null },
+    ]
+    const html = render({ columns: cols })
+    expect(html).not.toContain('—')
+  })
 })

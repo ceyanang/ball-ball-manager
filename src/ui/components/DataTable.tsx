@@ -76,7 +76,7 @@ export function DataTable<T>({ rows, columns, rowKey, groups, filters, defaultSo
               key={c.key}
               className={[c.align === 'left' ? 'left' : '', c.mobile ? `m-${c.mobile}` : ''].filter(Boolean).join(' ') || undefined}
               data-label={cards && !c.mobile && c.label ? c.label : undefined}
-            >{c.cell?.(r) ?? c.text?.(r) ?? c.value(r) ?? '—'}</td>
+            >{c.cell ? c.cell(r) : (c.text?.(r) ?? c.value(r) ?? '—')}</td>
           ))}
         </tr>
         {extra ? <tr className="offer-row"><td colSpan={columns.length}>{extra}</td></tr> : null}

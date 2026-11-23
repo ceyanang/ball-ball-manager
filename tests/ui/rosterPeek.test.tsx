@@ -32,4 +32,9 @@ describe('RosterPeekView', () => {
   it('renders nothing for an unknown team instead of crashing', () => {
     expect(() => render('nope')).not.toThrow()
   })
+  it('does not link players away, so a staged trade is never lost by tapping a name', () => {
+    const html = render(league.userTeamId)
+    expect(html).not.toContain('href="/player/')
+    expect(html).toContain('pname')
+  })
 })

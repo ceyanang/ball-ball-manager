@@ -7,14 +7,18 @@ import { DataTable, type Column } from './DataTable'
 import { OvrPill } from './OvrPill'
 import { PlayerCell } from './PlayerCell'
 
-/** A team's roster: Starters/Bench groups by default, every stat sortable, filterable by position, name or stat range. */
+/**
+ * A team's roster: Starters/Bench groups by default, every stat sortable, filterable by position, name or stat range.
+ * `compact` is the peek-sheet mode: filters tucked away and names are plain text, so tapping one can't navigate away
+ * from (and lose) an in-progress trade.
+ */
 export function RosterTable({ league, team, players, mode: initial = 'pg', compact }: { league: League; team: Team; players: Player[]; mode?: StatMode; compact?: boolean }) {
   const [mode, setMode] = useState<StatMode>(initial)
   const columns = useMemo<Column<Player>[]>(() => rosterColumns(league, mode).map((c) => {
-    if (c.key === 'player') return { ...c, cell: (p: Player) => <PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /> }
+    if (c.key === 'player') return { ...c, cell: (p: Player) => <PlayerCell league={league} p={p} subtitle={archetypeFor(p)} plain={compact} /> }
     if (c.key === 'ovr') return { ...c, cell: (p: Player) => <OvrPill value={ovrOf(p)} pot={p.pot} /> }
     return c
-  }), [league, mode])
+  }), [league, mode, compact])
   const groups = useMemo(() => groupRoster(team, players), [team, players])
   return (
     <div className="stack">

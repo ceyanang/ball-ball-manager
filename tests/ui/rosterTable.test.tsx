@@ -32,4 +32,7 @@ describe('RosterTable', () => {
     expect(html).toContain('type="search"')
     expect(html).toContain('aria-label="Stat to filter"')
   })
+  it('links player names to their page by default', () => {
+    expect(html).toContain('href="/player/')
+  })
 })
