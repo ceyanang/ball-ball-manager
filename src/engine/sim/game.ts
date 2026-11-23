@@ -3,7 +3,7 @@ import { computeOvr } from '../player/ratings'
 import type { Rng } from '../rng'
 import type { BoxLine, Coach, CoachStyle, GameResult, Player, Team } from '../types'
 import type { PlayEvent, Side } from './playlog'
-import { gameLineup, lineupPenalties, minutesTargets } from './rotation'
+import { gameLineup, lineupPenalties, minutesTargets, SLOTS, slotFit } from './rotation'
 import { chooseSubs, isBlowout, returnStarterSwaps, SUB } from './subs'
 
 /** Tuning constants (calibrated by the realism tests). */
@@ -18,19 +18,19 @@ export const K = {
   commonFoul: 0.07,
   rimBase: 0.6,
   midBase: 0.39,
-  threeBase: 0.332,
+  threeBase: 0.325,
   shooterK: 0.004,
   defK: 0.003,
   defenseStyle: 0.015,
-  home: 0.008,
-  blockRim: 0.11,
+  home: 0.014,
+  blockRim: 0.125,
   blockMid: 0.035,
   foulRim: 0.22,
   foulMid: 0.08,
   foulThree: 0.03,
   andOne: 0.45,
   orebBase: 0.24,
-  usageExp: 2.4,
+  usageExp: 3.1,
   threeStyle: 1.25,
   /** Make-probability lost per OVR point of out-of-position cost (C at PG ≈ −6.5%). */
   oopShot: 0.0025,
@@ -38,6 +38,11 @@ export const K = {
   oopDef: 0.5,
   /** Make-probability per morale point away from 60 (≈ ±1.6% at the extremes). */
   morale: 0.0004,
+  /** Make-probability the trailing offense gains per point behind (capped at `rubberCap` points): pressing, the leader coasting. */
+  rubber: 0.0035,
+  rubberCap: 25,
+  /** Personal fouls that disqualify a player. */
+  foulOut: 6,
 }
 
 /**
@@ -58,14 +63,19 @@ export const FATIGUE = {
   quarterBreak: 8,
   halftime: 25,
   /** Fatigue starts to cost below this energy. */
-  line: 65,
-  /** Make-probability lost per point of energy under the line. */
-  shot: 0.003,
+  line: 72,
+  /** Make-probability lost per point of energy under the line (the cost grows: see `fatigueCost`). */
+  shot: 0.0022,
+  /** Points under the line at which the shooting/turnover cost has doubled. */
+  ramp: 30,
   /** Defensive rating lost per point under the line. */
   def: 1.3,
   /** Turnover probability added per point under the line. */
   tov: 0.0012,
 }
+
+/** Shooting/turnover weight of `under` energy points below the line: gentle at first, steep when exhausted. */
+export const fatigueCost = (under: number): number => under * (1 + under / FATIGUE.ramp)
 
 /** Energy lost by `p` over one minute on the floor. */
 export function drainPerMinute(p: Player, hot: boolean): number {
@@ -170,19 +180,40 @@ export function simGame(
     c.onCourt = next
     refreshPen(c)
   }
+  const fouledOut = (c: Ctx) => c.ids.filter((id) => box[id].pf >= K.foulOut)
+  /** Disqualified players leave the floor for the best-fitting eligible sitter (a planned DNP only as a last resort). */
+  const foulOutSwaps = (c: Ctx) => {
+    const out = fouledOut(c)
+    const court = [...c.onCourt]
+    const swaps: { slot: number; out: string; in: string }[] = []
+    court.forEach((id, slot) => {
+      if (!out.includes(id)) return
+      const free = c.ids.filter((x) => !court.includes(x) && !out.includes(x))
+      const ready = free.filter((x) => !(c.plan && c.plan[x] === 0))
+      const pool = ready.length ? ready : free
+      if (!pool.length) return
+      const pick = pool.reduce((b, x) => (slotFit(players[x], SLOTS[slot]) > slotFit(players[b], SLOTS[slot]) ? x : b))
+      swaps.push({ slot, out: id, in: pick })
+      court[slot] = pick
+    })
+    return swaps
+  }
   /** The coach's per-minute swaps (no RNG). */
   const subStep = (side: Side, minuteInPeriod: number, periodMinutes: number) => {
     const c = sides[side]
     if (c.onCourt.length !== STARTERS) return
     const margin = score[side] - score[other(side)]
     if (isBlowout(periodNo, Math.abs(margin))) c.blowoutSeen = true
+    applySwaps(side, foulOutSwaps(c))
+    const out = fouledOut(c)
+    const starters = c.starters.filter((id) => !out.includes(id))
     applySwaps(side, chooseSubs({
       period: periodNo, minuteInPeriod, periodMinutes, elapsed, gameMinutes: 48 + OT_MIN * ot, margin, onCourt: c.onCourt,
-      sitting: c.ids.filter((id) => !c.onCourt.includes(id)), stint: c.stint, played: c.played, target: c.target,
-      starters: c.starters, players, blowoutSeen: c.blowoutSeen, energy,
+      sitting: c.ids.filter((id) => !c.onCourt.includes(id) && !out.includes(id)), stint: c.stint, played: c.played, target: c.target,
+      starters, players, blowoutSeen: c.blowoutSeen, energy,
       dnp: c.plan ? c.ids.filter((id) => c.plan![id] === 0 && !c.starters.includes(id)) : undefined,
     }))
-    if (c.blowoutSeen && Math.abs(margin) < SUB.blowoutReturn && c.starters.every((id) => c.onCourt.includes(id))) c.blowoutSeen = false
+    if (c.blowoutSeen && Math.abs(margin) < SUB.blowoutReturn && starters.every((id) => c.onCourt.includes(id))) c.blowoutSeen = false
   }
 
   const addPoints = (off: Side, pts: number, shooter: string, shot = true) => {
@@ -227,15 +258,21 @@ export function simGame(
     return lastMade
   }
 
+  /** A defender picks up a foul: the one guarding the play is likelier (bigs at the rim, wings on the perimeter). */
+  const foul = (d: string[], guard: 'perD' | 'intD') => {
+    const id = rng.weighted(d, (id) => 40 + R(id)[guard])
+    box[id].pf++
+  }
+
   const possession = (off: Side) => {
     const o = sides[off].onCourt, d = sides[other(off)].onCourt
     const oStyle = sides[off].style, dStyle = sides[other(off)].style
-    if (rng.chance(K.commonFoul)) box[rng.pick(d)].pf++
+    if (rng.chance(K.commonFoul)) foul(d, 'perD')
     // Turnover
     const handler = rng.weighted(o, (id) => usage[id] * R(id).handle)
     const hr = R(handler)
     const oPen = sides[off].pen, dPen = sides[other(off)].pen
-    const tovP = K.tovBase + (mean(d, (id) => R(id).stl) - K.pivot) * 0.0015 - ((hr.handle + hr.iq) / 2 - K.pivot) * 0.0015 + (oPen[handler] ?? 0) * 0.001 + tired(handler) * FATIGUE.tov
+    const tovP = K.tovBase + (mean(d, (id) => R(id).stl) - K.pivot) * 0.0015 - ((hr.handle + hr.iq) / 2 - K.pivot) * 0.0015 + (oPen[handler] ?? 0) * 0.001 + fatigueCost(tired(handler)) * FATIGUE.tov
     if (rng.chance(tovP)) {
       box[handler].tov++
       emit({ k: 'tov', side: off, player: handler })
@@ -260,14 +297,15 @@ export function simGame(
         : K.threeBase + (r.three - K.pivot) * K.shooterK - (perD - K.pivot) * K.defK * 0.67
       p += ((r.iq + r.ath) / 2 - K.pivot) * 0.001
       p -= (oPen[shooter] ?? 0) * K.oopShot
-      p -= tired(shooter) * FATIGUE.shot
+      p -= fatigueCost(tired(shooter)) * FATIGUE.shot
       p += ((players[shooter].morale ?? 60) - 60) * K.morale
       if (dStyle === 'defense') p -= K.defenseStyle
       if (off === 'home') p += K.home
+      p += Math.min(K.rubberCap, Math.max(0, score[other(off)] - score[off])) * K.rubber
       const pts = type === 'three' ? 3 : 2
       const foulP = type === 'rim' ? K.foulRim : type === 'mid' ? K.foulMid : K.foulThree
       if (rng.chance(foulP)) {
-        box[rng.pick(d)].pf++
+        foul(d, type === 'rim' ? 'intD' : 'perD')
         if (rng.chance(p * K.andOne)) {
           box[shooter].fga++
           box[shooter].fgm++
@@ -337,7 +375,7 @@ export function simGame(
         } else if (opening && i === 0) {
           // Second-half tip: the starters return unless the game is already decided.
           if (isBlowout(3, Math.abs(score.home - score.away))) c.blowoutSeen = true
-          else applySwaps(s, returnStarterSwaps(c.onCourt, c.starters, players))
+          else applySwaps(s, returnStarterSwaps(c.onCourt, c.starters.filter((id) => !fouledOut(c).includes(id)), players))
         } else subStep(s, i, stints.length)
       }
       for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].onCourt) sides[s].played[id] += sl

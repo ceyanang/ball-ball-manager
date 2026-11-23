@@ -39,8 +39,8 @@ export const SUB = {
   allowBase: 7,
   allowStam: 6,
   /** Blowout: |margin| to start resting starters in Q3 / Q4+, and the margin under which they return. */
-  blowoutQ3: 28,
-  blowoutQ4: 24,
+  blowoutQ3: 24,
+  blowoutQ4: 20,
   blowoutReturn: 12,
   blowoutShove: 6,
   /** Clutch: last minutes of Q4/OT within this margin → no resting swaps. */

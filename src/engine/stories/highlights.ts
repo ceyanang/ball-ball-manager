@@ -9,10 +9,13 @@ export function addNews(l: League, n: Omit<NewsItem, 'id' | 'season' | 'day' | '
   return item
 }
 
-/** Drafted last summer; in the first season (no drafts yet), the youngest players count as rookies. */
+/** First-season rookie cutoff: young and not yet an established player (a 21-year-old superstar is no rookie). */
+const SEASON1_ROOKIE_MAX_OVR = 78
+
+/** Drafted last summer; in the first season (no drafts yet), the youngest unestablished players count as rookies. */
 export function isRookie(l: League, p: Player, season = l.season): boolean {
   if (p.draft) return p.draft.season === season - 1
-  return season === 1 && p.age <= 21
+  return season === 1 && p.age <= 21 && ovr(p) < SEASON1_ROOKIE_MAX_OVR
 }
 
 const reb = (b: BoxLine) => b.oreb + b.dreb
