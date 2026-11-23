@@ -626,6 +626,14 @@ button, a, select, input, label { touch-action: manipulation; }
   .asset-name { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.15; }
 }
 
+/* Tap targets on touch screens: text links and checkboxes get a ~40px hit area without changing how they look. */
+@media (max-width: 720px), (pointer: coarse) {
+  a.link { position: relative; }
+  a.link::after { content: ''; position: absolute; left: -4px; right: -4px; top: 50%; height: 40px; transform: translateY(-50%); }
+  label:has(> input[type='checkbox']) { min-height: 40px; align-items: center; }
+  input[type='checkbox'] { width: 1.3rem; height: 1.3rem; }
+}
+
 /* New league: the start button sticks to the bottom; the seed hides under "Advanced". */
 .start-bar { position: sticky; bottom: 0.75rem; z-index: 15; display: flex; justify-content: center; padding: 0.6rem; border-radius: 14px;
   background: color-mix(in srgb, var(--surface-2) 92%, transparent); border: 1px solid var(--line); box-shadow: 0 8px 28px rgba(0,0,0,0.5);
