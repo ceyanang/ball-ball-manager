@@ -7,6 +7,7 @@ import type { GameResult, Team } from '../../src/engine/types'
 import {
   advanceTo, beatsAverage, benchLine, clockText, describePlays, elapsedFraction, finalState, initState, isHot, onPace, periodCount,
   periodLabel, periodMs, shotDelays, shotMs, ftGapMs, standout, sittingIds, courtCard,
+  cardIdFor, describeSub, eventCards,
 } from '../../src/ui/watch/replay'
 
 const league = createLeague({ seed: 1, userTeamIndex: 0, name: 'G' })
@@ -204,5 +205,31 @@ describe('replay court model', () => {
     expect(courtCard(after, sub.side, sub.out)).toBeNull()
     expect(courtCard(after, sub.side, sub.in)).toBe(sub.slot)
     expect(courtCard(initState(), 'home', 'x')).toBeNull()
+  })
+})
+
+describe('watch card helpers', () => {
+  const court = { home: ['h0', 'h1', 'h2', 'h3', 'h4'], away: ['a0', 'a1', 'a2', 'a3', 'a4'] }
+  const sideOf = { h0: 'home', h1: 'home', h5: 'home', a0: 'away' } as const
+  const legacy = { h0: 'h0', h1: 'h1', h5: 'bench-home', a0: 'a0' }
+  const sub = (out: string, inn: string, slot: number): PlayEvent => ({ k: 'sub', side: 'home', out, in: inn, slot, period: 1, t: 0.5 })
+  const fg = (player: string, side: 'home' | 'away' = 'home'): PlayEvent => ({ k: 'fg', side, player, made: true, three: false, home: 2, away: 0, period: 1, t: 0.5 })
+
+  it('describeSub names the incoming and outgoing players', () => {
+    const last = (id: string) => ({ g: 'Garcia', l: 'Lee' } as Record<string, string>)[id] ?? '?'
+    expect(describeSub({ k: 'sub', side: 'home', out: 'l', in: 'g', slot: 1, period: 2, t: 0.1 }, last)).toBe('🔁 Garcia in for Lee')
+  })
+  it('cardIdFor puts a player on his slot card, a sitter on the bench card, and a legacy log on the old card', () => {
+    expect(cardIdFor(court, 'home', 'h1', 'x')).toBe('home-slot-1')
+    expect(cardIdFor(court, 'home', 'h5', 'x')).toBe('bench-home')
+    expect(cardIdFor(null, 'home', 'h5', 'bench-home')).toBe('bench-home')
+    expect(cardIdFor(null, 'home', 'h1', 'h1')).toBe('h1')
+  })
+  it('eventCards resolves each shot against the court as of that event, inside one batch', () => {
+    const batch = [fg('h1'), sub('h1', 'h5', 1), fg('h5'), fg('h1'), fg('a0', 'away')]
+    expect(eventCards(court, batch, sideOf, legacy)).toEqual(['home-slot-1', '', 'home-slot-1', 'bench-home', 'away-slot-0'])
+  })
+  it('eventCards on a legacy log uses the old card ids', () => {
+    expect(eventCards(null, [fg('h1'), fg('h5')], sideOf, legacy)).toEqual(['h1', 'bench-home'])
   })
 })

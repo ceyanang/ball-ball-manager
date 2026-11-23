@@ -106,6 +106,35 @@ export function courtCard(state: ReplayState, side: Side, playerId: string): num
   return k < 0 ? null : k
 }
 
+type Court = Record<Side, string[]> | null
+
+/** The card a player's shots fly from: his slot card, or the side's bench card when sitting. A legacy log keeps `legacyCard`. */
+export function cardIdFor(court: Court, side: Side, id: string, legacyCard: string): string {
+  if (!court) return legacyCard
+  const k = court[side].indexOf(id)
+  return k < 0 ? `bench-${side}` : `${side}-slot-${k}`
+}
+
+/**
+ * The card for each event in a fired batch, resolved against the court as it stands at that event (lineup and sub
+ * events in the batch move it). Non-shot events get ''.
+ */
+export function eventCards(court0: Court, fired: PlayEvent[], sideOf: Record<string, Side>, legacy: Record<string, string>): string[] {
+  let court = court0
+  return fired.map((e) => {
+    if (e.k === 'lineup') { court = { home: court?.home ?? [], away: court?.away ?? [], [e.side]: [...e.players] }; return '' }
+    if (e.k === 'sub') {
+      if (court) court = { ...court, [e.side]: court[e.side].map((id, k) => (k === e.slot ? e.in : id)) }
+      return ''
+    }
+    if (e.k !== 'fg' && e.k !== 'ft') return ''
+    return cardIdFor(court, sideOf[e.player], e.player, legacy[e.player])
+  })
+}
+
+/** Feed line for a swap. */
+export const describeSub = (e: Extract<PlayEvent, { k: 'sub' }>, last: (id: string) => string): string => `🔁 ${last(e.in)} in for ${last(e.out)}`
+
 /** Sum of the given players' live lines (byPeriod element-wise). */
 export function benchLine(state: ReplayState, ids: string[]): LiveLine {
   const out = blank()

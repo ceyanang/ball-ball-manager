@@ -8,8 +8,8 @@ import { useStore, type WatchSession } from '../store'
 import { fullName, seasonLine, teamFull } from '../util'
 import { QuarterBreak, type RecapRow } from './QuarterBreak'
 import {
-  advanceTo, beatsAverage, benchLine, clockText, describePlays, elapsedFraction, finalState, initState, isHot,
-  periodCount, periodLabel, periodMs, shotDelays, shotMs, standout, type ReplayState,
+  advanceTo, beatsAverage, benchLine, clockText, describePlays, describeSub, elapsedFraction, eventCards, finalState, initState, isHot,
+  periodCount, periodLabel, periodMs, shotDelays, shotMs, sittingIds, standout, type ReplayState,
 } from './replay'
 import { WatchCard } from './WatchCard'
 import { WatchPlayerSheet } from './WatchPlayerSheet'
@@ -55,12 +55,16 @@ function useMatchup(watch: WatchSession, game: Game) {
     const teamOf: Record<Side, Team> = { home: before.teams[game.homeId], away: before.teams[game.awayId] }
     const starters: Record<Side, string[]> = { home: [], away: [] }
     const bench: Record<Side, string[]> = { home: [], away: [] }
+    const all: Record<Side, string[]> = { home: [], away: [] }
+    const sideOfPlayer: Record<string, Side> = {}
     const cardOf: Record<string, string> = {}
     const players: Record<string, Player> = {}
     const ppg: Record<string, number | null> = {}
     for (const b of box) {
       const side = sideOf(b.teamId)
       ;(b.gs ? starters : bench)[side].push(b.playerId)
+      all[side].push(b.playerId)
+      sideOfPlayer[b.playerId] = side
       cardOf[b.playerId] = b.gs ? b.playerId : `bench-${side}`
       const p = before.players[b.playerId]
       if (!p) continue
@@ -79,7 +83,7 @@ function useMatchup(watch: WatchSession, game: Game) {
       const leader = before.teams[series.highWins > series.lowWins ? series.highSeedId : series.lowSeedId]
       meta = `Playoffs · Game ${game.playoff.gameNum} · ${hi === lo ? `Series tied ${hi}–${lo}` : `${leader.abbrev} leads ${hi}–${lo}`}`
     }
-    return { userSide, oppSide, teamOf, starters, bench, cardOf, players, ppg, record, meta }
+    return { userSide, oppSide, teamOf, starters, bench, all, sideOfPlayer, cardOf, players, ppg, record, meta }
   }, [watch, game])
 }
 
@@ -190,20 +194,28 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   }
 
   /** Balls for every shot in a batch; free throws a beat apart (after the make on an and-one). */
-  function animate(fired: PlayEvent[], start: number) {
+  function animate(fired: PlayEvent[], start: number, court: ReplayState['court']) {
     const delays = shotDelays(fired, speedRef.current)
+    const cardIds = eventCards(court, fired, m.sideOfPlayer, m.cardOf)
     fired.forEach((e, i) => {
       const idx = start + i
       if (e.k === 'fg') {
         const kind: ShotKind = e.made ? 'made' : log[idx + 1]?.k === 'blk' ? 'blocked' : 'miss'
-        shoot(m.cardOf[e.player], kind, e.three ? 3 : 2, false, idx)
+        shoot(cardIds[i], kind, e.three ? 3 : 2, false, idx)
       } else if (e.k === 'ft') {
-        later(() => shoot(m.cardOf[e.player], e.made ? 'made' : 'miss', 1, true, idx), delays[i])
+        later(() => shoot(cardIds[i], e.made ? 'made' : 'miss', 1, true, idx), delays[i])
+      } else if (e.k === 'sub') {
+        const el = cards.current.get(`${e.side}-slot-${e.slot}`)
+        if (!el) return
+        el.classList.remove('swap')
+        void el.offsetWidth
+        el.classList.add('swap')
+        later(() => el.classList.remove('swap'), 800)
       }
     })
   }
 
-  const onFired = useEffectEvent((next: ReplayState, fired: PlayEvent[], start: number) => {
+  const onFired = useEffectEvent((next: ReplayState, fired: PlayEvent[], start: number, court: ReplayState['court']) => {
     const now = performance.now()
     let hot: string | null = null
     for (const e of fired) {
@@ -219,10 +231,12 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
       setFeed({ text: hot, hot: true })
       holdUntil.current = now + HOT_HOLD
     } else if (now >= holdUntil.current) {
-      const text = describePlays(fired, (id) => m.players[id]?.lastName ?? '?')
+      const last = (id: string) => m.players[id]?.lastName ?? '?'
+      const subs = fired.filter((e): e is Extract<PlayEvent, { k: 'sub' }> => e.k === 'sub').map((e) => describeSub(e, last))
+      const text = subs.length ? subs.join(' · ') : describePlays(fired, last)
       if (text) setFeed({ text, hot: false })
     }
-    if (!reducedMotion()) animate(fired, start)
+    if (!reducedMotion()) animate(fired, start, court)
   })
 
   // The replay clock: advance t by real time × speed, fire the events reached, pause at the end of each period.
@@ -241,7 +255,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
       if (fired.length) {
         rsRef.current = state
         setRs(state)
-        onFired(state, fired, prev.cursor)
+        onFired(state, fired, prev.cursor, prev.court)
       }
       setClock({ period, t })
       if (t >= 1) {
@@ -279,24 +293,27 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   const us = m.teamOf[m.userSide], them = m.teamOf[m.oppSide]
   const score = (side: Side) => rs[side]
 
-  const row = (side: Side) => (
-    <div className="w-row6">
-      {m.starters[side].map((id) => {
-        const l = lineOf(id)
-        return (
-          <WatchCard key={id} cardId={id} player={m.players[id] ?? null} team={m.teamOf[side]} benchCount={0}
-            pts={l.pts} reb={l.reb} ast={l.ast} hot={isHot(l.pts, m.ppg[id] ?? null, frac)} fav={favs.has(id)} register={register} />
-        )
-      })}
-      {(() => {
-        const b = benchLine(rs, m.bench[side])
-        return (
-          <WatchCard cardId={`bench-${side}`} player={null} team={m.teamOf[side]} benchCount={m.bench[side].length}
-            pts={b.pts} reb={b.reb} ast={b.ast} hot={false} fav={false} register={register} />
-        )
-      })()}
-    </div>
-  )
+  const card = (side: Side, cardId: string, id: string) => {
+    const l = lineOf(id)
+    return (
+      <WatchCard key={cardId} cardId={cardId} player={m.players[id] ?? null} team={m.teamOf[side]} benchCount={0}
+        pts={l.pts} reb={l.reb} ast={l.ast} hot={isHot(l.pts, m.ppg[id] ?? null, frac)} fav={favs.has(id)} register={register} />
+    )
+  }
+  const row = (side: Side) => {
+    // New logs: five slot cards (a swap changes who stands in a slot) + a bench card of everyone sitting right now.
+    // Legacy logs (no lineup events): the starters + one lump of everyone who didn't start.
+    const court = rs.court?.[side]
+    const sitting = court ? sittingIds(m.all[side], court) : m.bench[side]
+    const b = benchLine(rs, sitting)
+    return (
+      <div className="w-row6">
+        {court ? court.map((id, k) => card(side, `${side}-slot-${k}`, id)) : m.starters[side].map((id) => card(side, id, id))}
+        <WatchCard cardId={`bench-${side}`} player={null} team={m.teamOf[side]} benchCount={sitting.length}
+          pts={b.pts} reb={b.reb} ast={b.ast} hot={false} fav={false} register={register} />
+      </div>
+    )
+  }
 
   const teamHead = (t: Team) => (
     <div className="w-teamhead"><h2>{teamFull(t)}</h2><span className="w-rec">{m.record(t)}</span></div>
@@ -334,7 +351,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   }
 
   const sheetPlayer = sheetId ? m.players[sheetId] ?? null : null
-  const sheetTeam = sheetId ? m.teamOf[m.starters.home.includes(sheetId) ? 'home' : 'away'] : null
+  const sheetTeam = sheetId ? m.teamOf[m.sideOfPlayer[sheetId] ?? 'away'] : null
 
   return (
     <div className="w-screen">

@@ -117,3 +117,12 @@
 .w-ovr.tier-gold { background: #ffc83d; }
 .w-ovr.tier-purple { background: #a45bff; color: #fff; }
 .w-ovr.tier-dual { background: linear-gradient(135deg, #d5dce8 0 48%, #ffc83d 52% 100%); }
+
+/* A swap: the new player drops into his slot with a gold flash. */
+.w-card.swap { animation: w-swap 0.8s ease-out; }
+@keyframes w-swap {
+  0% { transform: translateY(-16px); opacity: 0.25; box-shadow: 0 0 0 2px var(--gold), 0 0 16px var(--gold); }
+  45% { transform: none; opacity: 1; box-shadow: 0 0 0 2px var(--gold), 0 0 16px var(--gold); }
+  100% { transform: none; opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) { .w-card.swap { animation: none; } }
