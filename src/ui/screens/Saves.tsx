@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { exportSave, listSaves, type SaveMeta } from '../../save/db'
 import { useStore } from '../store'
+import { SoundPanel } from '../components/SoundPanel'
 
 export function Saves() {
   const [saves, setSaves] = useState<SaveMeta[]>([])
@@ -24,6 +25,7 @@ export function Saves() {
   return (
     <div className="stack">
       <h1>Saves</h1>
+      <SoundPanel />
       <div className="row" style={{ flexWrap: 'wrap' }}>
         <button className="btn btn-primary" disabled={busy} onClick={() => navigate('/new')}>New league</button>
         <button className="btn" disabled={!league} onClick={download}>Export current league</button>
