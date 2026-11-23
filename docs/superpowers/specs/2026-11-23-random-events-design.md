@@ -95,6 +95,10 @@ New effects are one small function each; events only reference them by name.
 4. After the day, a `postGame` event can fire (e.g. after a big win/loss, a blowout, a record).
 5. Not answering (e.g. the user presses sim again) is not an option: the event waits as `pending` until answered, except `day` events which have a "Skip" that expires them with no effect. (My call.)
 
+### Sim to next event (added at approval)
+
+A new sim button, **"Sim to next event"**, plays days until the next pop-up fires and stops there (or at the end of the phase if none fires). Because every event is a pause, it stops at the *next event of any kind* (a player request, a prank, whatever comes first). A "requests only" version would need auto-skipping the others, so it is out of scope for v1. It is `simUntil` with `target: 'event'`.
+
 ### Frequency
 
 Setting on the League/settings: **Off / Some / Lots** (default **Lots**), roughly one event per 3–5 team game days at "Lots" (~15–25 a season), fewer at "Some". Cooldown per event; global max one pending at a time.
