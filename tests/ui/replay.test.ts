@@ -5,7 +5,8 @@ import { simGame } from '../../src/engine/sim/game'
 import { boxFromLog, type PlayEvent } from '../../src/engine/sim/playlog'
 import type { GameResult, Team } from '../../src/engine/types'
 import {
-  advanceTo, benchLine, elapsedFraction, finalState, initState, isHot, onPace, periodCount, periodLabel, periodMs, standout,
+  advanceTo, beatsAverage, benchLine, clockText, describePlays, elapsedFraction, finalState, initState, isHot, onPace, periodCount,
+  periodLabel, periodMs, standout,
 } from '../../src/ui/watch/replay'
 
 const league = createLeague({ seed: 1, userTeamIndex: 0, name: 'G' })
@@ -110,5 +111,39 @@ describe('replay model', () => {
     expect(standout(st, { a: 2, b: 20 }, 1, ['a', 'b'])).toBe('a')
     expect(standout(st, { a: 2 }, 1, ['a', 'b'])).toBe('b')
     expect(standout(st, {}, 1, [])).toBeNull()
+  })
+
+  it('describePlays narrates the newest play', () => {
+    const at = { period: 1, t: 0.5 }
+    const last = (id: string) => id.toUpperCase()
+    const fg = (player: string, made: boolean, three = false): PlayEvent => ({ ...at, k: 'fg', side: 'home', player, made, three, home: 0, away: 0 })
+    const ft = (player: string, made: boolean): PlayEvent => ({ ...at, k: 'ft', side: 'home', player, made, home: 0, away: 0 })
+    const ev = (k: 'reb' | 'ast' | 'stl' | 'blk' | 'tov', player: string, extra: object = {}): PlayEvent =>
+      ({ ...at, k, side: 'home', player, ...extra }) as PlayEvent
+    expect(describePlays([fg('a', true)], last)).toBe('A scores')
+    expect(describePlays([fg('a', true, true), ev('ast', 'b')], last)).toBe('A from deep · dime from B')
+    expect(describePlays([fg('a', true), ev('ast', 'b'), ft('a', true)], last)).toBe('A scores · dime from B · and one! 🎯 A at the line: 1/1')
+    expect(describePlays([fg('a', false), ev('reb', 'c', { off: false })], last)).toBe('A misses · C with the board')
+    expect(describePlays([fg('a', false, true), ev('reb', 'c', { off: true })], last)).toBe('A misses from three · C grabs the offensive board')
+    expect(describePlays([fg('a', false), ev('blk', 'd'), ev('reb', 'c', { off: false })], last)).toBe('🚫 BLK! D swats A · C with the board')
+    expect(describePlays([ft('a', true), ft('a', false), ev('reb', 'c', { off: false })], last)).toBe('🎯 A at the line: 1/2 · C with the board')
+    expect(describePlays([ev('tov', 'a'), ev('stl', 'e')], last)).toBe("E picks A's pocket")
+    expect(describePlays([ev('tov', 'a')], last)).toBe('A turns it over')
+    // Newest segment wins: a miss, then the putback.
+    expect(describePlays([fg('a', false), ev('reb', 'c', { off: true }), fg('c', true)], last)).toBe('C scores')
+    expect(describePlays([{ period: 1, t: 1, k: 'periodEnd', min: {}, pm: {} }], last)).toBeNull()
+    expect(describePlays([], last)).toBeNull()
+  })
+
+  it('beatsAverage and clockText', () => {
+    expect(beatsAverage(12, 11.5)).toBe(true)
+    expect(beatsAverage(11, 11.5)).toBe(false)
+    expect(beatsAverage(8, 4.2)).toBe(false)
+    expect(beatsAverage(30, null)).toBe(false)
+    expect(clockText(1, 0)).toBe('12:00')
+    expect(clockText(1, 0.5)).toBe('6:00')
+    expect(clockText(2, 1)).toBe('0:00')
+    expect(clockText(5, 0)).toBe('5:00')
+    expect(clockText(3, 0.999)).toBe('0:01')
   })
 })

@@ -1,0 +1,409 @@
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { computeStandings } from '../../engine/standings'
+import { perGame, playerSeasonStats } from '../../engine/stats/stats'
+import type { PlayEvent, Side } from '../../engine/sim/playlog'
+import type { Game, League, Player, Team } from '../../engine/types'
+import { useStore, type WatchSession } from '../store'
+import { fullName, seasonLine, teamFull } from '../util'
+import { QuarterBreak, type RecapRow } from './QuarterBreak'
+import {
+  advanceTo, beatsAverage, benchLine, clockText, describePlays, elapsedFraction, finalState, initState, isHot,
+  periodCount, periodLabel, periodMs, standout, type ReplayState,
+} from './replay'
+import { WatchCard } from './WatchCard'
+import { WatchPlayerSheet } from './WatchPlayerSheet'
+import './watch.css'
+
+type Phase = 'play' | 'break' | 'final'
+type ShotKind = 'made' | 'miss' | 'blocked'
+
+const SPEEDS = [1, 2, 4] as const
+/** A hot-streak callout stays on the feed at least this long (ms of real time). */
+const HOT_HOLD = 2500
+const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+
+/** Full-screen replay of the user's game. Shell renders only this while a watch session is open (no spoilers). */
+export function WatchGame() {
+  const watch = useStore((s) => s.watch)
+  const league = useStore((s) => s.league)
+  const endWatch = useStore((s) => s.endWatch)
+  const navigate = useNavigate()
+  const game = watch && league ? league.games.find((g) => g.id === watch.gameId) : undefined
+  if (!watch || !league || !game?.result) {
+    return (
+      <div className="w-screen">
+        <div className="w-wrap">
+          <p className="muted">This game can’t be replayed.</p>
+          <button className="btn btn-primary" onClick={() => { endWatch(); navigate('/') }}>Done</button>
+        </div>
+      </div>
+    )
+  }
+  return <WatchView key={watch.gameId} watch={watch} league={league} game={game} />
+}
+
+/** Everything about the matchup that doesn't change while watching; records and averages come from before the game. */
+function useMatchup(watch: WatchSession, game: Game) {
+  return useMemo(() => {
+    const { before } = watch
+    const box = game.result!.box
+    const userHome = game.homeId === before.userTeamId
+    const sideOf = (teamId: string): Side => (teamId === game.homeId ? 'home' : 'away')
+    const userSide: Side = userHome ? 'home' : 'away'
+    const oppSide: Side = userHome ? 'away' : 'home'
+    const teamOf: Record<Side, Team> = { home: before.teams[game.homeId], away: before.teams[game.awayId] }
+    const starters: Record<Side, string[]> = { home: [], away: [] }
+    const bench: Record<Side, string[]> = { home: [], away: [] }
+    const cardOf: Record<string, string> = {}
+    const players: Record<string, Player> = {}
+    const ppg: Record<string, number | null> = {}
+    for (const b of box) {
+      const side = sideOf(b.teamId)
+      ;(b.gs ? starters : bench)[side].push(b.playerId)
+      cardOf[b.playerId] = b.gs ? b.playerId : `bench-${side}`
+      const p = before.players[b.playerId]
+      if (!p) continue
+      players[p.id] = p
+      ppg[p.id] = seasonPpg(before, p)
+    }
+    const rows = Object.values(computeStandings(before, before.season)).flat()
+    const record = (t: Team) => {
+      const r = rows.find((x) => x.teamId === t.id)
+      return r ? `${r.w}–${r.l}` : ''
+    }
+    let meta = `Day ${game.day} · ${userHome ? 'Home' : 'Road'}`
+    const series = game.playoff && before.playoffs?.series.find((s) => s.id === game.playoff!.seriesId)
+    if (game.playoff && series) {
+      const hi = Math.max(series.highWins, series.lowWins), lo = Math.min(series.highWins, series.lowWins)
+      const leader = before.teams[series.highWins > series.lowWins ? series.highSeedId : series.lowSeedId]
+      meta = `Playoffs · Game ${game.playoff.gameNum} · ${hi === lo ? `Series tied ${hi}–${lo}` : `${leader.abbrev} leads ${hi}–${lo}`}`
+    }
+    return { userSide, oppSide, teamOf, starters, bench, cardOf, players, ppg, record, meta }
+  }, [watch, game])
+}
+
+/** Season ppg for the current part of the season: playoff average once he has playoff games. */
+function seasonPpg(before: League, p: Player): number | null {
+  if (before.phase === 'playoffs') {
+    const s = playerSeasonStats(before, p.id, before.season, true)
+    if (s && s.gp > 0) return perGame(s).pts
+  }
+  return seasonLine(before, p)?.pg.pts ?? null
+}
+
+function WatchView({ watch, league, game }: { watch: WatchSession; league: League; game: Game }) {
+  const navigate = useNavigate()
+  const endWatch = useStore((s) => s.endWatch)
+  const toggleFavorite = useStore((s) => s.toggleFavorite)
+  const m = useMatchup(watch, game)
+  const { log } = watch
+  const nPeriods = Math.max(1, periodCount(log))
+  const favs = useMemo(() => new Set(league.favoritePlayerIds), [league.favoritePlayerIds])
+
+  const [rs, setRs] = useState<ReplayState>(initState)
+  const [clock, setClock] = useState({ period: 1, t: 0 })
+  const [phase, setPhase] = useState<Phase>('play')
+  const [speed, setSpeed] = useState<number>(1)
+  const [feed, setFeed] = useState<{ text: string; hot: boolean }>({ text: `Tip-off in ${m.teamOf.home.city}…`, hot: false })
+  const [sheetId, setSheetId] = useState<string | null>(null)
+
+  const rsRef = useRef(rs)
+  const clockRef = useRef(clock)
+  const speedRef = useRef(speed)
+  const announced = useRef(new Set<string>())
+  const holdUntil = useRef(0)
+  const timers = useRef(new Set<number>())
+  const cards = useRef(new Map<string, HTMLElement>())
+  const fxRef = useRef<HTMLDivElement>(null)
+  const rimRef = useRef<HTMLDivElement>(null)
+  const netRef = useRef<HTMLDivElement>(null)
+
+  const register = useCallback((id: string, el: HTMLElement | null) => {
+    if (el) cards.current.set(id, el)
+    else cards.current.delete(id)
+  }, [])
+  const later = (fn: () => void, ms: number) => {
+    const id = window.setTimeout(() => { timers.current.delete(id); fn() }, ms)
+    timers.current.add(id)
+  }
+  const clearFx = () => {
+    for (const id of timers.current) clearTimeout(id)
+    timers.current.clear()
+    fxRef.current?.replaceChildren()
+  }
+  useEffect(() => clearFx, [])
+
+  /** Flies a ball from a card to the rim: made = through the net, miss = off the rim, blocked = swatted away. */
+  function shoot(cardId: string, kind: ShotKind, pts: number, ft: boolean, salt: number) {
+    const fx = fxRef.current, card = cards.current.get(cardId), rim = rimRef.current
+    if (!fx || !card || !rim) return
+    const box = fx.getBoundingClientRect(), c = card.getBoundingClientRect(), r = rim.getBoundingClientRect()
+    const cx = r.left - box.left + r.width / 2 - 9, rimY = r.top - box.top + r.height / 2 - 9
+    const sx = c.left - box.left + c.width / 2 - 9
+    const above = c.top + c.height / 2 < r.top
+    const sy = above ? c.bottom - box.top - 24 : c.top - box.top
+    const apex = Math.min(sy, rimY) - (ft ? 35 : 70)
+    const dur = (ft ? 600 : 900) / Math.sqrt(speedRef.current)
+    const dir = salt % 2 ? 1 : -1
+    const at = (x: number, y: number, deg: number) => `translate(${x}px, ${y}px) rotate(${deg}deg)`
+    const frames: Keyframe[] =
+      kind === 'made' ? [
+        { transform: at(sx, sy, 0), offset: 0 },
+        { transform: at((sx + cx) / 2, apex, 200), offset: 0.45 },
+        { transform: at(cx, rimY - 14, 330), offset: 0.72 },
+        { transform: at(cx, rimY + 4, 360), offset: 0.82 },
+        { transform: at(cx, rimY + 34, 380), opacity: 1, offset: 0.95 },
+        { transform: at(cx, rimY + 40, 390), opacity: 0, offset: 1 },
+      ]
+      : kind === 'miss' ? [
+        { transform: at(sx, sy, 0), offset: 0 },
+        { transform: at((sx + cx) / 2, apex, 200), offset: 0.45 },
+        { transform: at(cx + dir * 18, rimY - 6, 330), offset: 0.75 },
+        { transform: at(cx + dir * 60, rimY - 40, 420), offset: 0.88 },
+        { transform: at(cx + dir * 90, rimY + 20, 470), opacity: 0, offset: 1 },
+      ]
+      : [
+        { transform: at(sx, sy, 0), offset: 0 },
+        { transform: at(sx + (cx - sx) * 0.4, sy + (apex - sy) * 0.8, 120), offset: 0.4 },
+        { transform: at(sx + (cx - sx) * 0.4 + dir * 140, sy + (above ? -30 : 30), 520), opacity: 0, offset: 1 },
+      ]
+    const ball = document.createElement('div')
+    ball.className = 'w-ball'
+    fx.appendChild(ball)
+    ball.animate(frames, { duration: kind === 'blocked' ? dur * 0.7 : dur, easing: 'linear' }).onfinish = () => ball.remove()
+    if (kind !== 'made') return
+    later(() => {
+      netRef.current?.animate(
+        [{ transform: 'translateX(-50%) scaleY(1)' }, { transform: 'translateX(-50%) scaleY(1.35)' }, { transform: 'translateX(-50%) scaleY(1)' }],
+        { duration: 400 },
+      )
+      const pop = document.createElement('div')
+      pop.className = 'w-float'
+      pop.textContent = `+${pts}`
+      pop.style.left = `${cx + 30}px`
+      pop.style.top = `${rimY - 10}px`
+      fx.appendChild(pop)
+      pop.animate([{ transform: 'none', opacity: 1 }, { transform: 'translateY(-34px)', opacity: 0 }], { duration: 900, fill: 'forwards' }).onfinish = () => pop.remove()
+    }, dur * 0.82)
+  }
+
+  /** Balls for every shot in a batch; free throws a beat apart (after the make on an and-one). */
+  function animate(fired: PlayEvent[], start: number) {
+    const gap = 420 / Math.sqrt(speedRef.current)
+    let delay = 0
+    let prev: PlayEvent | null = null
+    fired.forEach((e, i) => {
+      const idx = start + i
+      if (e.k === 'fg') {
+        const next = log[idx + 1]
+        const kind: ShotKind = e.made ? 'made' : next?.k === 'blk' ? 'blocked' : 'miss'
+        shoot(m.cardOf[e.player], kind, e.three ? 3 : 2, false, idx)
+        delay = 0
+      } else if (e.k === 'ft') {
+        const continues = prev && (prev.k === 'fg' || prev.k === 'ft') && prev.player === e.player && prev.t === e.t
+        delay = !continues ? 0 : prev!.k === 'fg' ? 900 / Math.sqrt(speedRef.current) : delay + gap
+        later(() => shoot(m.cardOf[e.player], e.made ? 'made' : 'miss', 1, true, idx), delay)
+      }
+      if (e.k !== 'periodEnd') prev = e
+    })
+  }
+
+  const onFired = useEffectEvent((next: ReplayState, fired: PlayEvent[], start: number) => {
+    const now = performance.now()
+    let hot: string | null = null
+    for (const e of fired) {
+      if ((e.k !== 'fg' && e.k !== 'ft') || !e.made || announced.current.has(e.player)) continue
+      const pts = next.lines[e.player]?.pts ?? 0, avg = m.ppg[e.player] ?? null
+      const p = m.players[e.player]
+      if (p && avg !== null && beatsAverage(pts, avg)) {
+        announced.current.add(e.player)
+        hot = `🔥 ${fullName(p)} already has ${pts}. He averages ${avg.toFixed(1)}.`
+      }
+    }
+    if (hot) {
+      setFeed({ text: hot, hot: true })
+      holdUntil.current = now + HOT_HOLD
+    } else if (now >= holdUntil.current) {
+      const text = describePlays(fired, (id) => m.players[id]?.lastName ?? '?')
+      if (text) setFeed({ text, hot: false })
+    }
+    if (!reducedMotion()) animate(fired, start)
+  })
+
+  // The replay clock: advance t by real time × speed, fire the events reached, pause at the end of each period.
+  useEffect(() => {
+    if (phase !== 'play') return
+    let raf = 0
+    let last = performance.now()
+    const tick = (now: number) => {
+      const dt = Math.min(100, Math.max(0, now - last))
+      last = now
+      const { period } = clockRef.current
+      const t = Math.min(1, clockRef.current.t + (dt * speedRef.current) / periodMs(period))
+      clockRef.current = { period, t }
+      const prev = rsRef.current
+      const { state, fired } = advanceTo(log, prev, period, t)
+      if (fired.length) {
+        rsRef.current = state
+        setRs(state)
+        onFired(state, fired, prev.cursor)
+      }
+      setClock({ period, t })
+      if (t >= 1) {
+        setPhase(period >= nPeriods ? 'final' : 'break')
+        return
+      }
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [phase, log, nPeriods])
+
+  const nextPeriod = () => {
+    const period = clockRef.current.period + 1
+    clockRef.current = { period, t: 0 }
+    setClock(clockRef.current)
+    setFeed({ text: `${periodLabel(period)} is under way`, hot: false })
+    setPhase('play')
+  }
+  const skipToFinal = () => {
+    clearFx()
+    const f = finalState(log)
+    rsRef.current = f
+    clockRef.current = { period: nPeriods, t: 1 }
+    setRs(f)
+    setClock(clockRef.current)
+    setFeed({ text: 'Final', hot: false })
+    setPhase('final')
+  }
+  const done = () => { endWatch(); navigate('/') }
+
+  const frac = elapsedFraction(clock.period, clock.t)
+  const lineOf = (id: string) => rs.lines[id] ?? benchLine(rs, [])
+  const us = m.teamOf[m.userSide], them = m.teamOf[m.oppSide]
+  const score = (side: Side) => rs[side]
+
+  const row = (side: Side) => (
+    <div className="w-row6">
+      {m.starters[side].map((id) => {
+        const l = lineOf(id)
+        return (
+          <WatchCard key={id} cardId={id} player={m.players[id] ?? null} team={m.teamOf[side]} benchCount={0}
+            pts={l.pts} reb={l.reb} ast={l.ast} hot={isHot(l.pts, m.ppg[id] ?? null, frac)} fav={favs.has(id)} register={register} />
+        )
+      })}
+      {(() => {
+        const b = benchLine(rs, m.bench[side])
+        return (
+          <WatchCard cardId={`bench-${side}`} player={null} team={m.teamOf[side]} benchCount={m.bench[side].length}
+            pts={b.pts} reb={b.reb} ast={b.ast} hot={false} fav={false} register={register} />
+        )
+      })()}
+    </div>
+  )
+
+  const teamHead = (t: Team) => (
+    <div className="w-teamhead"><h2>{teamFull(t)}</h2><span className="w-rec">{m.record(t)}</span></div>
+  )
+
+  const breakView = () => {
+    const final = phase === 'final'
+    const diff = score(m.userSide) - score(m.oppSide)
+    const ot = nPeriods > 4 ? `/${periodLabel(nPeriods)}` : ''
+    const title = final ? `Final${ot} · ${diff > 0 ? 'You win 🎉' : 'L 😤'}` : `End of ${periodLabel(clock.period)}`
+    const leader = diff === 0 ? 'Tied' : `${(diff > 0 ? us : them).name} by ${Math.abs(diff)}`
+    const all = [...m.starters.home, ...m.starters.away, ...m.bench.home, ...m.bench.away]
+    const sid = standout(rs, m.ppg, frac, all)
+    const sp = sid ? m.players[sid] : null
+    const avg = sid ? m.ppg[sid] ?? null : null
+    const standoutText = sp ? `👀 Standout: ${fullName(sp)}, ${lineOf(sid!).pts} pts${avg !== null ? ` (avg ${avg.toFixed(1)})` : ''}` : null
+    const rows: RecapRow[] = []
+    for (const side of [m.userSide, m.oppSide]) {
+      const team = m.teamOf[side]
+      for (const id of m.starters[side]) rows.push({ key: id, name: m.players[id]?.lastName ?? '?', playerId: id, team, fav: favs.has(id), line: lineOf(id) })
+      rows.push({ key: `bench-${side}`, name: `${team.abbrev} bench`, playerId: null, team, fav: false, line: benchLine(rs, m.bench[side]) })
+    }
+    return (
+      <QuarterBreak
+        title={title}
+        scoreText={`${us.abbrev} ${score(m.userSide)} – ${score(m.oppSide)} ${them.abbrev}`}
+        leader={leader}
+        standout={standoutText}
+        rows={rows}
+        button={final ? 'Done' : `Start ${periodLabel(clock.period + 1)} ▶`}
+        onButton={final ? done : nextPeriod}
+        onPick={setSheetId}
+      />
+    )
+  }
+
+  const sheetPlayer = sheetId ? m.players[sheetId] ?? null : null
+  const sheetTeam = sheetId ? m.teamOf[m.starters.home.includes(sheetId) ? 'home' : 'away'] : null
+
+  return (
+    <div className="w-screen">
+      <div className="w-wrap">
+        <div className="w-top">
+          <span className="w-meta">🏀 {m.meta}</span>
+          {phase !== 'final' && <button className="btn" onClick={skipToFinal}>Exit</button>}
+        </div>
+
+        <div className="w-court">
+          <div className="w-play" inert={phase !== 'play'}>
+            {teamHead(them)}
+            {row(m.oppSide)}
+            <div className="w-mid">
+              <div className="w-qbox" aria-label={`${periodLabel(clock.period)}, ${clockText(clock.period, clock.t)} left`}>
+                <div className="w-q">{periodLabel(clock.period)}</div>
+                <div className="w-clock">{clockText(clock.period, clock.t)}</div>
+              </div>
+              <div className="w-hoop" aria-hidden="true">
+                <div className="w-board" />
+                <div className="w-rim" ref={rimRef} />
+                <div className="w-net" ref={netRef} />
+              </div>
+              <div className="w-score" aria-label={`${them.name} ${score(m.oppSide)}, ${us.name} ${score(m.userSide)}`}>
+                <div className="w-n them"><small>{them.abbrev}</small>{score(m.oppSide)}</div>
+                <div className="w-sep" />
+                <div className="w-n us"><small>{us.abbrev}</small>{score(m.userSide)}</div>
+              </div>
+            </div>
+            {row(m.userSide)}
+            {teamHead(us)}
+            {/* Only hot callouts fade in: at 4× plays change faster than a fade. */}
+            <div className="w-feed"><span key={feed.hot ? feed.text : 'play'} className={`w-ev${feed.hot ? ' hot' : ''}`}>{feed.text}</span></div>
+          </div>
+          <div className="w-fx" ref={fxRef} aria-hidden="true" />
+          {phase !== 'play' && breakView()}
+        </div>
+
+        {phase !== 'final' && (
+          <div className="w-controls">
+            <div className="w-speed" role="group" aria-label="Speed">
+              {SPEEDS.map((s) => (
+                <button key={s} aria-pressed={speed === s} onClick={() => { speedRef.current = s; setSpeed(s) }}>{s}×</button>
+              ))}
+            </div>
+            <span className="w-spacer" />
+            <button className="btn" onClick={skipToFinal}>Skip to final</button>
+          </div>
+        )}
+      </div>
+
+      <WatchPlayerSheet
+        player={sheetPlayer}
+        team={sheetTeam}
+        line={sheetId ? lineOf(sheetId) : benchLine(rs, [])}
+        ppg={sheetId ? m.ppg[sheetId] ?? null : null}
+        frac={frac}
+        periods={clock.period}
+        final={phase === 'final'}
+        fav={!!sheetId && favs.has(sheetId)}
+        onToggleFav={() => sheetId && toggleFavorite(sheetId)}
+        onClose={() => setSheetId(null)}
+        onOpenPage={() => { const id = sheetId; endWatch(); navigate(`/player/${id}`) }}
+      />
+    </div>
+  )
+}

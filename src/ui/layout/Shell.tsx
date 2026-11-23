@@ -9,6 +9,7 @@ import { Icon } from '../components/Icon'
 import { Sheet } from '../components/Sheet'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { activeTab, MORE_GROUPS, OFFSEASON, SIDEBAR, TABS } from '../nav'
+import { WatchGame } from '../watch/WatchGame'
 
 function phaseLabel(l: League, short = false): string {
   if (l.phase === 'regular') return short ? `Day ${l.day}` : `Season ${l.season} · Day ${l.day}`
@@ -21,6 +22,8 @@ export function Shell() {
   const error = useStore((s) => s.error)
   const clearError = useStore((s) => s.clearError)
   const notice = useStore((s) => s.notice)
+  const watching = useStore((s) => s.watch !== null)
+  const endWatch = useStore((s) => s.endWatch)
   const clearNotice = useStore((s) => s.clearNotice)
   const { pathname } = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
@@ -39,6 +42,9 @@ export function Shell() {
   const moreGroups = offseason ? [{ title: 'Now', items: [OFFSEASON] }, ...MORE_GROUPS] : MORE_GROUPS
   const tab = activeTab(pathname)
   const inboxBadge = unread > 0 && <span className="nav-count" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>
+
+  // Watching a game: nothing else in the app is rendered, so nothing can spoil the result.
+  if (watching) return <ErrorBoundary onReset={endWatch}><WatchGame /></ErrorBoundary>
 
   return (
     <div className="shell">

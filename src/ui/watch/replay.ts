@@ -124,3 +124,53 @@ export function standout(state: ReplayState, ppg: Record<string, number | null>,
   }
   return best
 }
+
+/** Hot-streak callout: he has passed his season average (and at least 10 points). */
+export const beatsAverage = (pts: number, ppg: number | null) => ppg !== null && pts >= 10 && pts > ppg
+
+/** Game clock left in the period: 12:00 per quarter, 5:00 per OT. */
+export function clockText(period: number, t: number): string {
+  const secs = Math.ceil((1 - Math.min(1, Math.max(0, t))) * (period <= 4 ? 720 : 300) - 1e-9)
+  return `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`
+}
+
+/**
+ * Feed line for the newest play in a batch of fired events. A shot, a free-throw trip or a turnover starts a play;
+ * assists, blocks, rebounds and steals (and an and-one free throw) attach to it.
+ */
+export function describePlays(events: PlayEvent[], last: (id: string) => string): string | null {
+  type Play = { head: PlayEvent; ast?: string; blk?: string; reb?: { id: string; off: boolean }; stl?: string; ft: { m: number; a: number; who: string } | null }
+  let cur: Play | null = null
+  for (const e of events) {
+    if (e.k === 'periodEnd') continue
+    if (e.k === 'fg' || e.k === 'tov') cur = { head: e, ft: null }
+    else if (e.k === 'ft') {
+      const andOne = cur?.head.k === 'fg' && cur.head.made && cur.head.player === e.player && !cur.reb
+      const sameTrip = cur?.head.k === 'ft' && cur.head.player === e.player && !cur.reb
+      if (!cur || !(andOne || sameTrip)) cur = { head: e, ft: { m: 0, a: 0, who: e.player } }
+      cur.ft ??= { m: 0, a: 0, who: e.player }
+      cur.ft.a++
+      if (e.made) cur.ft.m++
+    } else {
+      cur ??= { head: e, ft: null }
+      if (e.k === 'ast') cur.ast = e.player
+      else if (e.k === 'blk') cur.blk = e.player
+      else if (e.k === 'stl') cur.stl = e.player
+      else if (e.k === 'reb') cur.reb = { id: e.player, off: e.off }
+    }
+  }
+  if (!cur) return null
+  const { head } = cur
+  const line = (ft: Play['ft']) => `🎯 ${last(ft!.who)} at the line: ${ft!.m}/${ft!.a}`
+  const reb = cur.reb ? ` · ${last(cur.reb.id)} ${cur.reb.off ? 'grabs the offensive board' : 'with the board'}` : ''
+  switch (head.k) {
+    case 'fg':
+      if (head.made) return `${last(head.player)} ${head.three ? 'from deep' : 'scores'}${cur.ast ? ` · dime from ${last(cur.ast)}` : ''}${cur.ft ? ` · and one! ${line(cur.ft)}` : ''}`
+      if (cur.blk) return `🚫 BLK! ${last(cur.blk)} swats ${last(head.player)}${reb}`
+      return `${last(head.player)} misses${head.three ? ' from three' : ''}${reb}`
+    case 'ft': return `${line(cur.ft)}${reb}`
+    case 'tov': return cur.stl ? `${last(cur.stl)} picks ${last(head.player)}'s pocket` : `${last(head.player)} turns it over`
+    case 'reb': return `${last(head.player)} ${head.off ? 'grabs the offensive board' : 'with the board'}`
+    default: return null
+  }
+}
