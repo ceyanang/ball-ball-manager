@@ -114,6 +114,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     for (const p of rosters[ti]) {
       if (stars.has(p.id)) continue
       for (const k of Object.keys(p.ratings) as (keyof Player['ratings'])[]) p.ratings[k] = Math.max(RATING_MIN, Math.min(99, p.ratings[k] + q))
+      p.pot = Math.max(ovr(p), Math.min(99, p.pot + q)) // the ceiling moves with the ratings, or the shift just snaps back
     }
   })
 

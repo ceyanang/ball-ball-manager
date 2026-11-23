@@ -32,6 +32,18 @@ describe('offseason development', () => {
     expect(worse).toBeGreaterThan(5)
   })
 
+  it('nobody outgrows his ceiling in a normal offseason', () => {
+    for (let s = 0; s < 3; s++) {
+      const l = structuredClone(base)
+      const before = Object.fromEntries(Object.values(l.players).map((p) => [p.id, { o: ovr(p), pot: p.pot }]))
+      startOffseason(l, Rng.fromSeed(700 + s))
+      for (const p of Object.values(l.players)) {
+        if (p.retired || !before[p.id]) continue // the new draft class has no 'before'
+        expect(ovr(p)).toBeLessThanOrEqual(Math.max(before[p.id].o, before[p.id].pot))
+      }
+    }
+  })
+
   it('players in their prime or still young rarely crater in one summer', () => {
     let n = 0, big = 0
     for (let s = 0; s < 3; s++) {

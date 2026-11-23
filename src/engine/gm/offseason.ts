@@ -36,7 +36,7 @@ function progressPlayer(p: Player, rng: Rng, coachDev: number, minutes: number, 
   else if (p.age <= 29) delta = Math.max(delta, -2.5)
   // The very top is hard to climb: gains shrink past 84 and nobody grows beyond his ceiling.
   if (delta > 0 && o >= 84) delta *= o >= 90 ? 0.25 : 0.45
-  if (delta > 0) delta = Math.min(delta, gap + (invested ? 2 : 1))
+  if (delta > 0) delta = Math.min(delta, gap + (invested ? 2 : 0))
   const target = Math.round(o + delta)
   const w = POSITION_WEIGHTS[p.pos]
   const dir = Math.sign(target - o)
@@ -50,7 +50,7 @@ function progressPlayer(p: Player, rng: Rng, coachDev: number, minutes: number, 
   // Through 29 a dip leaves potential in place (a small one is still recoverable); 30+ the ceiling is today.
   if (p.age >= 30) p.pot = ovr(p)
   else if (p.age >= 27) p.pot = Math.max(ovr(p), Math.min(Math.max(p.pot, o - 1), ovr(p) + 30 - p.age))
-  else p.pot = Math.max(ovr(p), Math.min(99, Math.round(p.pot + rng.normal(0, 1.5))))
+  else p.pot = Math.max(ovr(p), Math.min(99, Math.round(p.pot + rng.normal(-0.6, 1.5))))
 }
 
 /**

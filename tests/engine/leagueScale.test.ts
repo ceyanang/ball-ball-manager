@@ -32,4 +32,11 @@ describe('new-league talent scale', () => {
       expect(o.filter((v) => v >= 70).length / o.length).toBeGreaterThanOrEqual(0.4)
     }
   })
+
+  it('keeps every ceiling at or above current OVR after the franchise-quality shift', () => {
+    for (const s of SEEDS) {
+      const l = createLeague({ seed: s, userTeamIndex: 0, name: 'T' })
+      for (const p of Object.values(l.players)) expect(p.pot).toBeGreaterThanOrEqual(computeOvr(p.ratings, p.pos))
+    }
+  })
 })

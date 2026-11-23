@@ -45,7 +45,7 @@ export function generatePlayer(
     fill(shift)
   }
   const ovr = computeOvr(ratings, pos)
-  const pot = clamp(Math.max(ovr, Math.round(ovr + rng.normal(Math.max(0, 27 - age) * 1.6, 4))), ovr, 99)
+  const pot = clamp(Math.max(ovr, Math.round(ovr + rng.normal(Math.max(0, 27 - age) * 1.0, 3))), ovr, 99)
 
   return {
     id: rng.id('p_'),

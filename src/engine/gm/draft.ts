@@ -56,7 +56,7 @@ export function generateProspects(l: League, rng: Rng): { ids: string[]; scout: 
     const { target, generational } = targets[i]
     const p = generatePlayer(rng, { season: l.season + 1, age: rng.int(19, 22), targetOvr: target })
     const o = ovr(p)
-    p.pot = Math.max(o + 3, Math.min(97, Math.round(o + rng.normal(generational ? 30 : elite ? 20 : 16, generational ? 3 : 6) - (p.age - 19) * 2)))
+    p.pot = Math.max(o + 3, Math.min(97, Math.round(o + rng.normal(generational ? 14 : elite ? 9 : 6, generational ? 3 : 4) - (p.age - 19) * 1.5)))
     p.morale = 60
     l.players[p.id] = p
     ids.push(p.id)
