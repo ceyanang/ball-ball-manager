@@ -2,6 +2,7 @@ import { OT_MIN, QUARTER_MIN, STARTERS } from '../constants'
 import { computeOvr } from '../player/ratings'
 import type { Rng } from '../rng'
 import type { BoxLine, Coach, CoachStyle, GameResult, Player, Team } from '../types'
+import type { PlayEvent, Side } from './playlog'
 import { courtPenalties, gameLineup, minutesTargets } from './rotation'
 
 /** Tuning constants (calibrated by the realism tests). */
@@ -38,7 +39,6 @@ export const K = {
   morale: 0.0004,
 }
 
-type Side = 'home' | 'away'
 interface Ctx {
   team: Team
   style: CoachStyle
@@ -59,6 +59,7 @@ export function simGame(
   players: Record<string, Player>,
   coaches: Record<string, Coach>,
   rng: Rng,
+  log?: PlayEvent[],
 ): GameResult {
   const R = (id: string) => players[id].ratings
   const usage: Record<string, number> = {}
@@ -83,6 +84,8 @@ export function simGame(
     }
   }
   const sides: Record<Side, Ctx> = { home: makeSide(home), away: makeSide(away) }
+  const sideOf: Record<string, Side> = {}
+  for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) sideOf[id] = s
   const score: Record<Side, number> = { home: 0, away: 0 }
   const other = (s: Side): Side => (s === 'home' ? 'away' : 'home')
 
@@ -112,6 +115,18 @@ export function simGame(
   type LeadChange = { side: Side; shooter: string; period: number; lastStint: boolean; poss: number; shot: boolean }
   const lead: { last: LeadChange | null } = { last: null }
   const maxDeficit: Record<Side, number> = { home: 0, away: 0 }
+  // Play log only (no RNG): events carry their possession index until the period ends, then become a fraction `t`.
+  let possInPeriod = 0, periodStart = 0
+  type Pending = { e: PlayEvent; idx: number }
+  const pending: Pending[] = []
+  const emit = (e: { [K in PlayEvent['k']]: Omit<Extract<PlayEvent, { k: K }>, 'period' | 't'> }[Exclude<PlayEvent['k'], 'periodEnd'>]) => {
+    if (!log) return
+    const ev = { ...e, period: periodNo, t: 0 } as PlayEvent
+    log.push(ev)
+    pending.push({ e: ev, idx: possInPeriod })
+  }
+  const emitScore = (e: { k: 'fg'; side: Side; player: string; made: boolean; three: boolean } | { k: 'ft'; side: Side; player: string; made: boolean }) =>
+    emit({ ...e, home: score.home, away: score.away })
   const addPoints = (off: Side, pts: number, shooter: string, shot = true) => {
     const wasAhead = score[off] > score[other(off)]
     score[off] += pts
@@ -128,10 +143,14 @@ export function simGame(
     const o = sides[off].onCourt, d = sides[other(off)].onCourt
     const p = K.orebBase + (mean(o, (id) => R(id).oreb) - mean(d, (id) => R(id).dreb)) * 0.003
     if (rng.chance(p)) {
-      box[rng.weighted(o, (id) => R(id).oreb ** 1.5)].oreb++
+      const id = rng.weighted(o, (id) => R(id).oreb ** 1.5)
+      box[id].oreb++
+      emit({ k: 'reb', side: off, player: id, off: true })
       return true
     }
-    box[rng.weighted(d, (id) => R(id).dreb ** 1.5)].dreb++
+    const id = rng.weighted(d, (id) => R(id).dreb ** 1.5)
+    box[id].dreb++
+    emit({ k: 'reb', side: other(off), player: id, off: false })
     return false
   }
 
@@ -145,6 +164,7 @@ export function simGame(
         box[shooter].ftm++
         addPoints(off, 1, shooter, false)
       }
+      emitScore({ k: 'ft', side: off, player: shooter, made: lastMade })
     }
     return lastMade
   }
@@ -160,7 +180,12 @@ export function simGame(
     const tovP = K.tovBase + (mean(d, (id) => R(id).stl) - K.pivot) * 0.0015 - ((hr.handle + hr.iq) / 2 - K.pivot) * 0.0015 + (oPen[handler] ?? 0) * 0.001
     if (rng.chance(tovP)) {
       box[handler].tov++
-      if (rng.chance(K.stealShare)) box[rng.weighted(d, (id) => R(id).stl ** 2)].stl++
+      emit({ k: 'tov', side: off, player: handler })
+      if (rng.chance(K.stealShare)) {
+        const stealer = rng.weighted(d, (id) => R(id).stl ** 2)
+        box[stealer].stl++
+        emit({ k: 'stl', side: other(off), player: stealer })
+      }
       return
     }
     for (let attempt = 0; attempt < 6; attempt++) {
@@ -188,6 +213,7 @@ export function simGame(
           box[shooter].fgm++
           if (pts === 3) { box[shooter].tpa++; box[shooter].tpm++ }
           addPoints(off, pts, shooter)
+          emitScore({ k: 'fg', side: off, player: shooter, made: true, three: pts === 3 })
           maybeAssist(o, shooter, type)
           if (freeThrows(off, shooter, 1) || !rebound(off)) return
           continue
@@ -199,7 +225,10 @@ export function simGame(
       if (pts === 3) box[shooter].tpa++
       const blockP = type === 'rim' ? K.blockRim + (mean(d, (id) => R(id).blk) - K.pivot) * 0.002 : type === 'mid' ? K.blockMid : 0
       if (blockP > 0 && rng.chance(blockP)) {
-        box[rng.weighted(d, (id) => R(id).blk ** 3)].blk++
+        const blocker = rng.weighted(d, (id) => R(id).blk ** 3)
+        box[blocker].blk++
+        emitScore({ k: 'fg', side: off, player: shooter, made: false, three: pts === 3 })
+        emit({ k: 'blk', side: other(off), player: blocker })
         if (!rebound(off)) return
         continue
       }
@@ -207,9 +236,11 @@ export function simGame(
         box[shooter].fgm++
         if (pts === 3) box[shooter].tpm++
         addPoints(off, pts, shooter)
+        emitScore({ k: 'fg', side: off, player: shooter, made: true, three: pts === 3 })
         maybeAssist(o, shooter, type)
         return
       }
+      emitScore({ k: 'fg', side: off, player: shooter, made: false, three: pts === 3 })
       if (!rebound(off)) return
     }
   }
@@ -218,7 +249,9 @@ export function simGame(
     const p = type === 'rim' ? 0.5 : type === 'mid' ? 0.6 : 0.8
     if (!rng.chance(p)) return
     const mates = o.filter((id) => id !== shooter)
-    box[rng.weighted(mates, (id) => R(id).pass ** 4)].ast++
+    const passer = rng.weighted(mates, (id) => R(id).pass ** 4)
+    box[passer].ast++
+    emit({ k: 'ast', side: sideOf[passer], player: passer })
   }
 
   let carry = 0
@@ -227,6 +260,8 @@ export function simGame(
     sides.home.quarters.push(0)
     sides.away.quarters.push(0)
     periodNo++
+    possInPeriod = 0
+    periodStart = pending.length
     stints.forEach((sl, i) => {
       lastStint = i === stints.length - 1
       for (const s of ['home', 'away'] as Side[]) chooseFive(sides[s], isPeriodStart && i === 0)
@@ -238,8 +273,15 @@ export function simGame(
         possNo++
         possession(offense)
         offense = other(offense)
+        possInPeriod++
       }
     })
+    if (log) {
+      for (const { e, idx } of pending.splice(periodStart)) e.t = possInPeriod ? idx / possInPeriod : 0
+      const min: Record<string, number> = {}, pm: Record<string, number> = {}
+      for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) { min[id] = sides[s].played[id]; pm[id] = box[id].pm }
+      log.push({ k: 'periodEnd', period: periodNo, t: 1, min, pm })
+    }
   }
 
   const quarterStints = Array.from({ length: QUARTER_MIN }, () => 1)
