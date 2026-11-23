@@ -29,6 +29,8 @@ export interface DataTableProps<T> {
   defaultSort?: SortState
   /** Render as phone cards (the `m-cards` layout) and add a "Sort by" picker, since the header is hidden on phones. */
   cards?: boolean
+  /** Tuck the filter bar behind a "Filters" toggle (saves phone screen space). Defaults to on for `cards` tables. */
+  collapseFilters?: boolean
   /** Extra full-width row shown under a row (e.g. an inline offer form); null/undefined for none. */
   expanded?: (r: T) => ReactNode
   rowClass?: (r: T) => string | undefined
@@ -39,7 +41,7 @@ export interface DataTableProps<T> {
 const ariaSort = (s: SortState, key: string) => (s?.key === key ? (s.dir === 'asc' ? 'ascending' : 'descending') : 'none')
 const toNum = (s: string) => (s.trim() === '' || Number.isNaN(Number(s)) ? undefined : Number(s))
 
-export function DataTable<T>({ rows, columns, rowKey, groups, filters, defaultSort, cards, expanded, rowClass, emptyText, ariaLabel }: DataTableProps<T>) {
+export function DataTable<T>({ rows, columns, rowKey, groups, filters, defaultSort, cards, collapseFilters, expanded, rowClass, emptyText, ariaLabel }: DataTableProps<T>) {
   const [sort, setSort] = useState<SortState>(defaultSort ?? null)
   const [pos, setPos] = useState<PosFilter>('All')
   const [q, setQ] = useState('')
@@ -84,10 +86,15 @@ export function DataTable<T>({ rows, columns, rowKey, groups, filters, defaultSo
   const sortable = columns.filter((c) => c.sortable !== false)
   const reset = () => { setSort(null); setPos('All'); setQ(''); setMin(''); setMax('') }
   const empty = emptyText ?? 'No players match.'
+  const collapse = collapseFilters ?? !!cards
+
+  const wrapFilters = (bar: ReactNode) => (collapse
+    ? <details className="dt-filter-details"><summary>🔍 Filters{filtering ? ' · on' : ''}</summary>{bar}</details>
+    : bar)
 
   return (
     <div className="stack dt">
-      {filters && (
+      {filters && wrapFilters(
         <div className="filters dt-filters">
           {filters.name && (
             <label className="field">Search

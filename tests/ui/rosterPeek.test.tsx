@@ -21,6 +21,7 @@ describe('RosterPeekView', () => {
     expect(html).toContain(`aria-label="${teamFull(team)}"`)
     expect(html).toContain('Starters')
     expect(html).toContain('STL')
+    expect(html).toContain('<details')
   })
   it('shows another team when given their id', () => {
     const other = Object.values(league.teams).find((t) => t.id !== league.userTeamId)!

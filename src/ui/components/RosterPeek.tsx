@@ -12,7 +12,7 @@ export function RosterPeekView({ league, open, onClose, teamId }: PeekProps & { 
   if (!team) return null
   return (
     <Sheet open={open} onClose={onClose} title={teamFull(team)} wide>
-      {open && <RosterTable league={league} team={team} players={rosterOf(league, team.id)} />}
+      {open && <RosterTable league={league} team={team} players={rosterOf(league, team.id)} compact />}
     </Sheet>
   )
 }

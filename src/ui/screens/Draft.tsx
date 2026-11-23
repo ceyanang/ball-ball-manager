@@ -1,13 +1,19 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { autoPick, currentSlot, draftUntilUser, makePick, releaseRights, rookieSalary, rookieYears, signRights } from '../../engine/gm/draft'
-import { needThresholds, teamNeeds } from '../../engine/gm/needs'
+import { needThresholds, teamNeeds, type NeedLevel } from '../../engine/gm/needs'
 import { archetypeFor } from '../../engine/player/archetype'
+import type { Player } from '../../engine/types'
+import { DataTable, type Column } from '../components/DataTable'
 import { NeedDot, NeedsStrip } from '../components/NeedDot'
+import { NEED_RANK } from '../needRank'
 import { TeamBadge } from '../components/TeamBadge'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
 import { fullName, heightStr, money } from '../util'
+
+type Scout = { ovrLo: number; ovrHi: number; pot: number }
+interface ProspectRow { p: Player; rank: number; sc: Scout; need: NeedLevel; after: NeedLevel }
 
 export function Draft() {
   const league = useStore((s) => s.league)!
@@ -17,7 +23,6 @@ export function Draft() {
   const d = league.draft
   const step = league.offseason?.step
   const [revealed, setRevealed] = useState(step === 'lottery' || step === 'recap' ? 0 : 14)
-  const [pos, setPos] = useState('All')
   if (!d) return <div className="stack"><h1>Draft</h1><p className="notice">The draft lottery happens right after the Finals.</p></div>
 
   const me = league.userTeamId
@@ -25,10 +30,35 @@ export function Draft() {
   const onClock = step === 'draft' && slot?.teamId === me
   const lotteryByPick = [...d.lottery].sort((a, b) => b.pick - a.pick) // reveal 14 → 1
   const shown = new Set(lotteryByPick.slice(0, revealed).map((e) => e.teamId))
-  const board = d.prospects.map((id) => league.players[id]).filter((p) => pos === 'All' || p.pos === pos)
+  const ranked = d.prospects.map((id) => league.players[id])
     .sort((a, b) => (d.scout[b.id].ovrLo + d.scout[b.id].ovrHi + 2 * d.scout[b.id].pot) - (d.scout[a.id].ovrLo + d.scout[a.id].ovrHi + 2 * d.scout[a.id].pot))
   const th = needThresholds(league)
   const needs = teamNeeds(league, me, {}, th)
+  // Big-board rank is fixed by scouting; sorting or filtering the table never renumbers a prospect.
+  const board: ProspectRow[] = ranked.map((p, i) => {
+    const sc = d.scout[p.id]
+    return { p, rank: i + 1, sc, need: needs[p.pos], after: teamNeeds(league, me, { add: [{ pos: p.pos, ovr: Math.round((sc.ovrLo + sc.ovrHi) / 2) }] }, th)[p.pos] }
+  })
+  const boardColumns: Column<ProspectRow>[] = [
+    {
+      key: 'prospect', label: 'Prospect', align: 'left', defaultDir: 'asc', value: (r) => fullName(r.p),
+      cell: (r) => (
+        <div className="pcell">
+          <span className="muted" style={{ width: '1.6rem' }}>{r.rank}</span>
+          <Face seed={r.p.faceSeed} age={r.p.age} colors={{ primary: '#555b66', secondary: '#ffffff' }} size={34} />
+          <span><span className="pname">{fullName(r.p)}</span><span className="sub">{archetypeFor(r.p)}</span></span>
+        </div>
+      ),
+    },
+    { key: 'rank', label: '#', title: 'Big-board rank', defaultDir: 'asc', value: (r) => r.rank },
+    { key: 'pos', label: 'Pos', align: 'left', defaultDir: 'asc', value: (r) => r.p.pos },
+    { key: 'need', label: 'Need', defaultDir: 'desc', value: (r) => NEED_RANK[r.need], cell: (r) => <NeedDot level={r.need} after={r.after} /> },
+    { key: 'age', label: 'Age', defaultDir: 'asc', value: (r) => r.p.age },
+    { key: 'ht', label: 'Ht', defaultDir: 'desc', value: (r) => r.p.heightIn, text: (r) => heightStr(r.p.heightIn) },
+    { key: 'ovr', label: 'OVR est.', defaultDir: 'desc', value: (r) => (r.sc.ovrLo + r.sc.ovrHi) / 2, text: (r) => `${r.sc.ovrLo}–${r.sc.ovrHi}` },
+    { key: 'pot', label: 'POT', defaultDir: 'desc', value: (r) => r.sc.pot, cell: (r) => <span className="grade-chip">{r.sc.pot}</span> },
+    { key: 'draft', label: '', defaultDir: 'asc', sortable: false, value: () => null, cell: (r) => (onClock ? <button className="btn btn-primary" onClick={() => pick(r.p.id)}>Draft</button> : null) },
+  ]
   const rights = Object.entries(league.draftRights).filter(([, t]) => t === me).map(([id]) => league.players[id])
 
   const pick = (id: string) => act((l) => {
@@ -100,35 +130,14 @@ export function Draft() {
       {d.prospects.length > 0 && (
         <section className="panel stack">
           <NeedsStrip needs={needs} />
-          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-            <h2>Big board</h2>
-            <div className="seg">{['All', 'PG', 'SG', 'SF', 'PF', 'C'].map((x) => <button key={x} className="btn" aria-pressed={pos === x} onClick={() => setPos(x)}>{x}</button>)}</div>
-          </div>
-          <div className="table-wrap">
-            <table className="stats">
-              <thead><tr><th>Prospect</th><th>Pos</th><th>Need</th><th>Age</th><th>Ht</th><th>OVR est.</th><th>POT</th><th></th></tr></thead>
-              <tbody>
-                {board.map((p, i) => {
-                  const sc = d.scout[p.id]
-                  return (
-                    <tr key={p.id}>
-                      <td>
-                        <div className="pcell">
-                          <span className="muted" style={{ width: '1.6rem' }}>{i + 1}</span>
-                          <Face seed={p.faceSeed} age={p.age} colors={{ primary: '#555b66', secondary: '#ffffff' }} size={34} />
-                          <span><span className="pname">{fullName(p)}</span><span className="sub">{archetypeFor(p)}</span></span>
-                        </div>
-                      </td>
-                      <td>{p.pos}</td><td><NeedDot level={needs[p.pos]} after={teamNeeds(league, me, { add: [{ pos: p.pos, ovr: Math.round((sc.ovrLo + sc.ovrHi) / 2) }] }, th)[p.pos]} /></td><td>{p.age}</td><td>{heightStr(p.heightIn)}</td>
-                      <td>{sc.ovrLo}–{sc.ovrHi}</td>
-                      <td><span className="grade-chip">{sc.pot}</span></td>
-                      <td>{onClock && <button className="btn btn-primary" onClick={() => pick(p.id)}>Draft</button>}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+          <h2>Big board</h2>
+          <DataTable<ProspectRow>
+            ariaLabel="Draft big board"
+            rows={board}
+            rowKey={(r) => r.p.id}
+            columns={boardColumns}
+            filters={{ pos: (r) => r.p.pos, name: (r) => fullName(r.p), range: true }}
+          />
         </section>
       )}
 

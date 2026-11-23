@@ -4,7 +4,10 @@ import { seasonStartProblem } from '../../engine/gm/offseason'
 import { FA_DAYS, offerResign, resignChance } from '../../engine/gm/roster'
 import { needThresholds, teamNeeds } from '../../engine/gm/needs'
 import { askSalary, askYears } from '../../engine/gm/value'
-import type { OffseasonStep } from '../../engine/types'
+import type { OffseasonStep, Player } from '../../engine/types'
+import { DataTable, type Column } from '../components/DataTable'
+import { NEED_RANK } from '../needRank'
+import type { NeedLevel } from '../../engine/gm/needs'
 import { AutoSignPanel } from '../components/AutoSignPanel'
 import { CapBar } from '../components/CapBar'
 import { NeedDot, NeedsStrip } from '../components/NeedDot'
@@ -22,6 +25,8 @@ const NEXT: Record<OffseasonStep, string> = {
   awards: 'On to the season recap', recap: 'On to the lottery', lottery: 'Start the draft', draft: 'Finish the draft', resign: 'Open free agency',
   freeAgency: 'Sim the rest of free agency', ready: 'Start the new season',
 }
+
+interface ReSignRow { p: Player; ask: number; yrs: number; need: NeedLevel; after: NeedLevel; odds: number; tries: number; done: boolean }
 
 export function Offseason() {
   const league = useStore((s) => s.league)!
@@ -139,40 +144,46 @@ export function Offseason() {
             {expiring.length > 0 && <AutoSignPanel resign />}
           </div>
           {expiring.length ? (
-            <div className="table-wrap">
-              <table className="stats">
-                <thead><tr><th>Player</th><th>Need</th><th>Age</th><th>OVR</th><th>Mood</th><th>Asking</th><th>Odds at ask</th><th></th></tr></thead>
-                <tbody>
-                  {expiring.map((p) => {
-                    const ask = askSalary(league, p), yrs = askYears(p)
-                    const tries = os.resignTries[p.id] ?? 0
-                    const done = tries >= 3 || p.morale < 25
-                    return [
-                      <tr key={p.id}>
-                        <td><PlayerCell league={league} p={p} subtitle={`${p.pos} · was ${money(p.contract!.salary)}`} /></td>
-                        <td><NeedDot level={teamNeeds(league, me, {}, th)[p.pos]} after={teamNeeds(league, me, { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos]} /></td>
-                        <td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td><td>{p.morale}</td>
-                        <td>{money(ask)} × {yrs}y</td><td>{Math.round(resignChance(league, p, ask, yrs) * 100)}%</td>
-                        <td>{done ? <span className="loss">Won’t talk</span> : <button className="btn" onClick={() => setOpen(open === p.id ? null : p.id)}>Offer{tries ? ` (${3 - tries} left)` : ''}</button>}</td>
-                      </tr>,
-                      open === p.id && (
-                        <tr key={p.id + 'o'} className="offer-row"><td colSpan={8}>
-                          <OfferForm ask={ask} years={yrs} onCancel={() => setOpen(null)} onSubmit={(salary, years) => {
-                            act((l, rng) => {
-                              const res = offerResign(l, rng, p.id, salary, years)
-                              return res === 'signed' ? `✅ ${fullName(p)} re-signed: ${years} yrs, ${money(salary)}/yr.`
-                                : res === 'walked' ? `👋 ${fullName(p)} is done negotiating and will test free agency.`
-                                : `❌ ${fullName(p)} said no. Try a better offer.`
-                            })
-                            setOpen(null)
-                          }} />
-                        </td></tr>
-                      ),
-                    ]
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<ReSignRow>
+              ariaLabel="Expiring contracts"
+              rows={expiring.map((p) => {
+                const ask = askSalary(league, p), yrs = askYears(p)
+                const tries = os.resignTries[p.id] ?? 0
+                return {
+                  p, ask, yrs, tries, done: tries >= 3 || p.morale < 25,
+                  need: teamNeeds(league, me, {}, th)[p.pos],
+                  after: teamNeeds(league, me, { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos],
+                  odds: resignChance(league, p, ask, yrs),
+                }
+              })}
+              rowKey={(r) => r.p.id}
+              columns={[
+                { key: 'player', label: 'Player', align: 'left', defaultDir: 'asc', value: (r) => fullName(r.p), cell: (r) => <PlayerCell league={league} p={r.p} subtitle={`${r.p.pos} · was ${money(r.p.contract!.salary)}`} /> },
+                { key: 'need', label: 'Need', defaultDir: 'desc', value: (r) => NEED_RANK[r.need], cell: (r) => <NeedDot level={r.need} after={r.after} /> },
+                { key: 'age', label: 'Age', defaultDir: 'asc', value: (r) => r.p.age },
+                { key: 'ovr', label: 'OVR', defaultDir: 'desc', value: (r) => ovrOf(r.p), cell: (r) => <OvrPill value={ovrOf(r.p)} pot={r.p.pot} /> },
+                { key: 'mood', label: 'Mood', defaultDir: 'desc', value: (r) => r.p.morale },
+                { key: 'ask', label: 'Asking', defaultDir: 'desc', value: (r) => r.ask, text: (r) => `${money(r.ask)} × ${r.yrs}y` },
+                { key: 'odds', label: 'Odds at ask', defaultDir: 'desc', value: (r) => r.odds, text: (r) => `${Math.round(r.odds * 100)}%` },
+                {
+                  key: 'offer', label: '', defaultDir: 'asc', sortable: false, value: () => null,
+                  cell: (r) => (r.done ? <span className="loss">Won’t talk</span> : <button className="btn" onClick={() => setOpen(open === r.p.id ? null : r.p.id)}>Offer{r.tries ? ` (${3 - r.tries} left)` : ''}</button>),
+                },
+              ] satisfies Column<ReSignRow>[]}
+              filters={{ name: (r) => fullName(r.p), pos: (r) => r.p.pos }}
+              expanded={(r) => open === r.p.id && (
+                <OfferForm ask={r.ask} years={r.yrs} onCancel={() => setOpen(null)} onSubmit={(salary, years) => {
+                  const p = r.p
+                  act((l, rng) => {
+                    const res = offerResign(l, rng, p.id, salary, years)
+                    return res === 'signed' ? `✅ ${fullName(p)} re-signed: ${years} yrs, ${money(salary)}/yr.`
+                      : res === 'walked' ? `👋 ${fullName(p)} is done negotiating and will test free agency.`
+                      : `❌ ${fullName(p)} said no. Try a better offer.`
+                  })
+                  setOpen(null)
+                }} />
+              )}
+            />
           ) : <p className="muted">No expiring contracts.</p>}
         </section>
       )}

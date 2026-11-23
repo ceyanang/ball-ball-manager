@@ -4,6 +4,7 @@ import { isFreeAgent } from '../../engine/gm/cap'
 import { FA_DAYS, claimWaiver, currentAsk, offerFreeAgent } from '../../engine/gm/roster'
 import { askYears, formOf } from '../../engine/gm/value'
 import { needThresholds, teamNeeds, type NeedLevel } from '../../engine/gm/needs'
+import { NEED_RANK } from '../needRank'
 import type { Player } from '../../engine/types'
 import { archetypeFor } from '../../engine/player/archetype'
 import { AutoSignPanel } from '../components/AutoSignPanel'
@@ -17,7 +18,6 @@ import { useStore } from '../store'
 import { fullName, money, ovrOf } from '../util'
 import { Help } from '../components/Help'
 
-const NEED_RANK: Record<NeedLevel, number> = { red: 3, yellow: 2, green: 1 }
 interface FaRow { p: Player; ask: number; yrs: number; need: NeedLevel; after: NeedLevel }
 
 export function FreeAgents() {

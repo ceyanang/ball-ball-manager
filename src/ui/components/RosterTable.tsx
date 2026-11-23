@@ -8,7 +8,7 @@ import { OvrPill } from './OvrPill'
 import { PlayerCell } from './PlayerCell'
 
 /** A team's roster: Starters/Bench groups by default, every stat sortable, filterable by position, name or stat range. */
-export function RosterTable({ league, team, players, mode: initial = 'pg' }: { league: League; team: Team; players: Player[]; mode?: StatMode }) {
+export function RosterTable({ league, team, players, mode: initial = 'pg', compact }: { league: League; team: Team; players: Player[]; mode?: StatMode; compact?: boolean }) {
   const [mode, setMode] = useState<StatMode>(initial)
   const columns = useMemo<Column<Player>[]>(() => rosterColumns(league, mode).map((c) => {
     if (c.key === 'player') return { ...c, cell: (p: Player) => <PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /> }
@@ -28,6 +28,7 @@ export function RosterTable({ league, team, players, mode: initial = 'pg' }: { l
         groups={groups.map((g) => ({ label: g.label, rows: g.rows, collapsed: g.label === 'Inactive' }))}
         rowKey={(p) => p.id}
         filters={{ pos: (p) => p.pos, name: fullName, range: true }}
+        collapseFilters={compact}
         ariaLabel={`${team.name} roster`}
       />
     </div>

@@ -5,6 +5,8 @@ import { hireCoach } from '../../engine/gm/offseason'
 import { TRAINING_SLOTS, breakoutChance, coachFactor, isTraining, startTraining, stopTraining } from '../../engine/gm/training'
 import { Face } from '../face/Face'
 import { CapBar } from '../components/CapBar'
+import { DataTable, type Column } from '../components/DataTable'
+import type { Coach, Player } from '../../engine/types'
 import { OvrPill } from '../components/OvrPill'
 import { useStore } from '../store'
 import { fullName, ovrOf, rosterOf } from '../util'
@@ -66,19 +68,19 @@ export function FrontOffice() {
         {league.phase === 'offseason' ? (
           <>
             <h3>Available coaches</h3>
-            <div className="table-wrap">
-              <table className="stats">
-                <thead><tr><th>Coach</th><th>Style</th><th>Dev</th><th>Career</th><th>Age</th><th></th></tr></thead>
-                <tbody>
-                  {pool.map((c) => (
-                    <tr key={c.id}>
-                      <td>{c.firstName} {c.lastName}</td><td>{STYLE[c.style]}</td><td>{c.dev}</td><td>{c.wins}–{c.losses}</td><td>{c.age}</td>
-                      <td><button className="btn" onClick={() => act((l) => { hireCoach(l, c.id); return `${c.firstName} ${c.lastName} is your new coach.` })}>Hire</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable<Coach>
+              ariaLabel="Available coaches"
+              rows={pool}
+              rowKey={(c) => c.id}
+              columns={[
+                { key: 'coach', label: 'Coach', align: 'left', defaultDir: 'asc', value: (c) => `${c.firstName} ${c.lastName}` },
+                { key: 'style', label: 'Style', align: 'left', defaultDir: 'asc', value: (c) => STYLE[c.style] },
+                { key: 'dev', label: 'Dev', defaultDir: 'desc', value: (c) => c.dev },
+                { key: 'career', label: 'Career', defaultDir: 'desc', value: (c) => c.wins, text: (c) => `${c.wins}–${c.losses}` },
+                { key: 'age', label: 'Age', defaultDir: 'asc', value: (c) => c.age },
+                { key: 'hire', label: '', defaultDir: 'asc', sortable: false, value: () => null, cell: (c) => <button className="btn" onClick={() => act((l) => { hireCoach(l, c.id); return `${c.firstName} ${c.lastName} is your new coach.` })}>Hire</button> },
+              ] satisfies Column<Coach>[]}
+            />
           </>
         ) : <p className="muted" style={{ margin: 0 }}>Coaching changes can be made in the offseason. Development helps players 25 and under grow.</p>}
       </section>
@@ -144,25 +146,20 @@ function DevProgram() {
         </ul>
       )}
       {free > 0 && options.length > 0 && (
-        <div className="table-wrap">
-          <table className="stats m-cards">
-            <thead><tr><th>Invest in…</th><th>Age</th><th>OVR</th><th>Draft</th><th>Bloom odds / season</th><th></th></tr></thead>
-            <tbody>
-              {options.slice(0, 10).map((p) => {
-                const [label, color] = bloomLabel(odds(p.age, p))
-                return (
-                  <tr key={p.id}>
-                    <td className="m-main"><Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> <span className="muted">{p.pos}</span></td>
-                    <td data-label="Age">{p.age}</td><td className="m-key"><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
-                    <td data-label="Draft">{p.draft ? `R${p.draft.round} #${p.draft.pick}` : p.ratingHistory[0]?.season > 1 ? 'Undrafted' : 'Original roster'}</td>
-                    <td className="m-key" data-label="Bloom" style={{ color, fontWeight: 700 }}>{label}</td>
-                    <td className="m-act"><button className="btn btn-primary" onClick={() => act((l) => startTraining(l, p.id))}>Invest</button></td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <DataTable<Player>
+          ariaLabel="Players to invest in"
+          rows={options.slice(0, 10)}
+          rowKey={(p) => p.id}
+          cards
+          columns={[
+            { key: 'player', label: 'Invest in…', align: 'left', defaultDir: 'asc', mobile: 'main', value: (p) => fullName(p), cell: (p) => <><Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> <span className="muted">{p.pos}</span></> },
+            { key: 'age', label: 'Age', defaultDir: 'asc', value: (p) => p.age },
+            { key: 'ovr', label: 'OVR', defaultDir: 'desc', mobile: 'key', value: (p) => ovrOf(p), cell: (p) => <OvrPill value={ovrOf(p)} pot={p.pot} /> },
+            { key: 'draft', label: 'Draft', align: 'left', defaultDir: 'asc', value: (p) => (p.draft ? p.draft.pick + (p.draft.round - 1) * 100 : null), text: (p) => (p.draft ? `R${p.draft.round} #${p.draft.pick}` : p.ratingHistory[0]?.season > 1 ? 'Undrafted' : 'Original roster') },
+            { key: 'bloom', label: 'Bloom odds / season', defaultDir: 'desc', mobile: 'key', value: (p) => odds(p.age, p), cell: (p) => { const [label, color] = bloomLabel(odds(p.age, p)); return <span style={{ color, fontWeight: 700 }}>{label}</span> } },
+            { key: 'invest', label: '', defaultDir: 'asc', sortable: false, mobile: 'act', value: () => null, cell: (p) => <button className="btn btn-primary" onClick={() => act((l) => startTraining(l, p.id))}>Invest</button> },
+          ] satisfies Column<Player>[]}
+        />
       )}
       {free === 0 && <p className="muted" style={{ margin: 0 }}>All slots are full. Remove someone to invest in a new player.</p>}
     </section>

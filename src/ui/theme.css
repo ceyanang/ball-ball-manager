@@ -697,3 +697,7 @@ table.dt-table tr.group-row th:first-child { background: var(--surface-2); }
   table.dt-table.m-cards td:first-child { position: static; background: none; }
   table.dt-table.m-cards tr.offer-row td { background: none; }
 }
+
+.dt-filter-details > summary { cursor: pointer; font-weight: 600; padding: 0.4rem 0; list-style: none; color: var(--ink-2); }
+.dt-filter-details > summary::-webkit-details-marker { display: none; }
+.dt-filter-details[open] > summary { margin-bottom: 0.4rem; }

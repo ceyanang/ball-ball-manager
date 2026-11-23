@@ -103,4 +103,21 @@ describe('DataTable', () => {
     expect(html.indexOf('OFFER-FORM')).toBeGreaterThan(html.indexOf('Bravo'))
     expect(html.indexOf('OFFER-FORM')).toBeLessThan(html.indexOf('Charlie'))
   })
+
+  describe('collapsible filters', () => {
+    const filters = { pos: (r: Row) => r.pos, name: (r: Row) => r.name, range: true }
+    it('keeps filters open by default for plain tables', () => {
+      expect(render({ filters })).not.toContain('<details')
+    })
+    it('tucks filters into a details toggle when collapseFilters is set', () => {
+      const html = render({ filters, collapseFilters: true })
+      expect(html).toContain('<details')
+      expect(html).toContain('Filters')
+      expect(html.indexOf('type="search"')).toBeGreaterThan(html.indexOf('<details'))
+    })
+    it('collapses filters by default for card tables', () => {
+      expect(render({ filters, cards: true })).toContain('<details')
+      expect(render({ filters, cards: true, collapseFilters: false })).not.toContain('<details')
+    })
+  })
 })
