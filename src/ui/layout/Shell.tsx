@@ -7,6 +7,7 @@ import { MobileRosterWarning, MobileSim, SimControls } from '../components/SimCo
 import { TeamBadge } from '../components/TeamBadge'
 import { Icon } from '../components/Icon'
 import { Sheet } from '../components/Sheet'
+import { RosterPeek } from '../components/RosterPeek'
 import { ErrorBoundary } from '../ErrorBoundary'
 import { activeTab, MORE_GROUPS, OFFSEASON, SIDEBAR, TABS } from '../nav'
 import { WatchGame } from '../watch/WatchGame'
@@ -28,6 +29,7 @@ export function Shell() {
   const clearNotice = useStore((s) => s.clearNotice)
   const { pathname } = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
+  const [peekOpen, setPeekOpen] = useState(false)
   useMusic(pathname, watching)
   // New screen starts at the top (the More sheet closes itself via its links).
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
@@ -88,6 +90,7 @@ export function Shell() {
                 <span className="mbar-sub">{phaseLabel(league, true)}</span>
               </span>
             </Link>
+            <button className="icon-btn" onClick={() => setPeekOpen(true)} aria-label="My team stats" title="My team stats"><Icon name="chart" /></button>
             <MobileSim />
           </>
         ) : (
@@ -99,6 +102,7 @@ export function Shell() {
         {league && (
           <div className="topbar">
             <span className="muted">{phaseLabel(league)}</span>
+            <button className="btn" onClick={() => setPeekOpen(true)} title="Quick look at your roster's full stats">📊 My team stats</button>
             <SimControls />
           </div>
         )}
@@ -133,6 +137,7 @@ export function Shell() {
         </nav>
       )}
 
+      {league && <RosterPeek open={peekOpen} onClose={() => setPeekOpen(false)} teamId={league.userTeamId} />}
       <Sheet open={moreOpen} onClose={() => setMoreOpen(false)} title="Menu">
         {moreGroups.map((g) => (
           <section key={g.title} className="more-group">

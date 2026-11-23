@@ -686,3 +686,6 @@ table.dt-table tr.group-row th { background: var(--surface-2); border-bottom: 1p
 table.dt-table tr.group-row .count { color: var(--ink-2); font-weight: 400; margin-left: 0.2rem; }
 table.dt-table th:first-child, table.dt-table td:first-child { position: sticky; left: 0; z-index: 1; background: var(--surface); }
 table.dt-table tr.group-row th:first-child { background: var(--surface-2); }
+
+.sheet.wide { max-width: min(1100px, 100%); }
+.sheet.wide .sheet-body { min-width: 0; }

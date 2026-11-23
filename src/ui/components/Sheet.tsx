@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Icon } from './Icon'
 
 /** Bottom sheet on a native <dialog>: focus trap, Esc to close and backdrop tap to close come for free. */
-export function Sheet({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode }) {
+export function Sheet({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: React.ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null)
   useEffect(() => {
     const d = ref.current
@@ -13,7 +13,7 @@ export function Sheet({ open, onClose, title, children }: { open: boolean; onClo
   return (
     <dialog
       ref={ref}
-      className="sheet"
+      className={`sheet${wide ? ' wide' : ''}`}
       aria-label={title}
       onClose={onClose}
       onClick={(e) => { if (e.target === e.currentTarget) onClose() }}

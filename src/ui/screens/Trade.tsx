@@ -16,6 +16,7 @@ import { POSITIONS, filterPlayers, type PosFilter } from '../playerFilter'
 import { fullName, money, ovrOf, teamFull } from '../util'
 import { rejectionText, tradeLabel } from '../tradeText'
 import { Help } from '../components/Help'
+import { RosterPeek } from '../components/RosterPeek'
 
 const key = (a: Asset) => `${a.kind}:${a.id}`
 
@@ -85,6 +86,8 @@ export function Trade() {
   const [pos, setPos] = useState<PosFilter>('All')
   const [q, setQ] = useState('')
   const [findTeam, setFindTeam] = useState('All')
+  /** Whose roster stats sheet is open; it floats over the trade and never touches the offer. */
+  const [peek, setPeek] = useState<'me' | 'them' | null>(null)
 
   const myAssets = useMemo(() => tradeableAssets(league, me), [league, me])
   const theirAssets = useMemo(() => tradeableAssets(league, partner), [league, partner])
@@ -146,7 +149,13 @@ export function Trade() {
             {others.map((t) => <option key={t.id} value={t.id}>{teamFull(t)}</option>)}
           </select>
         </label>
+        <div className="row">
+          <button className="btn" onClick={() => setPeek('me')}>📊 My team</button>
+          <button className="btn" onClick={() => setPeek('them')}>📊 Their team</button>
+        </div>
       </div>
+      <RosterPeek open={peek === 'me'} onClose={() => setPeek(null)} teamId={me} />
+      <RosterPeek open={peek === 'them'} onClose={() => setPeek(null)} teamId={partner} />
       <p className="muted" style={{ margin: 0, maxWidth: '72ch' }}>
         Pick what you send and what you want back. CPU teams answer instantly and only take deals that clearly help them. Contenders want talent now; rebuilding teams want youth and picks. Not sure what they want? Pick their player and ask what it would take.
       </p>
