@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { committed } from '../../engine/gm/cap'
 import { ROSTER_MAX, ROSTER_MIN } from '../../engine/constants'
 import type { League } from '../../engine/types'
 import { useStore } from '../store'
+import { Icon } from './Icon'
+import { Sheet } from './Sheet'
 
 /** The user can't sim with an illegal roster (spec §10). */
 function rosterProblem(l: League): string | null {
@@ -12,40 +15,93 @@ function rosterProblem(l: League): string | null {
   return null
 }
 
-export function SimControls() {
+type SimAction = { key: string; label: string; short: string; primary?: boolean; run: () => void }
+
+/** Shared by the desktop button row and the mobile header so both offer the same sims. */
+function useSim() {
   const league = useStore((s) => s.league)
   const busy = useStore((s) => s.busy)
   const sim = useStore((s) => s.sim)
+  if (!league || league.phase === 'offseason') return null
+  const problem = rosterProblem(league)
+  const actions: SimAction[] = league.phase === 'regular'
+    ? [
+        { key: 'day', label: 'Sim day', short: 'Next day', run: () => sim({ type: 'simDays', days: 1 }) },
+        { key: 'week', label: 'Sim week', short: 'Next 7 days', run: () => sim({ type: 'simDays', days: 7 }) },
+        ...(league.day < league.tradeDeadlineDay ? [{ key: 'deadline', label: 'Sim to deadline', short: `Up to the trade deadline (day ${league.tradeDeadlineDay})`, run: () => sim({ type: 'simUntil', target: 'deadline' }) }] : []),
+        { key: 'end', label: 'Sim to end of season', short: 'Play out the regular season', primary: true, run: () => sim({ type: 'simUntil', target: 'regularEnd' }) },
+      ]
+    : [
+        { key: 'day', label: 'Sim day', short: 'Next playoff day', run: () => sim({ type: 'simDays', days: 1 }) },
+        { key: 'end', label: 'Sim playoffs', short: 'Play out the playoffs', primary: true, run: () => sim({ type: 'simUntil', target: 'playoffsEnd' }) },
+      ]
+  return { problem, actions, disabled: busy || !!problem, busy }
+}
+
+const OFFSEASON_STEP: Record<string, string> = { awards: 'Awards', recap: 'Recap', lottery: 'Lottery', draft: 'Draft', resign: 'Re-signing', freeAgency: 'Free agency', ready: 'Ready to start' }
+
+export function SimControls() {
+  const league = useStore((s) => s.league)
+  const s = useSim()
   if (!league) return null
-  if (league.phase === 'offseason') {
+  if (!s) {
     const step = league.offseason?.step
-    const label: Record<string, string> = { awards: 'Awards', recap: 'Recap', lottery: 'Lottery', draft: 'Draft', resign: 'Re-signing', freeAgency: `Free agency day ${league.offseason?.faDay}`, ready: 'Ready to start' }
     return (
       <div className="sim-controls">
-        <span className="muted">{step ? label[step] : ''}</span>
-        <Link className="btn btn-primary" to="/offseason" style={{ textDecoration: 'none' }}>Offseason →</Link>
+        <span className="muted">{step ? (step === 'freeAgency' ? `Free agency day ${league.offseason?.faDay}` : OFFSEASON_STEP[step]) : ''}</span>
+        <Link className="btn btn-primary" to="/offseason">Offseason →</Link>
       </div>
     )
   }
-  const userProblem = rosterProblem(league)
   return (
-    <div className="sim-controls" aria-busy={busy}>
-      {userProblem && <Link to="/free-agents" className="loss" style={{ fontWeight: 600 }}>⚠️ {userProblem}</Link>}
-      {league.phase === 'regular' && (
-        <>
-          <button className="btn" disabled={busy || !!userProblem} onClick={() => sim({ type: 'simDays', days: 1 })}>Sim day</button>
-          <button className="btn" disabled={busy || !!userProblem} onClick={() => sim({ type: 'simDays', days: 7 })}>Sim week</button>
-          {league.day < league.tradeDeadlineDay && <button className="btn" disabled={busy || !!userProblem} onClick={() => sim({ type: 'simUntil', target: 'deadline' })}>Sim to deadline</button>}
-          <button className="btn btn-primary" disabled={busy || !!userProblem} onClick={() => sim({ type: 'simUntil', target: 'regularEnd' })}>Sim to end of season</button>
-        </>
-      )}
-      {league.phase === 'playoffs' && (
-        <>
-          <button className="btn" disabled={busy || !!userProblem} onClick={() => sim({ type: 'simDays', days: 1 })}>Sim day</button>
-          <button className="btn btn-primary" disabled={busy || !!userProblem} onClick={() => sim({ type: 'simUntil', target: 'playoffsEnd' })}>Sim playoffs</button>
-        </>
-      )}
-      {busy && <span className="spinner" role="status" aria-label="Simulating" />}
+    <div className="sim-controls" aria-busy={s.busy}>
+      {s.problem && <Link to="/free-agents" className="loss" style={{ fontWeight: 600 }}>⚠️ {s.problem}</Link>}
+      {s.actions.map((a) => (
+        <button key={a.key} className={a.primary ? 'btn btn-primary' : 'btn'} disabled={s.disabled} onClick={a.run}>{a.label}</button>
+      ))}
+      {s.busy && <span className="spinner" role="status" aria-label="Simulating" />}
     </div>
   )
+}
+
+/** Mobile: one big thumb-sized "Sim day" plus a sheet with the longer sims. */
+export function MobileSim() {
+  const league = useStore((s) => s.league)
+  const s = useSim()
+  const [open, setOpen] = useState(false)
+  if (!league) return null
+  if (!s) {
+    return <Link className="btn btn-primary msim-go" to="/offseason">Offseason</Link>
+  }
+  const [first, ...rest] = s.actions
+  return (
+    <>
+      <div className="msim" aria-busy={s.busy}>
+        <button className="btn btn-primary msim-go" disabled={s.disabled} onClick={first.run}>
+          {s.busy ? <span className="spinner on-accent" role="status" aria-label="Simulating" /> : <Icon name="play" size={16} />}
+          {s.busy ? 'Simming' : first.label}
+        </button>
+        <button className="btn msim-more" disabled={s.disabled} onClick={() => setOpen(true)} aria-label="More sim options" aria-haspopup="dialog">
+          <Icon name="more" size={20} />
+        </button>
+      </div>
+      <Sheet open={open} onClose={() => setOpen(false)} title="Sim ahead">
+        <div className="sheet-list">
+          {rest.map((a) => (
+            <button key={a.key} className={`sheet-row${a.primary ? ' primary' : ''}`} disabled={s.disabled} onClick={() => { setOpen(false); a.run() }}>
+              <span className="sheet-row-main">{a.label}</span>
+              <span className="sheet-row-sub">{a.short}</span>
+            </button>
+          ))}
+        </div>
+      </Sheet>
+    </>
+  )
+}
+
+/** Mobile-only banner when the roster blocks simming; the desktop row shows it inline. */
+export function MobileRosterWarning() {
+  const s = useSim()
+  if (!s?.problem) return null
+  return <Link to="/free-agents" className="m-warn">⚠️ {s.problem} <span aria-hidden="true">→</span></Link>
 }
