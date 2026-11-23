@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { tradesOpen } from '../../engine/gm/cap'
 import { hireCoach } from '../../engine/gm/offseason'
+import { TRAINING_SLOTS, breakoutChance, coachFactor, isTraining, startTraining, stopTraining } from '../../engine/gm/training'
 import { Face } from '../face/Face'
 import { CapBar } from '../components/CapBar'
+import { OvrPill } from '../components/OvrPill'
 import { useStore } from '../store'
+import { fullName, ovrOf, rosterOf } from '../util'
 
 const STYLE: Record<string, string> = { pace: 'Fast pace', three: 'Three-point heavy', defense: 'Defense first', balanced: 'Balanced' }
 
@@ -48,6 +51,8 @@ export function FrontOffice() {
           </Link>
         ))}
       </div>
+
+      <DevProgram />
 
       <section className="panel stack">
         <h2>Coach</h2>
@@ -95,5 +100,71 @@ export function FrontOffice() {
         ) : <p className="muted" style={{ margin: 0 }}>No moves yet.</p>}
       </section>
     </div>
+  )
+}
+
+/** Rough odds label for a breakout over a full season of development. */
+function bloomLabel(odds: number): [string, string] {
+  return odds >= 0.15 ? ['High', 'var(--win)'] : odds >= 0.07 ? ['Medium', 'var(--gold)'] : ['Low', 'var(--ink-2)']
+}
+
+function DevProgram() {
+  const league = useStore((s) => s.league)!
+  const act = useStore((s) => s.act)
+  const me = league.userTeamId
+  const cf = coachFactor(league, me)
+  const slots = league.training.filter((t) => league.players[t.playerId]?.teamId === me && !league.players[t.playerId].retired)
+  const free = TRAINING_SLOTS - slots.length
+  const options = rosterOf(league, me).filter((p) => !isTraining(league, p.id)).sort((a, b) => b.pot - ovrOf(b) - (a.pot - ovrOf(a)) || b.pot - a.pot)
+  const odds = (age: number, p: (typeof options)[number]) => Math.min(0.99, 1 - (1 - breakoutChance({ ...p, age }, cf)) ** 8)
+  return (
+    <section className="panel stack">
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <h2>🌱 Development program</h2>
+        <span className="muted">{slots.length}/{TRAINING_SLOTS} slots · coach boosts it ×{cf.toFixed(2)}</span>
+      </div>
+      <p className="muted" style={{ margin: 0 }}>
+        Pick the players you believe in. They grow faster and slide slower, and every so often one breaks out and raises his ceiling.
+        Late picks and second-rounders bloom most often. Leave the club, retire, or get cut and the slot frees up.
+      </p>
+      {slots.length > 0 && (
+        <ul className="tx-list">
+          {slots.map((t) => {
+            const p = league.players[t.playerId]
+            const start = p.ratingHistory.find((h) => h.season === t.season)?.ovr ?? ovrOf(p)
+            const d = ovrOf(p) - start
+            return (
+              <li key={p.id}>
+                <Link className="link" to={`/player/${p.id}`}>🌱 {fullName(p)} <span className="muted">{p.pos} · {p.age}</span></Link>
+                <span><OvrPill value={ovrOf(p)} pot={p.pot} /> <span className="muted">since S{t.season}: {d > 0 ? `+${d}` : d}</span></span>
+                <button className="btn" onClick={() => act((l) => stopTraining(l, p.id))}>Remove</button>
+              </li>
+            )
+          })}
+        </ul>
+      )}
+      {free > 0 && options.length > 0 && (
+        <div className="table-wrap">
+          <table className="stats">
+            <thead><tr><th>Invest in…</th><th>Age</th><th>OVR</th><th>Draft</th><th>Bloom odds / season</th><th></th></tr></thead>
+            <tbody>
+              {options.slice(0, 10).map((p) => {
+                const [label, color] = bloomLabel(odds(p.age, p))
+                return (
+                  <tr key={p.id}>
+                    <td><Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> <span className="muted">{p.pos}</span></td>
+                    <td>{p.age}</td><td><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
+                    <td>{p.draft ? `R${p.draft.round} #${p.draft.pick}` : 'Undrafted'}</td>
+                    <td style={{ color, fontWeight: 700 }}>{label}</td>
+                    <td><button className="btn btn-primary" onClick={() => act((l) => startTraining(l, p.id))}>Invest</button></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {free === 0 && <p className="muted" style={{ margin: 0 }}>All slots are full. Remove someone to invest in a new player.</p>}
+    </section>
   )
 }

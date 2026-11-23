@@ -11,7 +11,8 @@ import { rollInjuries, tickInjuries } from '../sim/injury'
 import { addBoxToStatLines } from '../stats/stats'
 import type { Game, League, Phase, Player, Series } from '../types'
 import { advancePlayoffs, seedPlayoffs } from './playoffs'
-import { afterDay, afterGame, afterOffseason, onInjury, onRegularSeasonEnd, onReturn, onSeasonEnd, onSeriesDecided } from '../stories/hooks'
+import { pruneTraining } from '../gm/training'
+import { afterDay, afterGame, onBreakout, afterOffseason, onInjury, onRegularSeasonEnd, onReturn, onSeasonEnd, onSeriesDecided } from '../stories/hooks'
 
 /** In-season rating changes happen every this many days of the regular season. */
 const PROGRESS_EVERY = 10
@@ -69,7 +70,10 @@ function stepDay(league: League, rng: Rng, capture?: Capture): boolean {
     aiFillRosters(league)
     if (league.day === league.allStarDay && selectAllStars(league)) allStarNow = true
     if (league.day % PROGRESS_EVERY === 0) {
-      league.progress.push(...progressTick(league, rng))
+      const evs = progressTick(league, rng)
+      league.progress.push(...evs)
+      for (const e of evs) if (e.breakout) onBreakout(league, league.players[e.playerId], e.breakout.potFrom)
+      pruneTraining(league)
       refreshAiRotations(league)
     }
     if (!league.games.some((g) => !g.playoff && !g.result)) {

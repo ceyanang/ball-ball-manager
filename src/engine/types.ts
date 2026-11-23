@@ -53,7 +53,11 @@ export interface Series {
   highSeed: number; lowSeed: number; highWins: number; lowWins: number; bestOf: 5 | 7; winnerId: string | null
 }
 export interface PlayoffBracket { season: number; series: Series[]; championId: string | null }
-export interface ProgressEvent { season: number; day: number; playerId: string; teamId: string; from: number; to: number }
+export interface ProgressEvent {
+  season: number; day: number; playerId: string; teamId: string; from: number; to: number
+  /** A development-slot player whose ceiling just jumped. */
+  breakout?: { potFrom: number; potTo: number }
+}
 export interface DraftPick { id: string; season: number; round: 1 | 2; originalTeamId: string; ownerId: string }
 export type TxType = 'trade' | 'sign' | 'resign' | 'release' | 'claim' | 'draft' | 'retire' | 'fire' | 'hire'
 export interface Transaction { season: number; day: number; phase: Phase; type: TxType; teamIds: string[]; playerIds: string[]; text: string }

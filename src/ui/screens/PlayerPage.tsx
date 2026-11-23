@@ -6,6 +6,7 @@ import { archetypeFor } from '../../engine/player/archetype'
 import { gradeFor } from '../../engine/player/grades'
 import { OvrChart } from '../components/OvrChart'
 import { playerAwards } from '../../engine/stories/awards'
+import { TRAINING_SLOTS, isTraining, startTraining, stopTraining } from '../../engine/gm/training'
 import { fanOf } from '../../engine/stories/sentiment'
 import { ratingColor } from '../ratingColor'
 import { Face } from '../face/Face'
@@ -51,6 +52,7 @@ export function PlayerPage() {
   const { id } = useParams()
   const league = useStore((s) => s.league)!
   const toggleFavorite = useStore((s) => s.toggleFavorite)
+  const act = useStore((s) => s.act)
   const p = id ? league.players[id] : undefined
   if (!p) return <Navigate to="/" replace />
   const fav = league.favoritePlayerIds.includes(p.id)
@@ -78,6 +80,9 @@ export function PlayerPage() {
           {hof && <span className="archetype-chip hof-chip">🎖️ Hall of Fame · S{hof.season}</span>}
           <div style={{ marginTop: '0.5rem' }}>
             <button className="btn" onClick={() => toggleFavorite(p.id)} aria-pressed={fav} style={fav ? { borderColor: 'var(--gold)' } : undefined}>{fav ? '⭐ Your guy' : '☆ Favorite'}</button>
+            {p.teamId === league.userTeamId && !p.retired && (isTraining(league, p.id)
+              ? <button className="btn" style={{ marginLeft: '0.4rem', borderColor: 'var(--win)' }} onClick={() => act((l) => stopTraining(l, p.id))}>🌱 In development · stop</button>
+              : <button className="btn" style={{ marginLeft: '0.4rem' }} onClick={() => act((l) => startTraining(l, p.id))} title={`${TRAINING_SLOTS} slots`}>🌱 Invest in development</button>)}
           </div>
           {p.injury && <div style={{ marginTop: '0.4rem', fontWeight: 700 }}>🤕 {p.injury.type} — {p.injury.gamesRemaining >= 999 ? 'out for the season' : `out ${p.injury.gamesRemaining} more game${p.injury.gamesRemaining === 1 ? '' : 's'}`}</div>}
         </div>

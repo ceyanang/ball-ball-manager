@@ -11,11 +11,12 @@ import { GmError, committed, log, money, ovr, payroll, pname, refreshRotation, t
 import { finishDraft, draftUntilUser, setupDraft } from './draft'
 import { FA_DAYS, addFreeAgentBatch, aiFillRosters, aiResign, aiTrimRosters, freeAgencyDay, processWaivers, releaseExpired } from './roster'
 import { aiTrades } from './trade'
+import { breakoutChance, coachFactor, isTraining, pruneTraining } from './training'
 import { strengthOrder } from './value'
-import { afterOffseason, onNewSeason, onOffseasonStart, onRetired } from '../stories/hooks'
+import { afterOffseason, onBreakout, onNewSeason, onOffseasonStart, onRetired } from '../stories/hooks'
 
 /** Offseason rating change: growth toward potential when young, decline with age, some variance. */
-function progressPlayer(p: Player, rng: Rng, coachDev: number, minutes: number): void {
+function progressPlayer(p: Player, rng: Rng, coachDev: number, minutes: number, invested = false, coachF = 1): void {
   const o = ovr(p)
   const gap = Math.max(0, p.pot - o)
   let delta: number
@@ -27,13 +28,15 @@ function progressPlayer(p: Player, rng: Rng, coachDev: number, minutes: number):
   else delta = -4.2 - (p.age - 34) * 1.1
   if (p.age <= 25) delta += (coachDev - 60) / 40
   if (minutes >= 1000 && p.age <= 26) delta += 0.3
+  // The GM's development program: extra growth for the young, a softer slide for everyone, and he can outgrow his ceiling.
+  if (invested) delta += (p.age <= 26 ? 1.1 : p.age <= 29 ? 0.6 : 0.3) * coachF
   // Variance is tighter for young players and primes, so nobody craters out of nowhere before the age decline.
   delta += rng.normal(0, p.age <= 26 ? 1.5 : p.age <= 29 ? 1.3 : 2)
   if (p.age <= 26) delta = Math.max(delta, -1)
   else if (p.age <= 29) delta = Math.max(delta, -2.5)
   // The very top is hard to climb: gains shrink past 84 and nobody grows beyond his ceiling.
   if (delta > 0 && o >= 84) delta *= o >= 90 ? 0.25 : 0.45
-  if (delta > 0) delta = Math.min(delta, gap + 1)
+  if (delta > 0) delta = Math.min(delta, gap + (invested ? 2 : 1))
   const target = Math.round(o + delta)
   const w = POSITION_WEIGHTS[p.pos]
   const dir = Math.sign(target - o)
@@ -145,7 +148,15 @@ export function startOffseason(l: League, rng: Rng): void {
     const from = ovr(p)
     const dev = p.teamId ? l.coaches[l.teams[p.teamId].coachId]?.dev ?? 60 : 50
     p.age++
-    progressPlayer(p, rng, dev, mins[p.id] ?? 0)
+    const slot = p.teamId === l.userTeamId && isTraining(l, p.id)
+    const coachF = slot ? coachFactor(l, p.teamId!) : 1
+    // Summer is the big development window: a bloom here lifts his ceiling before this year's growth is rolled.
+    if (slot && rng.chance(breakoutChance(p, coachF, 4))) {
+      const potFrom = p.pot
+      p.pot = Math.min(99, p.pot + rng.int(3, 6))
+      onBreakout(l, p, potFrom)
+    }
+    progressPlayer(p, rng, dev, mins[p.id] ?? 0, slot, coachF)
     recoverFromInjury(p, rng)
     const to = ovr(p)
     p.ratingHistory.push({ season: l.season + 1, ovr: to })
@@ -167,6 +178,7 @@ export function startOffseason(l: League, rng: Rng): void {
   coachingCarousel(l, rng, report)
   processWaivers(l)
   l.faOffers = []
+  pruneTraining(l)
   setupDraft(l, rng)
   l.offseason = { step: 'awards', faDay: 0, report, resignTries: {} }
   onOffseasonStart(l)

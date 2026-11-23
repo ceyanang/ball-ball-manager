@@ -1,5 +1,6 @@
 import type { Rng } from '../rng'
 import type { League, Player, ProgressEvent, Ratings, StatLine } from '../types'
+import { breakoutChance, coachFactor } from '../gm/training'
 import { POSITION_WEIGHTS, RATING_KEYS, computeOvr } from './ratings'
 
 const RATING_MIN = 40
@@ -65,11 +66,26 @@ function shift(p: Player, delta: number, rng: Rng): void {
 export function progressTick(league: League, rng: Rng): ProgressEvent[] {
   const perf = performance(league)
   const events: ProgressEvent[] = []
+  const invested = new Set(league.training.map((t) => t.playerId))
   for (const p of Object.values(league.players)) {
     if (!p.teamId) continue
+    // A development slot: a real shot at a breakout, plus faster growth and a softer slide while he's in the program.
+    const inv = invested.has(p.id) && p.teamId === league.userTeamId
+    const cf = inv ? coachFactor(league, p.teamId) : 1
+    if (inv && rng.chance(breakoutChance(p, cf))) {
+      const from = ovr(p), potFrom = p.pot
+      p.pot = Math.min(99, p.pot + rng.int(3, 6))
+      shift(p, 2, rng)
+      events.push({ season: league.season, day: league.day, playerId: p.id, teamId: p.teamId, from, to: ovr(p), breakout: { potFrom, potTo: p.pot } })
+      continue
+    }
     const tilt = perf[p.id] ?? 0
-    const up = riseChance(p.age) * (1 + 1.5 * tilt)
-    const down = fallChance(p.age) * (1 - 1.5 * tilt)
+    let up = riseChance(p.age) * (1 + 1.5 * tilt)
+    let down = fallChance(p.age) * (1 - 1.5 * tilt)
+    if (inv) {
+      up = Math.min(0.9, up * 1.9 * cf)
+      down *= 0.3
+    }
     const r = rng.next()
     const dir = r < up ? 1 : r < up + down ? -1 : 0
     if (!dir) continue

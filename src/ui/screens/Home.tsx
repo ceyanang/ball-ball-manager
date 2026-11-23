@@ -180,8 +180,8 @@ export function Home() {
                     const up = e.to > e.from
                     return (
                       <li key={i}>
-                        <Link className="link" to={`/player/${p.id}`}>{up ? '📈' : '📉'} {fullName(p)}</Link>
-                        <span className={up ? 'delta-up' : 'delta-down'}>{e.from} → {e.to}</span>
+                        <Link className="link" to={`/player/${p.id}`}>{e.breakout ? '🌱' : up ? '📈' : '📉'} {fullName(p)}</Link>
+                        <span className={up || e.breakout ? 'delta-up' : 'delta-down'}>{e.breakout ? `BREAKOUT · POT ${e.breakout.potFrom} → ${e.breakout.potTo}` : `${e.from} → ${e.to}`}</span>
                       </li>
                     )
                   })}

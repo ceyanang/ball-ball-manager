@@ -1,5 +1,5 @@
 import { pname } from '../gm/cap'
-import type { Game, Injury, League, NewsItem } from '../types'
+import type { Game, Injury, League, NewsItem, Player } from '../types'
 import { AWARD_NAMES, awardNews, computeAwards, induct, seasonHistory } from './awards'
 import { addNews, gameHighlights, injuryNews, pruneNews, seriesNews } from './highlights'
 import { expireOffers, injuryPing, maybeAiOffer, offseasonInbox, ping, returnPing, weeklyInbox } from './inbox'
@@ -76,6 +76,17 @@ export function onSeasonEnd(l: League): void {
     const c = l.coaches[a.coy.coachId]
     ping(l, 'award', `award:coy:${a.season}`, `🏅 ${c.firstName} ${c.lastName}: Coach of the Year`, 'Your coach got the league’s nod for Coach of the Year.', '/office')
   }
+}
+
+/** A player in the user's development program just broke out (in season or over the summer). */
+export function onBreakout(l: League, p: Player, potFrom: number): void {
+  const name = pname(p)
+  addNews(l, {
+    kind: 'award', emoji: '🌱', title: `${name} is breaking out`,
+    text: `${name} (${p.draft ? `${p.draft.round === 1 ? 'round 1, pick ' + p.draft.pick : 'round 2, pick ' + p.draft.pick}` : 'undrafted'}) has found another gear: his ceiling jumps from ${potFrom} to ${p.pot}.`,
+    playerIds: [p.id], teamIds: p.teamId ? [p.teamId] : [], weight: 7,
+  })
+  ping(l, 'roster', `breakout:${p.id}:${l.season}:${l.day}`, `🌱 ${name} is breaking out!`, `Your development program is paying off: ${name}'s potential jumped from ${potFrom} to ${p.pot}.`, `/player/${p.id}`)
 }
 
 /** Called with players who just retired (offseason or unsigned at season start). */
