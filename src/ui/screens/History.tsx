@@ -5,12 +5,13 @@ import type { League, RecordBook, RecordScope } from '../../engine/types'
 import { AwardsCeremony } from '../components/Stories'
 import { AwardChips } from '../components/AwardChips'
 import { playerAwards } from '../../engine/stories/awards'
+import { JerseyRafters } from '../components/JerseyRafters'
 import { TeamBadge } from '../components/TeamBadge'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
 import { fullName, teamFull } from '../util'
 
-const TABS = ['Seasons', 'Awards', 'Records', 'Hall of Fame'] as const
+const TABS = ['Seasons', 'Awards', 'Records', 'Hall of Fame', 'Jerseys'] as const
 type Tab = (typeof TABS)[number]
 
 export function RecordTable({ league, book, scope }: { league: League; book: RecordBook | undefined; scope: RecordScope }) {
@@ -158,6 +159,18 @@ function HallOfFame({ league }: { league: League }) {
   )
 }
 
+function Jerseys({ league }: { league: League }) {
+  const [teamId, setTeamId] = useState<string>(league.userTeamId)
+  return (
+    <div className="stack">
+      <select className="select" style={{ alignSelf: 'flex-start' }} value={teamId} onChange={(e) => setTeamId(e.target.value)}>
+        {Object.values(league.teams).sort((a, b) => a.name.localeCompare(b.name)).map((t) => <option key={t.id} value={t.id}>{teamFull(t)}{league.retiredJerseys.some((j) => j.teamId === t.id) ? ` (${league.retiredJerseys.filter((j) => j.teamId === t.id).length})` : ''}</option>)}
+      </select>
+      <JerseyRafters league={league} teamId={teamId} />
+    </div>
+  )
+}
+
 export function History() {
   const league = useStore((s) => s.league)!
   const [params, setParams] = useSearchParams()
@@ -172,6 +185,7 @@ export function History() {
       {tab === 'Awards' && <Awards league={league} />}
       {tab === 'Records' && <Records league={league} />}
       {tab === 'Hall of Fame' && <HallOfFame league={league} />}
+      {tab === 'Jerseys' && <Jerseys league={league} />}
     </div>
   )
 }

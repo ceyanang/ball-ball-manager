@@ -387,6 +387,11 @@ table.stats tr.offer-row td { background: var(--surface-2); }
 .hof-card-link { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; text-decoration: none; color: inherit; }
 .hof-card .chips { justify-content: center; }
 .hof-card .chip { padding: 0.15rem 0.55rem; font-size: 0.78rem; }
+.jersey-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 0.7rem; }
+.jersey-card { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.25rem; border-radius: var(--r); padding: 0.8rem 0.6rem 0.9rem; text-decoration: none; border: 2px solid rgba(255, 255, 255, 0.35); box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25); }
+.jersey-num { font-family: 'Big Shoulders Display', sans-serif; font-weight: 800; font-size: 2.6rem; line-height: 1; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); }
+.jersey-name { font-weight: 800; }
+.jersey-sub { font-size: 0.78rem; opacity: 0.9; }
 .hof-chip { margin-left: 0.4rem; background: rgba(245, 180, 0, 0.85); color: #1b1300; }
 
 /* Roster quick view + player finders */

@@ -1,3 +1,4 @@
+import { retiredByLines } from '../components/JerseyRafters'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { perGame, playerSeasonStats } from '../../engine/stats/stats'
 import type { League, StatLine } from '../../engine/types'
@@ -80,6 +81,7 @@ export function PlayerPage() {
           <div className="sub">#{p.jersey} · {p.pos} · {team ? teamFull(team) : p.retired ? 'Retired' : league.draftRights[p.id] ? `Draft rights: ${league.teams[league.draftRights[p.id]].name}` : 'Free agent'}</div>
           <span className="archetype-chip">{archetypeFor(p)}</span>
           {hof && <span className="archetype-chip hof-chip">🎖️ Hall of Fame · S{hof.season}</span>}
+          {retiredByLines(league, p.id).map((t) => <span key={t} className="archetype-chip hof-chip">👕 {t}</span>)}
           <div style={{ marginTop: '0.5rem' }}>
             <button className="btn" onClick={() => toggleFavorite(p.id)} aria-pressed={fav} style={fav ? { borderColor: 'var(--gold)' } : undefined}>{fav ? '⭐ Your guy' : '☆ Favorite'}</button>
             {p.teamId === league.userTeamId && !p.retired && (isTraining(league, p.id)
