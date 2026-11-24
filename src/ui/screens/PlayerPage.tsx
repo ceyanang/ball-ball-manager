@@ -24,7 +24,7 @@ function sumLines(lines: StatLine[]): StatLine | null {
 }
 
 function seasonsTable(league: League, playerId: string, playoffs: boolean) {
-  const seasons = [...new Set(Object.values(league.statLines).filter((s) => s.playerId === playerId && s.playoffs === playoffs).map((s) => s.season))].sort()
+  const seasons = [...new Set(Object.values(league.statLines).filter((s) => s.playerId === playerId && s.playoffs === playoffs).map((s) => s.season))].sort((a, b) => a - b)
   const rows = seasons.map((season) => playerSeasonStats(league, playerId, season, playoffs)!)
   const career = sumLines(rows)
   if (!rows.length) return <p className="muted" style={{ margin: 0 }}>{playoffs ? 'No playoff games yet.' : 'No games played yet.'}</p>
