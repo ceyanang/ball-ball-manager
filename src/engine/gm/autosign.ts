@@ -2,12 +2,14 @@ import { MAX_SALARY, MIN_SALARY, ROSTER_MAX, ROSTER_MIN, SALARY_CAP } from '../c
 import type { Rng } from '../rng'
 import type { League, Player } from '../types'
 import { GmError, isFreeAgent, ovr, payroll, pname, teamPlayers } from './cap'
+import { rookieSalary, rookieYears, signRights } from './draft'
 import { needLevels, needRank, needThresholds, slotsOf, type NeedLevel, type Slot } from './needs'
 import { AI_ROSTER_TARGET, currentAsk, offerFreeAgent, offerResign, yearsFactor } from './roster'
 import { askSalary, askYears, formOf, playerValue, teamMode } from './value'
 
 export interface AutoMove {
-  kind: 'resign' | 'sign'
+  /** 'rights' = sign one of your own draft picks to his rookie deal. */
+  kind: 'resign' | 'sign' | 'rights'
   playerId: string
   salary: number
   years: number
@@ -28,11 +30,15 @@ const declining = (p: Player) => {
  * Decides what the user's team should do, without changing the league.
  * Re-signing period: keep players who are young, rising or good value; let old/declining ones walk.
  * Otherwise: sign free agents, red positions first, to at least ROSTER_MIN (and up to the CPU target while a need can improve).
+ * After an emergency rebuild it thinks like a rebuilder: your draft picks get signed first, vets (26+) are let go
+ * unless a position is empty, and veteran free agents only get 1-year deals so they don't clog the cap.
  */
 export function planAuto(l: League): AutoMove[] {
   const me = l.userTeamId
   const th = needThresholds(l)
-  const mode = teamMode(l, me)
+  const os = l.offseason
+  const rebuilt = l.phase === 'offseason' && !!os?.rebuilt
+  const mode = rebuilt ? 'rebuild' : teamMode(l, me)
   const moves: AutoMove[] = []
   let slots = slotsOf(l, me)
   let pay = payroll(l, me)
@@ -46,7 +52,16 @@ export function planAuto(l: League): AutoMove[] {
     moves.push({ kind, playerId: p.id, salary, years, reason, before, after: needLevels(slots, th)[p.pos] })
   }
 
-  const os = l.offseason
+  if (rebuilt && l.draft) {
+    const rookies = Object.entries(l.draftRights).filter(([, t]) => t === me).map(([id]) => l.players[id])
+      .sort((a, b) => b.pot - a.pot || ovr(b) - ovr(a))
+    for (const p of rookies) {
+      const slot = l.draft.order.find((x) => x.playerId === p.id)
+      if (!slot || !fits(rookieSalary(slot))) continue
+      add(p, 'rights', rookieSalary(slot), rookieYears(slot), `your draft pick (#${slot.pick})`)
+    }
+  }
+
   if (l.phase === 'offseason' && os?.step === 'resign') {
     const expiring = teamPlayers(l, me).filter((p) => p.contract && p.contract.expires === l.season)
       .filter((p) => (os.resignTries[p.id] ?? 0) < 3 && p.morale >= 25)
@@ -56,7 +71,9 @@ export function planAuto(l: League): AutoMove[] {
     for (const p of expiring) {
       const young = p.age <= 24 && p.pot >= 70
       const need = needLevels(slots, th)[p.pos]
-      const keep = p.age <= 33 && (young || ovr(p) >= ninth || need === 'red') && !(declining(p) && p.age >= 30 && need !== 'red')
+      const keep = rebuilt
+        ? young || (p.age <= 25 && ovr(p) >= ninth) || need === 'red'
+        : p.age <= 33 && (young || ovr(p) >= ninth || need === 'red') && !(declining(p) && p.age >= 30 && need !== 'red')
       // 10% over his ask: players take the money, so the offer usually lands.
       const salary = Math.round((askSalary(l, p) * 1.1) / 100) * 100
       if (!keep || !fits(salary)) continue
@@ -70,7 +87,8 @@ export function planAuto(l: League): AutoMove[] {
   const fas = Object.values(l.players).filter((p) => isFreeAgent(l, p))
   const ask = new Map(fas.map((p) => [p.id, currentAsk(l, p, perf)]))
   // Short deals cost a little more than his ask (he'd prefer longer); pay it so the offer lands.
-  const yearsOf = (p: Player) => Math.min(2, askYears(p))
+  // A rebuilder locks young players up long and keeps vets on 1-year deals.
+  const yearsOf = (p: Player) => (rebuilt ? (p.age <= 25 ? askYears(p) : 1) : Math.min(2, askYears(p)))
   const priceOf = (p: Player) => Math.min(MAX_SALARY, Math.ceil((ask.get(p.id)! * yearsFactor(p, yearsOf(p))) / 100) * 100)
   const taken = new Set<string>()
   for (let guard = 0; guard < ROSTER_MAX; guard++) {
@@ -99,6 +117,7 @@ export function applyAutoMoves(l: League, rng: Rng, moves: AutoMove[]): string[]
   for (const m of moves) {
     const p = l.players[m.playerId]
     try {
+      if (m.kind === 'rights') { signRights(l, m.playerId); continue }
       const res = m.kind === 'resign' ? offerResign(l, rng, m.playerId, m.salary, m.years) : offerFreeAgent(l, l.userTeamId, m.playerId, m.salary, m.years)
       if (res === 'rejected' || res === 'walked') fails.push(`${pname(p)} turned it down.`)
     } catch (e) {
