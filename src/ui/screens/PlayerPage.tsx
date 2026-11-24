@@ -5,6 +5,7 @@ import { RATING_GROUPS } from '../playerFilter'
 import { archetypeFor } from '../../engine/player/archetype'
 import { gradeFor } from '../../engine/player/grades'
 import { OvrChart } from '../components/OvrChart'
+import { AwardChips } from '../components/AwardChips'
 import { playerAwards } from '../../engine/stories/awards'
 import { TRAINING_SLOTS, isTraining, startTraining, stopTraining } from '../../engine/gm/training'
 import { fanBreakdown, fanLabel, fanOf } from '../../engine/stories/sentiment'
@@ -120,7 +121,7 @@ export function PlayerPage() {
       {awards.length > 0 && (
         <section className="panel stack">
           <h2>🏅 Awards</h2>
-          <div className="chips">{awards.map((a, i) => <span key={i} className="chip on" style={{ cursor: 'default' }}>S{a.season} · {a.label}</span>)}</div>
+          <AwardChips awards={awards} />
         </section>
       )}
 

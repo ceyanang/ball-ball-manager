@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { RECORD_LABEL, RECORD_STATS } from '../../engine/stories/records'
 import type { League, RecordBook, RecordScope } from '../../engine/types'
 import { AwardsCeremony } from '../components/Stories'
+import { AwardChips } from '../components/AwardChips'
+import { playerAwards } from '../../engine/stories/awards'
 import { TeamBadge } from '../components/TeamBadge'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
@@ -142,11 +144,14 @@ function HallOfFame({ league }: { league: League }) {
         const lastTeam = [...Object.values(league.statLines)].filter((s) => s.playerId === p.id).sort((a, b) => b.season - a.season)[0]?.teamId
         const colors = lastTeam ? league.teams[lastTeam].colors : { primary: '#5b6378', secondary: '#fff' }
         return (
-          <Link key={h.playerId} to={`/player/${p.id}`} className="hof-card">
-            <Face seed={p.faceSeed} age={p.age} colors={colors} size={72} title={fullName(p)} />
-            <div className="award-winner">{fullName(p)}</div>
-            <div className="muted">{p.pos} · inducted S{h.season} · score {h.score}</div>
-          </Link>
+          <div key={h.playerId} className="hof-card">
+            <Link to={`/player/${p.id}`} className="hof-card-link">
+              <Face seed={p.faceSeed} age={p.age} colors={colors} size={72} title={fullName(p)} />
+              <div className="award-winner">{fullName(p)}</div>
+              <div className="muted">{p.pos} · inducted S{h.season} · score {h.score}</div>
+            </Link>
+            <AwardChips awards={playerAwards(league, p.id)} />
+          </div>
         )
       })}
     </div>
