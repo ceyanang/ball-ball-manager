@@ -213,7 +213,8 @@ export function aiTrades(l: League, rng: Rng, attempts: number): number {
 }
 
 export interface Offer { teamId: string; gives: Asset[]; value: number }
-export interface FindOptions { want?: (a: Asset) => boolean }
+/** `want` filters what may come back; `mode` overrides how `fromTeam` values the returns. */
+export interface FindOptions { want?: (a: Asset) => boolean; mode?: Mode }
 
 /**
  * Trade finder: for each other team, the best return (by `fromTeam`'s own valuation) that the team
@@ -222,7 +223,7 @@ export interface FindOptions { want?: (a: Asset) => boolean }
  */
 export function findOffers(l: League, fromTeam: string, offered: Asset[], opts: FindOptions = {}): Offer[] {
   if (!offered.length || !tradesOpen(l)) return []
-  const myMode = teamMode(l, fromTeam)
+  const myMode = opts.mode ?? teamMode(l, fromTeam)
   const offers: Offer[] = []
   for (const teamId of Object.keys(l.teams)) {
     if (teamId === fromTeam) continue

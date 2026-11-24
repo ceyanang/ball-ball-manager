@@ -88,6 +88,8 @@ export interface OffseasonState {
   step: OffseasonStep; faDay: number; report: OffseasonReport
   /** Rejected re-sign offers per player; at 3 he walks. */
   resignTries: Record<string, number>
+  /** The emergency rebuild has been used this offseason (absent in older saves = not yet). */
+  rebuilt?: boolean
 }
 export type TradeAsset = { kind: 'player'; id: string } | { kind: 'pick'; id: string }
 

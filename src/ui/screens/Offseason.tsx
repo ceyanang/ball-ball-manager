@@ -14,6 +14,7 @@ import { NeedDot, NeedsStrip } from '../components/NeedDot'
 import { AwardsCeremony } from '../components/Stories'
 import { OfferForm } from '../components/OfferForm'
 import { OvrPill } from '../components/OvrPill'
+import { RebuildPanel } from '../components/RebuildPanel'
 import { PlayerCell } from '../components/PlayerCell'
 import { useStore } from '../store'
 import { fullName, money, ovrOf } from '../util'
@@ -207,6 +208,8 @@ export function Offseason() {
           {startProblem ? <p className="notice">{startProblem} <Link className="link" to="/free-agents">Free agents →</Link></p> : <p style={{ margin: 0 }}>Your roster is legal. Unsigned draft picks will be released, and a new schedule drawn up.</p>}
         </section>
       )}
+
+      <RebuildPanel league={league} />
 
       <div className="row" style={{ justifyContent: 'flex-end' }}>
         {busy && <span className="spinner" role="status" aria-label="Working" />}
