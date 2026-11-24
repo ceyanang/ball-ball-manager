@@ -4,9 +4,9 @@ import type { League, RecordBook } from '../types'
 export const emptyBook = (): RecordBook => ({ game: {}, season: {}, career: {} })
 
 /** The story fields a brand-new (or freshly migrated) league starts with. */
-export function emptyStories(): Pick<League, 'news' | 'social' | 'inbox' | 'awards' | 'history' | 'records' | 'hof' | 'fans' | 'careerHighs' | 'storySeq'> {
+export function emptyStories(): Pick<League, 'news' | 'social' | 'inbox' | 'awards' | 'history' | 'records' | 'hof' | 'retiredJerseys' | 'fans' | 'careerHighs' | 'storySeq'> {
   return {
-    news: [], social: [], inbox: [], awards: [], history: [], records: { league: emptyBook(), teams: {} }, hof: [],
+    news: [], social: [], inbox: [], awards: [], history: [], records: { league: emptyBook(), teams: {} }, hof: [], retiredJerseys: [],
     fans: { players: {}, teams: {}, base: {} }, careerHighs: {}, storySeq: 0,
   }
 }

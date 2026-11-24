@@ -8,7 +8,7 @@ import { emptyStories } from '../engine/stories/state'
 import { recomputeFanBase } from '../engine/stories/sentiment'
 import { emptyEvents } from '../engine/events/state'
 
-export const CURRENT_VERSION = 9
+export const CURRENT_VERSION = 10
 
 /**
  * Upgrades an older save to the current shape.
@@ -16,7 +16,7 @@ export const CURRENT_VERSION = 9
  * v3 → v4 adds stories (news, social, inbox, awards, history, records, Hall of Fame, fan sentiment).
  * v4 → v5 adds the user's favorite players. v5 → v6 adds All-Star Weekend and development slots.
  * v6 → v7 adds minutes plans and auto-rotation to depth charts (both optional, so nothing to fill in).
- * v7 → v8 adds random events and team chemistry.
+ * v7 → v8 adds random events and team chemistry. v8 → v9 adds long-term fan base. v9 → v10 adds retired jerseys.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function migrateLeague(raw: any): League {
@@ -59,6 +59,7 @@ export function migrateLeague(raw: any): League {
     if (raw.statLines && typeof raw.statLines === 'object' && raw.players && typeof raw.players === 'object' && Array.isArray(raw.awards) && Array.isArray(raw.allStars))
       recomputeFanBase(raw as League)
   }
+  if (raw?.version === 9) raw = { ...raw, version: 10, retiredJerseys: [] }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)
   if (!Array.isArray(raw.favoritePlayerIds)) raw = { ...raw, favoritePlayerIds: [] }

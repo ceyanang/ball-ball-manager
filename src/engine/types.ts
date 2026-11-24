@@ -136,6 +136,11 @@ export interface SeasonHistory {
   leaders: { stat: string; playerId: string; teamId: string; value: number }[]
 }
 export interface HofEntry { playerId: string; season: number; score: number }
+/** A number a team retired for a player. `season` is when he retired; `seasons`/`titles`/`score` are his time with that team. */
+export interface RetiredJersey {
+  teamId: string; playerId: string; number: number; season: number
+  seasons: number; titles: number; score: number; door: 'star' | 'loyal'
+}
 export interface CareerHigh { gp: number; pts: number; reb: number; ast: number }
 export type AllStarKind = 'allstar' | 'rising'
 /**
@@ -154,7 +159,7 @@ export interface AllStarEvent {
 export interface TrainingSlot { playerId: string; season: number; day: number }
 
 export interface League {
-  version: 9; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 10; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]
@@ -173,7 +178,7 @@ export interface League {
   /** Development slots: the players the user is investing in. */
   training: TrainingSlot[]
   news: NewsItem[]; social: Post[]; inbox: InboxItem[]
-  awards: SeasonAwards[]; history: SeasonHistory[]; records: Records; hof: HofEntry[]
+  awards: SeasonAwards[]; history: SeasonHistory[]; records: Records; hof: HofEntry[]; retiredJerseys: RetiredJersey[]
   /**
    * Fan sentiment, −100..100. `players` is short-term buzz from recent games; `base` is each rostered player's
    * long-term following (tenure, loyalty, stardom, form, +/-, hardware), recomputed weekly. Shown value = base + buzz·0.6.
