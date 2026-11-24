@@ -12,7 +12,7 @@ import { ratingColor } from '../ratingColor'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
 import { isFreeAgent, tradesOpen } from '../../engine/gm/cap'
-import { fullName, heightStr, money, one, ovrOf, teamFull } from '../util'
+import { fullName, heightStr, money, moodOf, one, ovrOf, teamFull } from '../util'
 
 const GROUPS = RATING_GROUPS
 
@@ -109,7 +109,7 @@ export function PlayerPage() {
           <div><dt>College</dt><dd>{p.college}</dd></div>
           <div><dt>Team</dt><dd>{team ? <Link className="link" to={`/team/${team.id}`}>{teamFull(team)}</Link> : p.retired ? 'Retired' : 'Free agent'}</dd></div>
           <div><dt>Contract</dt><dd>{p.contract ? `${money(p.contract.salary)} through season ${p.contract.expires}` : 'None'}</dd></div>
-          {!p.retired && <div><dt>Morale</dt><dd>{p.morale >= 70 ? '😄' : p.morale >= 45 ? '🙂' : p.morale >= 30 ? '😕' : '😠'} {p.morale}</dd></div>}
+          {!p.retired && <div><dt>Morale</dt><dd>{moodOf(p.morale).emoji} {p.morale}</dd></div>}
           {!p.retired && <div><dt>Fans</dt><dd>{fans > 25 ? '🔥 Loved' : fans < -25 ? '🥶 Getting roasted' : '😐 Neutral'} ({fans > 0 ? '+' : ''}{fans})</dd></div>}
           {highs && <div><dt>Career highs</dt><dd>{highs.pts} pts · {highs.reb} reb · {highs.ast} ast</dd></div>}
           <div><dt>Draft</dt><dd>{p.draft ? `Season ${p.draft.season}, round ${p.draft.round}, pick ${p.draft.pick}` : p.ratingHistory[0].season > 1 ? 'Undrafted' : 'Original roster'}</dd></div>
