@@ -167,23 +167,33 @@ export function preLeagueCredit(p: Player): number {
   return years * (Math.max(0, first.ovr - 70) / 3.2)
 }
 
+/** Credit for one season line: a good per-game all-around line, scaled by games played. */
+export function seasonStatPoints(s: StatLine): number {
+  const v = (s.pts + 1.2 * (s.oreb + s.dreb) + 1.5 * s.ast + 2 * (s.stl + s.blk)) / Math.max(1, s.gp)
+  return (Math.max(0, v - 20) / 4) * (s.gp / 40)
+}
+
+/**
+ * Credit for a season's awards. A title only counts for `titleTeamId` when given (so a team can judge just its own
+ * years); without it, any championship roster he was on counts.
+ */
+export function awardPoints(a: SeasonAwards, playerId: string, titleTeamId?: string): number {
+  let score = 0
+  if (a.mvp === playerId) score += 6
+  if (a.finalsMvp === playerId) score += 3
+  if (a.championRoster.includes(playerId) && (!titleTeamId || a.championId === titleTeamId)) score += 1.5
+  if (a.dpoy === playerId) score += 2
+  if (a.roy === playerId) score += 1
+  a.allLeague.forEach((t, i) => { if (t.includes(playerId)) score += 3 - i })
+  a.allDefense.forEach((t) => { if (t.includes(playerId)) score += 0.5 })
+  return score
+}
+
 export function careerScore(l: League, playerId: string): number {
   let score = l.players[playerId] ? preLeagueCredit(l.players[playerId]) : 0
   const seasons = new Set(Object.values(l.statLines).filter((s) => s.playerId === playerId && !s.playoffs).map((s) => s.season))
-  for (const season of seasons) {
-    const s = playerSeasonStats(l, playerId, season, false)!
-    const v = (s.pts + 1.2 * (s.oreb + s.dreb) + 1.5 * s.ast + 2 * (s.stl + s.blk)) / Math.max(1, s.gp)
-    score += (Math.max(0, v - 20) / 4) * (s.gp / 40)
-  }
-  for (const a of l.awards) {
-    if (a.mvp === playerId) score += 6
-    if (a.finalsMvp === playerId) score += 3
-    if (a.championRoster.includes(playerId)) score += 1.5
-    if (a.dpoy === playerId) score += 2
-    if (a.roy === playerId) score += 1
-    a.allLeague.forEach((t, i) => { if (t.includes(playerId)) score += 3 - i })
-    a.allDefense.forEach((t) => { if (t.includes(playerId)) score += 0.5 })
-  }
+  for (const season of seasons) score += seasonStatPoints(playerSeasonStats(l, playerId, season, false)!)
+  for (const a of l.awards) score += awardPoints(a, playerId)
   return Math.round(score * 10) / 10
 }
 

@@ -1,3 +1,4 @@
+import { renumberIfRetired } from '../stories/jerseys'
 import type { Rng } from '../rng'
 import type { League, Player, Position, TradeAsset } from '../types'
 import { STARTERS } from '../constants'
@@ -83,7 +84,10 @@ export function aiVerdict(l: League, teamId: string, gets: Asset[], gives: Asset
 export function executeTrade(l: League, t: Trade): void {
   const move = (assets: Asset[], to: string) => {
     for (const a of assets) {
-      if (a.kind === 'player') l.players[a.id].teamId = to
+      if (a.kind === 'player') {
+        l.players[a.id].teamId = to
+        renumberIfRetired(l, l.players[a.id])
+      }
       else {
         l.picks.find((p) => p.id === a.id)!.ownerId = to
         // Once the order is set, the slot follows the pick to its new owner.

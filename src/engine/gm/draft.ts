@@ -1,3 +1,4 @@
+import { renumberIfRetired } from '../stories/jerseys'
 import { MIN_SALARY, ROSTER_MAX } from '../constants'
 import { generatePlayer } from '../player/generate'
 import type { Rng } from '../rng'
@@ -174,6 +175,7 @@ export function signRights(l: League, playerId: string): void {
   if (problem) throw new GmError(problem)
   const p = l.players[playerId]
   p.teamId = teamId
+  renumberIfRetired(l, p)
   p.contract = { salary, expires: l.season + rookieYears(slot) }
   delete l.draftRights[playerId]
   refreshRotation(l, teamId)

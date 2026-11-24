@@ -1,3 +1,4 @@
+import { renumberIfRetired } from '../stories/jerseys'
 import { MAX_SALARY, MIN_SALARY, ROSTER_MAX, ROSTER_MIN, SALARY_CAP, STARTERS } from '../constants'
 import { generatePlayer } from '../player/generate'
 import type { Rng } from '../rng'
@@ -44,6 +45,7 @@ export function claimWaiver(l: League, teamId: string, playerId: string): void {
   if (problem) throw new GmError(problem)
   const p = l.players[playerId]
   p.teamId = teamId
+  renumberIfRetired(l, p)
   p.contract = { ...w.contract }
   l.waivers = l.waivers.filter((x) => x !== w)
   refreshRotation(l, teamId)
@@ -83,6 +85,7 @@ export function currentAsk(l: League, p: Player, perf?: Record<string, number>):
 
 function sign(l: League, teamId: string, p: Player, salary: number, years: number, type: 'sign' | 'resign' = 'sign'): void {
   p.teamId = teamId
+  renumberIfRetired(l, p)
   p.contract = { salary, expires: capSeason(l) + years - 1 }
   l.faOffers = l.faOffers.filter((o) => o.playerId !== p.id)
   refreshRotation(l, teamId)

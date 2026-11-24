@@ -5,6 +5,7 @@ import { addNews, gameHighlights, injuryNews, pruneNews, seriesNews } from './hi
 import { clearStaleInbox, expireOffers, injuryPing, maybeAiOffer, offseasonInbox, ping, returnPing, weeklyInbox } from './inbox'
 import { RECORD_LABEL, careerRecords, gameRecords, seasonRecords, type Broken } from './records'
 import { recomputeFanBase, updateFans, weeklyMorale } from './sentiment'
+import { evaluateJerseys } from './jerseys'
 import { socialDay, socialOffseason } from './social'
 
 /**
@@ -96,6 +97,7 @@ export function onRetired(l: League, playerIds: string[]): void {
     if (l.awards.some((a) => a.championRoster.includes(id)) || p.draft?.teamId === l.userTeamId)
       ping(l, 'award', `hof:${id}`, `🎖️ ${pname(p)} makes the Hall of Fame`, `${pname(p)} has been inducted into the Hall of Fame.`, `/player/${id}`)
   }
+  evaluateJerseys(l, playerIds)
 }
 
 /** End of each in-season day. Returns true when a trade offer for the user just arrived. */
