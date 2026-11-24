@@ -71,13 +71,14 @@ export function planAuto(l: League): AutoMove[] {
     for (const p of expiring) {
       const young = p.age <= 24 && p.pot >= 70
       const need = needLevels(slots, th)[p.pos]
-      const keep = rebuilt
+      const icon = !!os.rebuildKept?.includes(p.id)
+      const keep = icon || (rebuilt
         ? young || (p.age <= 25 && ovr(p) >= ninth) || need === 'red'
-        : p.age <= 33 && (young || ovr(p) >= ninth || need === 'red') && !(declining(p) && p.age >= 30 && need !== 'red')
+        : p.age <= 33 && (young || ovr(p) >= ninth || need === 'red') && !(declining(p) && p.age >= 30 && need !== 'red'))
       // 10% over his ask: players take the money, so the offer usually lands.
       const salary = Math.round((askSalary(l, p) * 1.1) / 100) * 100
       if (!keep || !fits(salary)) continue
-      const why = young ? 'young with upside' : need === 'red' ? 'fills a red position' : ovr(p) >= ninth ? 'rotation player' : 'good value'
+      const why = icon ? 'franchise icon' : young ? 'young with upside' : need === 'red' ? 'fills a red position' : ovr(p) >= ninth ? 'rotation player' : 'good value'
       add(p, 'resign', salary, askYears(p), why)
     }
     return moves

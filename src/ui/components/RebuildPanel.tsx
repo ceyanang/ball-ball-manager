@@ -14,6 +14,7 @@ export function RebuildPanel({ league }: { league: League }) {
   const [deals, setDeals] = useState<RebuildDeal[] | null>(null)
   const [snap, setSnap] = useState<League | null>(null)
   const [signed, setSigned] = useState<AutoMove[]>([])
+  const [kept, setKept] = useState<string[]>([])
 
   const fa = league.offseason?.step === 'freeAgency' || league.offseason?.step === 'ready'
 
@@ -53,17 +54,20 @@ export function RebuildPanel({ league }: { league: League }) {
   }
 
   if (rebuildProblem(league)) return null
-  const sellable = rebuildCandidates(league)
-  if (!sellable.length) return null
+  const vets = rebuildCandidates(league)
+  if (!vets.length) return null
+  const sellable = vets.filter((p) => !kept.includes(p.id))
+  const toggle = (id: string) => setKept((k) => (k.includes(id) ? k.filter((x) => x !== id) : [...k, id]))
 
   const go = () => {
+    if (!sellable.length) return
     const names = sellable.slice(0, 4).map((p) => `${fullName(p)} (${ovrOf(p)})`).join(', ')
-    if (!confirm(`Blow it up? Your front office will try to trade every player ${REBUILD_SELL_AGE}+ (${names}${sellable.length > 4 ? '…' : ''}) for youngsters and draft picks. You can only do this once per offseason and it can't be undone.`)) return
+    if (!confirm(`Blow it up? Your front office will try to trade every player ${REBUILD_SELL_AGE}+ (${names}${sellable.length > 4 ? '…' : ''}) for youngsters and draft picks. ${kept.length ? ` ${kept.length} franchise icon${kept.length > 1 ? 's are' : ' is'} protected.` : ''} You can only do this once per offseason and it can't be undone.`)) return
     let res: RebuildDeal[] = []
     let auto: AutoMove[] = []
     let after: League | null = null
     const ok = act((l, rng) => {
-      res = emergencyRebuild(l)
+      res = emergencyRebuild(l, kept)
       // In free agency the front office refills the roster right away, rebuild-style.
       if (fa && res.length) {
         const plan = planAuto(l)
@@ -84,7 +88,16 @@ export function RebuildPanel({ league }: { league: League }) {
         Stuck with aging vets? Let your front office sell everyone {REBUILD_SELL_AGE} and older, stars included, for players {REBUILD_YOUTH_AGE} and under and draft picks.
         Players {REBUILD_SELL_AGE - 1} and under stay. Once per offseason, and best done before the draft so new picks are used this year. Do it during free agency and the front office also auto-signs to refill the roster.
       </p>
-      <button className="btn btn-danger" style={{ alignSelf: 'flex-start' }} disabled={busy} onClick={go}>Blow it up ({sellable.length} up for sale)</button>
+      <div className="stack" style={{ gap: 4 }}>
+        <strong>🛡️ Franchise icons (tap to protect)</strong>
+        {vets.map((p) => (
+          <label key={p.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={kept.includes(p.id)} onChange={() => toggle(p.id)} />
+            <span>{fullName(p)} <span className="muted">{p.pos} · {p.age}y · {ovrOf(p)}/{p.pot}</span></span>
+          </label>
+        ))}
+      </div>
+      <button className="btn btn-danger" style={{ alignSelf: 'flex-start' }} disabled={busy || !sellable.length} onClick={go}>Blow it up ({sellable.length} up for sale{kept.length ? `, ${kept.length} protected` : ''})</button>
     </section>
   )
 }

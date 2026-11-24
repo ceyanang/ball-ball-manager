@@ -90,6 +90,8 @@ export interface OffseasonState {
   resignTries: Record<string, number>
   /** The emergency rebuild has been used this offseason (absent in older saves = not yet). */
   rebuilt?: boolean
+  /** Franchise icons the user protected from the emergency rebuild (absent = none). */
+  rebuildKept?: string[]
 }
 export type TradeAsset = { kind: 'player'; id: string } | { kind: 'pick'; id: string }
 

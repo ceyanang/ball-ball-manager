@@ -20,9 +20,9 @@ export function rebuildProblem(l: League): string | null {
 }
 
 /** Vets the rebuild would shop, most valuable to a contender first. */
-export function rebuildCandidates(l: League, teamId = l.userTeamId) {
+export function rebuildCandidates(l: League, teamId = l.userTeamId, keep: readonly string[] = []) {
   return committed(l, teamId)
-    .filter((p) => p.age >= REBUILD_SELL_AGE)
+    .filter((p) => p.age >= REBUILD_SELL_AGE && !keep.includes(p.id))
     .sort((a, b) => playerValue(l, b, 'contend') - playerValue(l, a, 'contend'))
 }
 
@@ -30,15 +30,16 @@ export function rebuildCandidates(l: League, teamId = l.userTeamId) {
  * Emergency rebuild for the user's team: shops every vet (26+), best first, and takes the best
  * package of youngsters (24 and under) and draft picks a CPU team will pay, judged the way a
  * rebuilding team would. A vet is only sold if the return is worth at least as much to a rebuilder
- * as he is. Usable once per offseason; deterministic (no randomness). Mutates `l`.
+ * as he is. `keep` lists franchise icons who are never shopped (and auto-sign keeps them afterwards).
+ * Usable once per offseason; deterministic (no randomness). Mutates `l`.
  */
-export function emergencyRebuild(l: League): RebuildDeal[] {
+export function emergencyRebuild(l: League, keep: readonly string[] = []): RebuildDeal[] {
   const problem = rebuildProblem(l)
   if (problem) throw new GmError(problem)
   const me = l.userTeamId
   const young = (a: Asset) => a.kind === 'pick' || l.players[a.id].age <= REBUILD_YOUTH_AGE
   const deals: RebuildDeal[] = []
-  for (const p of rebuildCandidates(l, me)) {
+  for (const p of rebuildCandidates(l, me, keep)) {
     if (deals.length >= REBUILD_MAX_DEALS) break
     if (p.teamId !== me) continue
     const offered: Asset[] = [{ kind: 'player', id: p.id }]
@@ -48,5 +49,6 @@ export function emergencyRebuild(l: League): RebuildDeal[] {
     deals.push({ teamId: best.teamId, gave: offered, got: best.gives })
   }
   l.offseason!.rebuilt = true
+  if (keep.length) l.offseason!.rebuildKept = [...keep]
   return deals
 }

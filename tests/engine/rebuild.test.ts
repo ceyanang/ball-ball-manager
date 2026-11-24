@@ -48,6 +48,15 @@ describe('emergency rebuild', () => {
     expect(avgAge()).toBeLessThan(before)
   })
 
+  it('never sells protected franchise icons', () => {
+    const l = offseason()
+    const me = l.userTeamId
+    const icon = committed(l, me).filter((p) => p.age >= REBUILD_SELL_AGE).sort((a, b) => b.age - a.age)[0]
+    emergencyRebuild(l, [icon.id])
+    expect(l.players[icon.id].teamId).toBe(me)
+    expect(l.offseason!.rebuildKept).toEqual([icon.id])
+  })
+
   it('is deterministic', () => {
     const a = offseason(), b = offseason()
     expect(emergencyRebuild(a)).toEqual(emergencyRebuild(b))
