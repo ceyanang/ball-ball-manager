@@ -32,7 +32,7 @@ describe('import/export', () => {
   it('rejects garbage, wrong versions and missing keys without touching saves', async () => {
     await writeSave('keep', league)
     const before = await listSaves()
-    const bad = ['not json{', JSON.stringify({ ...league, version: 9 }), JSON.stringify({ version: 2, name: 'x' }), '[]', 'null']
+    const bad = ['not json{', JSON.stringify({ ...league, version: 10 }), JSON.stringify({ version: 2, name: 'x' }), '[]', 'null']
     for (const t of bad) {
       expect(() => parseImport(t)).toThrow(SaveImportError)
       try { parseImport(t) } catch (e) { expect((e as Error).message.length).toBeGreaterThan(10) }
@@ -67,14 +67,14 @@ describe('save versions', () => {
   it('loads a v1 save from IndexedDB and migrates it', async () => {
     await writeSave('old', v1())
     const l = await loadSave('old')
-    expect(l.version).toBe(8)
+    expect(l.version).toBe(9)
     expect(l.progress).toEqual([])
     expect(l.picks).toHaveLength(120)
     expect(l.tradeDeadlineDay).toBe(league.tradeDeadlineDay)
   })
   it('imports a v1 file', () => {
     const l = parseImport(JSON.stringify(v1()))
-    expect(l.version).toBe(8)
+    expect(l.version).toBe(9)
     expect(l.progress).toEqual([])
     expect(l.waivers).toEqual([])
   })
@@ -83,15 +83,15 @@ describe('save versions', () => {
     l.version = 3
     Object.assign(l, { progress: [], picks: [], draft: null, draftRights: {}, transactions: [], deadMoney: [], waivers: [], faOffers: [], offseason: null, tradeDeadlineDay: 20 })
     const m = parseImport(JSON.stringify(l))
-    expect(m.version).toBe(8)
+    expect(m.version).toBe(9)
     expect(m.news).toEqual([])
     expect(m.inbox).toEqual([])
     expect(m.records.league.game).toEqual({})
-    expect(m.fans).toEqual({ players: {}, teams: {} })
+    expect(m.fans.players).toEqual({}); expect(m.fans.teams).toEqual({})
   })
   it('migrates a v4 save to v5 with no favorites', () => {
     const m = parseImport(JSON.stringify({ ...league, version: 4, favoritePlayerIds: undefined }))
-    expect(m.version).toBe(8)
+    expect(m.version).toBe(9)
     expect(m.favoritePlayerIds).toEqual([])
   })
   it('loads a v5 save missing favoritePlayerIds with an empty list', () => {
@@ -100,19 +100,25 @@ describe('save versions', () => {
   })
   it('migrates a v5 save to v6 with All-Star Weekend and empty development slots', () => {
     const m = parseImport(JSON.stringify({ ...league, version: 5, allStarDay: undefined, allStars: undefined, training: undefined }))
-    expect(m.version).toBe(8)
+    expect(m.version).toBe(9)
     expect(m.allStars).toEqual([])
     expect(m.training).toEqual([])
     expect(m.allStarDay).toBeGreaterThan(0)
   })
   it('migrates a v6 save to v7 keeping its depth charts (no minutes plan = coach suggestions)', () => {
     const m = parseImport(JSON.stringify({ ...league, version: 6 }))
-    expect(m.version).toBe(8)
+    expect(m.version).toBe(9)
     const t = m.teams[m.userTeamId]
     expect(t.rotation.minutes).toBeUndefined()
     expect(t.rotation.starters).toEqual(league.teams[league.userTeamId].rotation.starters)
   })
-  it('rejects version 9', () => {
-    expect(() => parseImport(JSON.stringify({ ...league, version: 9 }))).toThrow(SaveImportError)
+  it('migrates a v8 save to v9 with a computed fan following', () => {
+    const m = parseImport(JSON.stringify({ ...league, version: 8, fans: { players: { x: 5 }, teams: {} } }))
+    expect(m.version).toBe(9)
+    expect(m.fans.players).toEqual({ x: 5 })
+    expect(Object.keys(m.fans.base).length).toBeGreaterThan(0)
+  })
+  it('rejects version 10', () => {
+    expect(() => parseImport(JSON.stringify({ ...league, version: 10 }))).toThrow(SaveImportError)
   })
 })

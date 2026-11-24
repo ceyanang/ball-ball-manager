@@ -9,6 +9,7 @@ import { Rng } from '../rng'
 import { generateSchedule, tradeDeadline } from '../schedule/schedule'
 import { createPicks } from '../gm/draft'
 import { emptyStories } from '../stories/state'
+import { recomputeFanBase } from '../stories/sentiment'
 import { emptyEvents } from '../events/state'
 import { autoRotation } from '../sim/rotation'
 import type { League, Player, Team } from '../types'
@@ -161,8 +162,8 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
 
   const games = generateSchedule(teams, season, rng)
 
-  return {
-    version: 8,
+  const league: League = {
+    version: 9,
     favoritePlayerIds: [],
     name: opts.name,
     seed: opts.seed,
@@ -194,4 +195,6 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     events: emptyEvents(),
     chemistry: Object.fromEntries(teams.map((t) => [t.id, 50])),
   }
+  recomputeFanBase(league)
+  return league
 }

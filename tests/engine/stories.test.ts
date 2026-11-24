@@ -10,6 +10,8 @@ import { streakOf } from '../../src/engine/stories/highlights'
 import { maybeAiOffer, respondToOffer } from '../../src/engine/stories/inbox'
 import { careerRecords, gameRecords } from '../../src/engine/stories/records'
 import type { League } from '../../src/engine/types'
+import { ovr } from '../../src/engine/gm/cap'
+import { baseFanOf, fanBreakdown, fanOf, recomputeFanBase } from '../../src/engine/stories/sentiment'
 
 const fresh = () => createLeague({ seed: 777, userTeamIndex: 5, name: 'Stories' })
 const regEnd = simUntil(fresh(), 'regularEnd')
@@ -61,6 +63,37 @@ describe('highlights, social and fans during the season', () => {
     expect(Math.min(...morale)).toBeGreaterThanOrEqual(0)
     expect(Math.max(...morale)).toBeLessThanOrEqual(100)
     expect(new Set(morale).size).toBeGreaterThan(10)
+  })
+  it('fans lean warm, not roasted, and stars are mostly liked', () => {
+    const rostered = Object.values(regEnd.players).filter((p) => p.teamId && !p.retired)
+    const vals = rostered.map((p) => fanOf(regEnd, p.id))
+    const roasted = vals.filter((v) => v <= -40).length
+    const liked = vals.filter((v) => v >= 20).length
+    expect(roasted / vals.length).toBeLessThan(0.05)
+    expect(liked / vals.length).toBeGreaterThan(0.2)
+    const stars = rostered.filter((p) => ovr(p) >= 82)
+    expect(stars.filter((p) => fanOf(regEnd, p.id) > 0).length).toBeGreaterThan(stars.length * 0.7)
+  })
+  it('tenure and being homegrown build a following; team hopping costs it', () => {
+    const l = structuredClone(regEnd)
+    const p = Object.values(l.players).find((x) => x.teamId && !x.retired && ovr(x) < 70)!
+    const t = p.teamId!
+    p.draft = null
+    recomputeFanBase(l)
+    const before = baseFanOf(l, p.id)
+    const line = { ...Object.values(l.statLines).find((s) => s.playerId === p.id && !s.playoffs)!, pm: 0 }
+    for (let s = -5; s < 1; s++) l.statLines[`fake${s}`] = { ...line, season: s, teamId: t }
+    p.draft = { season: -5, round: 1, pick: 10, teamId: t }
+    recomputeFanBase(l)
+    expect(baseFanOf(l, p.id)).toBeGreaterThan(before + 30)
+    expect(fanBreakdown(l, p).some((f) => f.label === 'Homegrown')).toBe(true)
+    const others = Object.keys(l.teams).filter((id) => id !== t)
+    const hopper = structuredClone(regEnd)
+    for (let s = -5; s < 1; s++) hopper.statLines[`hop${s}`] = { ...line, season: s, teamId: others[s + 5] }
+    hopper.players[p.id].draft = null
+    recomputeFanBase(hopper)
+    expect(baseFanOf(hopper, p.id)).toBeLessThan(before)
+    expect(fanBreakdown(hopper, p).some((f) => f.label.startsWith('Journeyman'))).toBe(true)
   })
   it('tracks streaks from results', () => {
     for (const id of Object.keys(regEnd.teams)) expect(Math.abs(streakOf(regEnd, id))).toBeGreaterThan(0)

@@ -4,7 +4,7 @@ import { AWARD_NAMES, awardNews, computeAwards, induct, seasonHistory } from './
 import { addNews, gameHighlights, injuryNews, pruneNews, seriesNews } from './highlights'
 import { clearStaleInbox, expireOffers, injuryPing, maybeAiOffer, offseasonInbox, ping, returnPing, weeklyInbox } from './inbox'
 import { RECORD_LABEL, careerRecords, gameRecords, seasonRecords, type Broken } from './records'
-import { updateFans, weeklyMorale } from './sentiment'
+import { recomputeFanBase, updateFans, weeklyMorale } from './sentiment'
 import { socialDay, socialOffseason } from './social'
 
 /**
@@ -103,6 +103,7 @@ export function afterDay(l: League, games: Game[], newsFrom: number, txFrom: num
   let offer = false
   expireOffers(l)
   if (l.phase === 'regular' && l.day % 7 === 0) {
+    recomputeFanBase(l)
     weeklyInbox(l, weeklyMorale(l))
     if (l.day <= l.tradeDeadlineDay) offer = maybeAiOffer(l)
   }
@@ -113,6 +114,7 @@ export function afterDay(l: League, games: Game[], newsFrom: number, txFrom: num
 /** After an offseason step or a free-agency day. */
 export function afterOffseason(l: League, newsFrom: number, txFrom: number, faTick: boolean): void {
   expireOffers(l)
+  recomputeFanBase(l)
   if (faTick && l.offseason?.step === 'freeAgency' && l.offseason.faDay % 5 === 0) maybeAiOffer(l, 0.4)
   const news: NewsItem[] = l.news.slice(newsFrom)
   socialOffseason(l, news, l.transactions.slice(txFrom))
@@ -130,5 +132,6 @@ export function onNewSeason(l: League): void {
     else l.fans.players[k] = Math.round(l.fans.players[k] * 0.5)
   }
   for (const k of Object.keys(l.fans.teams)) l.fans.teams[k] = Math.round(l.fans.teams[k] * 0.3)
+  recomputeFanBase(l)
   for (const k of Object.keys(l.careerHighs)) if (!l.players[k]) delete l.careerHighs[k]
 }

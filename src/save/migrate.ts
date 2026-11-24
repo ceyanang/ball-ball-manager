@@ -5,9 +5,10 @@ import type { League } from '../engine/types'
 import { SaveImportError } from './errors'
 import { backfillRecords } from '../engine/stories/records'
 import { emptyStories } from '../engine/stories/state'
+import { recomputeFanBase } from '../engine/stories/sentiment'
 import { emptyEvents } from '../engine/events/state'
 
-export const CURRENT_VERSION = 8
+export const CURRENT_VERSION = 9
 
 /**
  * Upgrades an older save to the current shape.
@@ -53,6 +54,11 @@ export function migrateLeague(raw: any): League {
   }
   if (raw?.version === 6) raw = { ...raw, version: 7 }
   if (raw?.version === 7) raw = { ...raw, version: 8, events: emptyEvents(), chemistry: Object.fromEntries(Object.keys(raw.teams ?? {}).map((id) => [id, 50])) }
+  if (raw?.version === 8) {
+    raw = { ...raw, version: 9, fans: { players: {}, teams: {}, ...raw.fans, base: {} } }
+    if (raw.statLines && typeof raw.statLines === 'object' && raw.players && typeof raw.players === 'object' && Array.isArray(raw.awards) && Array.isArray(raw.allStars))
+      recomputeFanBase(raw as League)
+  }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)
   if (!Array.isArray(raw.favoritePlayerIds)) raw = { ...raw, favoritePlayerIds: [] }

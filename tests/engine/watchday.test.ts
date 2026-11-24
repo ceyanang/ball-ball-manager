@@ -60,9 +60,13 @@ describe('watchDay', () => {
 
   it('captures a Finals clincher', () => {
     let l = simUntil(fresh(), 'regularEnd')
-    // Make the user the team that wins the title: find it on a dry run.
-    const champ = simUntil(l, 'playoffsEnd').playoffs!.championId!
-    l = { ...l, userTeamId: champ }
+    // Make the user the team that wins the title: find it on a dry run. Taking over a team changes how it is run,
+    // so re-run until the champion is the user's own team.
+    for (let i = 0; i < 8; i++) {
+      const champ = simUntil(l, 'playoffsEnd').playoffs!.championId!
+      if (champ === l.userTeamId) break
+      l = { ...l, userTeamId: champ }
+    }
     const before = dayBefore(l, (a) => a.phase === 'offseason')
     const { league, watch } = watchDay(before)
     expect(league.phase).toBe('offseason')

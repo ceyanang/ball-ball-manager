@@ -7,7 +7,7 @@ import { gradeFor } from '../../engine/player/grades'
 import { OvrChart } from '../components/OvrChart'
 import { playerAwards } from '../../engine/stories/awards'
 import { TRAINING_SLOTS, isTraining, startTraining, stopTraining } from '../../engine/gm/training'
-import { fanOf } from '../../engine/stories/sentiment'
+import { fanBreakdown, fanLabel, fanOf } from '../../engine/stories/sentiment'
 import { ratingColor } from '../ratingColor'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
@@ -66,6 +66,7 @@ export function PlayerPage() {
   const highs = league.careerHighs[p.id]
   const moves = league.transactions.filter((t) => t.playerIds.includes(p.id)).slice(-12).reverse()
   const fans = fanOf(league, p.id)
+  const fanWhy = p.retired ? [] : fanBreakdown(league, p)
   const chartPoints = [...p.ratingHistory.map((h) => ({ label: `S${h.season}`, ovr: h.ovr })), ...(delta !== 0 ? [{ label: 'Now', ovr }] : [])]
   return (
     <div className="stack">
@@ -110,7 +111,7 @@ export function PlayerPage() {
           <div><dt>Team</dt><dd>{team ? <Link className="link" to={`/team/${team.id}`}>{teamFull(team)}</Link> : p.retired ? 'Retired' : 'Free agent'}</dd></div>
           <div><dt>Contract</dt><dd>{p.contract ? `${money(p.contract.salary)} through season ${p.contract.expires}` : 'None'}</dd></div>
           {!p.retired && <div><dt>Morale</dt><dd>{moodOf(p.morale).emoji} {p.morale}</dd></div>}
-          {!p.retired && <div><dt>Fans</dt><dd>{fans > 25 ? '🔥 Loved' : fans < -25 ? '🥶 Getting roasted' : '😐 Neutral'} ({fans > 0 ? '+' : ''}{fans})</dd></div>}
+          {!p.retired && <div><dt>Fans</dt><dd>{fanLabel(fans).emoji} {fanLabel(fans).text} ({fans > 0 ? '+' : ''}{fans}){fanWhy.length > 0 && <div className="muted" style={{ fontSize: '0.8rem' }}>{fanWhy.slice(0, 4).map((f) => `${f.label} ${f.value > 0 ? '+' : ''}${f.value}`).join(' · ')}</div>}</dd></div>}
           {highs && <div><dt>Career highs</dt><dd>{highs.pts} pts · {highs.reb} reb · {highs.ast} ast</dd></div>}
           <div><dt>Draft</dt><dd>{p.draft ? `Season ${p.draft.season}, round ${p.draft.round}, pick ${p.draft.pick}` : p.ratingHistory[0].season > 1 ? 'Undrafted' : 'Original roster'}</dd></div>
         </dl>

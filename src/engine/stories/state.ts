@@ -7,7 +7,7 @@ export const emptyBook = (): RecordBook => ({ game: {}, season: {}, career: {} }
 export function emptyStories(): Pick<League, 'news' | 'social' | 'inbox' | 'awards' | 'history' | 'records' | 'hof' | 'fans' | 'careerHighs' | 'storySeq'> {
   return {
     news: [], social: [], inbox: [], awards: [], history: [], records: { league: emptyBook(), teams: {} }, hof: [],
-    fans: { players: {}, teams: {} }, careerHighs: {}, storySeq: 0,
+    fans: { players: {}, teams: {}, base: {} }, careerHighs: {}, storySeq: 0,
   }
 }
 

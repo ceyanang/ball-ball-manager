@@ -16,8 +16,9 @@ Never deploy a red build: the workflow runs the tests, but run them locally firs
 - React + TypeScript + Vite app; pure-TS engine in `src/engine/` (no React/DOM/Math.random — use `Rng`).
 - `npm test` (Vitest), `npm run typecheck`, `npm run dev`, `npm run build`.
 - Spec: `docs/superpowers/specs/2026-11-22-ball-ball-manager-design.md`; plans in `docs/superpowers/plans/` (M1 core league, M2 GM layer, M3 stories done).
+- Fans: `fans.players` is short-term game buzz, `fans.base` the long-term following (tenure, homegrown, team hopping, stardom, form, relative +/-, hardware) recomputed weekly in `stories/sentiment.ts`; use `fanOf` to read, write buzz only.
 - Stories (awards, records, history, HoF, highlights, social, inbox, fans/morale) live in `src/engine/stories/`; the season engine only calls `stories/hooks.ts`, and story randomness uses `storyRng` so it never shifts game results.
 - Rotations: `Rotation.minutes` is the GM minutes plan (sums to 240), `Rotation.auto` lets the coach re-pick before every game; in-game energy/fatigue tunables are `FATIGUE` in `sim/game.ts`.
 - GM logic lives in `src/engine/gm/` (cap, trade, roster/FA/waivers, draft, offseason); UI GM moves go through `useStore().act`.
 - Random pop-up events live in `src/engine/events/` (catalog of plain data in `catalog/*.ts`, `engine.ts` rolls/resolves, `effects.ts`, `mods.ts` for temporary sim modifiers). Events only roll when the sim is run with `pauseForEvents` (the worker does; tests/scripts don't); outcomes are seeded so reloads can't re-roll; temporary buffs are `GameMods` into `simGame`, never rating edits. Spec: `docs/superpowers/specs/2026-11-23-random-events-design.md`.
-- Save format is `League` (version 8) in IndexedDB; keep it JSON-serializable and bump `version` + add a migration if the shape changes.
+- Save format is `League` (version 9) in IndexedDB; keep it JSON-serializable and bump `version` + add a migration if the shape changes.

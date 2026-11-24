@@ -4,7 +4,7 @@ import { fanOf, teamFan } from '../../engine/stories/sentiment'
 import { PostCard } from '../components/Stories'
 import { Face } from '../face/Face'
 import { useStore } from '../store'
-import { fullName, ovrOf } from '../util'
+import { fullName } from '../util'
 
 const TABS = ['For you', 'My team', 'Players'] as const
 
@@ -16,9 +16,9 @@ export function Social() {
     tab === 'My team' ? p.teamIds.includes(me) || (p.author.kind === 'fan' && p.author.teamId === me) || (p.author.kind === 'player' && league.players[p.author.playerId]?.teamId === me)
     : tab === 'Players' ? p.author.kind === 'player' : true).slice(0, 150)
   const mood = teamFan(league, me)
-  const pulse = Object.values(league.players).filter((p) => p.teamId && ovrOf(p) >= 66 && league.fans.players[p.id] !== undefined)
-  const hot = [...pulse].sort((a, b) => fanOf(league, b.id) - fanOf(league, a.id)).slice(0, 3)
-  const cold = [...pulse].sort((a, b) => fanOf(league, a.id) - fanOf(league, b.id)).slice(0, 3)
+  const pulse = Object.values(league.players).filter((p) => p.teamId && !p.retired).map((p) => ({ p, v: fanOf(league, p.id) }))
+  const hot = pulse.filter((x) => x.v > 0).sort((a, b) => b.v - a.v).slice(0, 5).map((x) => x.p)
+  const cold = pulse.filter((x) => x.v < 0).sort((a, b) => a.v - b.v).slice(0, 3).map((x) => x.p)
   return (
     <div className="social-layout">
       <div className="stack">
@@ -39,7 +39,7 @@ export function Social() {
         <section className="panel stack" style={{ gap: '0.45rem' }}>
           <h3>🔥 Fan favourites</h3>
           {hot.map((p) => <div key={p.id} className="row" style={{ justifyContent: 'space-between' }}><span>{fullName(p)} <span className="muted">{league.teams[p.teamId!].abbrev}</span></span><span className="delta-up">+{fanOf(league, p.id)}</span></div>)}
-          <h3>🥶 Getting roasted</h3>
+          {cold.length > 0 && <h3>🥶 Getting roasted</h3>}
           {cold.map((p) => <div key={p.id} className="row" style={{ justifyContent: 'space-between' }}><span>{fullName(p)} <span className="muted">{league.teams[p.teamId!].abbrev}</span></span><span className="delta-down">{fanOf(league, p.id)}</span></div>)}
         </section>
         <section className="panel stack" style={{ gap: '0.5rem' }}>

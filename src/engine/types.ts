@@ -152,7 +152,7 @@ export interface AllStarEvent {
 export interface TrainingSlot { playerId: string; season: number; day: number }
 
 export interface League {
-  version: 8; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 9; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]
@@ -172,8 +172,11 @@ export interface League {
   training: TrainingSlot[]
   news: NewsItem[]; social: Post[]; inbox: InboxItem[]
   awards: SeasonAwards[]; history: SeasonHistory[]; records: Records; hof: HofEntry[]
-  /** Fan sentiment, −100..100. */
-  fans: { players: Record<string, number>; teams: Record<string, number> }
+  /**
+   * Fan sentiment, −100..100. `players` is short-term buzz from recent games; `base` is each rostered player's
+   * long-term following (tenure, loyalty, stardom, form, +/-, hardware), recomputed weekly. Shown value = base + buzz·0.6.
+   */
+  fans: { players: Record<string, number>; teams: Record<string, number>; base: Record<string, number> }
   careerHighs: Record<string, CareerHigh>
   /** Counter for story ids. */
   storySeq: number

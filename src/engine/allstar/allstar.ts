@@ -7,7 +7,7 @@ import type { PlayEvent } from '../sim/playlog'
 import { computeStandings } from '../standings'
 import { addNews, isRookie, isSophomore } from '../stories/highlights'
 import { ping } from '../stories/inbox'
-import { fanOf, gameScore, popularity } from '../stories/sentiment'
+import { buzzOf, fanOf, gameScore, popularity } from '../stories/sentiment'
 import { clamp, storyRng } from '../stories/state'
 import type { AllStarEvent, AllStarKind, Conference, Game, League, Player, Team } from '../types'
 
@@ -184,13 +184,13 @@ export function playAllStarEvent(l: League, ev: AllStarEvent, log?: PlayEvent[])
     const p = l.players[id]
     if (!p) continue
     p.morale = clamp(p.morale + morale, 0, 100)
-    l.fans.players[id] = clamp(fanOf(l, id) + fans, -100, 100)
+    l.fans.players[id] = clamp(buzzOf(l, id) + fans, -100, 100)
     if (p.teamId) l.fans.teams[p.teamId] = clamp((l.fans.teams[p.teamId] ?? 0) + (allStar ? 1 : 0), -100, 100)
   }
   if (ev.mvp) {
     const p = l.players[ev.mvp]
     p.morale = clamp(p.morale + 6, 0, 100)
-    l.fans.players[ev.mvp] = clamp(fanOf(l, ev.mvp) + 12, -100, 100)
+    l.fans.players[ev.mvp] = clamp(buzzOf(l, ev.mvp) + 12, -100, 100)
     const line = r.box.find((x) => x.playerId === ev.mvp)!
     const title = allStar ? 'All-Star Game MVP' : 'Rising Stars MVP'
     addNews(l, {
