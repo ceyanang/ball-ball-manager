@@ -4,6 +4,7 @@ import { MIN_SALARY, SALARY_CAP } from '../constants'
 import { salaryForPlayer } from '../contracts'
 import { PARODY_TEAMS } from '../data/teams'
 import { generatePlayer, RATING_MIN } from '../player/generate'
+import { pickJersey } from '../player/jerseyNumber'
 import { computeOvr } from '../player/ratings'
 import { Rng } from '../rng'
 import { generateSchedule, tradeDeadline } from '../schedule/schedule'
@@ -127,7 +128,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     const used = new Set<number>()
     for (const p of rosters[ti]) {
       p.teamId = team.id
-      while (used.has(p.jersey)) p.jersey = rng.int(0, 99)
+      while (used.has(p.jersey)) p.jersey = pickJersey(rng)
       used.add(p.jersey)
       p.contract = { salary: salaryForPlayer(p), expires: season + rng.int(0, 4) }
     }

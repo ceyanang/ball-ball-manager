@@ -115,7 +115,9 @@ describe('waivers and free agents', () => {
     const fa = Object.values(l.players).filter((p) => isFreeAgent(l, p)).sort((a, b) => ovr(b) - ovr(a))[0]
     const ask = currentAsk(l, fa)
     if (ask >= 2000) expect(offerFreeAgent(l, user(l), fa.id, Math.floor(ask / 200) * 100, 2)).toBe('rejected')
-    expect(offerFreeAgent(l, user(l), fa.id, ask, 2)).toBe('signed')
+    // Players weigh contract length too (young ones want longer deals), so the ask is met by some length.
+    const signed = [2, 3, 1, 4, 5].some((years) => offerFreeAgent(l, user(l), fa.id, ask, years) === 'signed')
+    expect(signed).toBe(true)
     expect(l.players[fa.id].teamId).toBe(user(l))
   })
   it('once free agency is over (step "ready"), a short roster can still sign free agents on the spot', () => {

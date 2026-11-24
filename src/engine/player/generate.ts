@@ -2,6 +2,7 @@ import { COLLEGES, FIRST_NAMES, HOMETOWNS, LAST_NAMES } from '../data/names'
 import type { Rng } from '../rng'
 import type { Player, Position, Ratings } from '../types'
 import { RATING_KEYS, computeOvr } from './ratings'
+import { pickJersey } from './jerseyNumber'
 
 export const POSITIONS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C']
 
@@ -54,7 +55,7 @@ export function generatePlayer(
     age,
     heightIn: Math.round(rng.normal(HEIGHT[pos], 2)),
     pos,
-    jersey: rng.int(0, 99),
+    jersey: pickJersey(rng),
     hometown: rng.pick(HOMETOWNS),
     college: rng.pick(COLLEGES),
     ratings,

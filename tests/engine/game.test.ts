@@ -176,11 +176,11 @@ describe('out-of-position play', () => {
     const margin = (t: Team) => {
       const rng = Rng.fromSeed(77)
       let m = 0
-      for (let i = 0; i < 300; i++) {
+      for (let i = 0; i < 900; i++) {
         const r = simGame(t, b.team, players, league.coaches, rng)
         m += r.homeScore - r.awayScore
       }
-      return m / 300
+      return m / 900
     }
     expect(margin(a.team) - margin(scrambled)).toBeGreaterThan(2)
   })
