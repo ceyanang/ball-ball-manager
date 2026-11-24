@@ -23,7 +23,7 @@ describe('event catalog', () => {
     expect(n((d) => d.when === 'postGame')).toBeGreaterThanOrEqual(12)
     expect(n((d) => d.when === 'day')).toBeGreaterThanOrEqual(12)
     expect(n((d) => !!d.playoffsOnly)).toBeGreaterThanOrEqual(4)
-    expect(CATALOG.length).toBeGreaterThanOrEqual(55)
+    expect(CATALOG.length).toBeGreaterThanOrEqual(78)
   })
   it('has unique ids and sane shapes', () => {
     expect(new Set(CATALOG.map((d) => d.id)).size).toBe(CATALOG.length)

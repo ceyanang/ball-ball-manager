@@ -1,4 +1,4 @@
-import { buff, chem, event, fans, healthy, morale, starter, teamBuff, teamFans, teamMorale, vet, young, type Spec } from './helpers'
+import { bench, buff, chem, event, fans, healthy, morale, starter, teamBuff, teamFans, teamMorale, vet, young, type Spec } from './helpers'
 
 const S: Spec[] = [
   {
@@ -107,6 +107,60 @@ const S: Spec[] = [
       { label: 'Go', emoji: '🌊', out: [[3, 'good', () => 'Sunshine, volleyball, vibes.', () => [chem(4), teamMorale(3)]], [1, 'bad', () => 'Half the team is sunburned.', () => [teamBuff('energy', -15, 2)]]] },
       { label: 'Indoor activity instead', emoji: '🏢', out: [[2, 'neutral', () => 'A pleasant, boring day.', () => [chem(1)]]] },
       { label: 'Practice instead', emoji: '🏀', out: [[1, 'good', () => 'A sharp practice.', () => [teamBuff('all', 1, 2)]], [3, 'bad', () => 'The team is grumpy.', () => [teamMorale(-3)]]] },
+    ],
+  },
+  {
+    id: 'day-cooking', when: 'day', emoji: '👨‍🍳', title: () => 'Team cooking class',
+    text: () => 'The team nutritionist booked a cooking class. Nobody on the roster has ever used an oven.',
+    choices: [
+      { label: 'Everyone goes', emoji: '🍳', out: [[3, 'good', () => 'Burnt pasta, great memories.', () => [chem(4)]], [1, 'bad', () => 'Small kitchen fire. Everyone is fine. The chef is not.', () => [teamFans(-2)]]] },
+      { label: 'Hire a real chef instead', emoji: '🧑‍🍳', out: [[2, 'good', () => 'The team eats like kings. Energy is up.', () => [teamBuff('energy', 8, 3)]], [1, 'bad', () => 'Too rich. Stomach aches everywhere.', () => [teamBuff('energy', -10, 1)]]] },
+      { label: 'Skip it', emoji: '🍔', out: [[1, 'neutral', () => 'Fast food it is.', () => []], [1, 'bad', () => 'The nutritionist is heartbroken.', () => [teamMorale(-1)]]] },
+    ],
+  },
+  {
+    id: 'day-docuseries', when: 'day', emoji: '🎬', title: () => 'A streaming service wants a docuseries',
+    text: () => 'A streaming giant wants behind-the-scenes access for a docuseries. Cameras everywhere, all season.',
+    choices: [
+      { label: 'Full access', emoji: '🎥', out: [[2, 'good', () => 'The show is a hit. Everyone is famous.', () => [teamFans(10)]], [2, 'bad', () => 'An argument airs on episode two. Ouch.', () => [chem(-4), teamFans(3)]]] },
+      { label: 'Limited access', emoji: '🚪', out: [[2, 'good', () => 'A tasteful little show.', () => [teamFans(4)]], [1, 'neutral', () => 'Nobody watches it.', () => []]] },
+      { label: 'No cameras', emoji: '🙅', out: [[2, 'good', () => 'The locker room stays a vault.', () => [chem(2)]], [1, 'bad', () => 'Fans say the team is boring.', () => [teamFans(-3)]]] },
+    ],
+  },
+  {
+    id: 'day-oldschool', when: 'day', emoji: '🏫', who: starter, title: (n) => `${n.last}'s old high school calls`,
+    text: (n) => `${n.full}'s high school wants to retire his jersey at a ceremony. It's a long drive on a rest day.`,
+    choices: [
+      { label: 'Go, bring the team', emoji: '🚌', out: [[3, 'good', (n) => `A hometown hero day for ${n.last}.`, (id) => [morale(id, 7), chem(2), fans(id, 5)]], [1, 'bad', () => 'Long bus ride. Tired legs.', () => [teamBuff('energy', -10, 1)]]] },
+      { label: 'He goes alone', emoji: '🚗', out: [[2, 'good', (n) => `${n.last} comes back glowing.`, (id) => [morale(id, 6)]], [1, 'bad', (n) => `${n.last} is wiped from the drive.`, (id) => [buff(id, 'energy', -15, 1)]]] },
+      { label: 'Send a video message', emoji: '📹', out: [[1, 'neutral', () => 'A nice video. That\'s it.', () => []], [2, 'bad', (n) => `${n.last} wishes he'd been there.`, (id) => [morale(id, -4)]]] },
+    ],
+  },
+  {
+    id: 'day-pickup', when: 'day', emoji: '🏞️', who: healthy, title: (n) => `${n.last} was spotted playing pickup`,
+    text: (n) => `A video shows ${n.full} playing streetball at a public park. Dunking on strangers. The medical staff is sweating.`,
+    choices: [
+      { label: 'Ban it', emoji: '🚫', out: [[2, 'neutral', () => 'He stops. Grudgingly.', (id) => [morale(id, -2)]], [1, 'bad', (n) => `${n.last} feels like a prisoner.`, (id) => [morale(id, -6)]]] },
+      { label: 'Let him hoop', emoji: '🏀', out: [[2, 'good', (n) => `${n.last} is the people's champ. The city loves him.`, (id) => [fans(id, 9), morale(id, 4)]], [1, 'bad', (n) => `${n.last} rolls an ankle a little. Nothing serious.`, (id) => [buff(id, 'energy', -20, 2)]]] },
+      { label: 'Make it a team event', emoji: '🎉', out: [[3, 'good', () => 'The whole team shows up at the park. Viral.', () => [teamFans(6), chem(2)]], [1, 'bad', () => 'Chaos. The crowd gets too big.', () => [teamFans(-2)]]] },
+    ],
+  },
+  {
+    id: 'day-yoga', when: 'day', emoji: '🧘', title: () => 'A yoga instructor offers sessions',
+    text: () => 'A famous yoga instructor offers to work with the team. The big men look terrified.',
+    choices: [
+      { label: 'Mandatory yoga', emoji: '🤸', out: [[2, 'good', () => 'Bendy, relaxed, recovered.', () => [teamBuff('energy', 10, 3)]], [2, 'bad', () => 'Pulled muscles and a lot of complaining.', () => [teamMorale(-3)]]] },
+      { label: 'Optional yoga', emoji: '🙂', out: [[2, 'good', () => 'A few converts. Nice.', () => [teamMorale(1)]], [1, 'neutral', () => 'Nobody shows up.', () => []]] },
+      { label: 'No thanks', emoji: '🙅', out: [[1, 'neutral', () => 'Nothing changes.', () => []], [1, 'bad', () => 'The training staff thinks you\'re old-school.', () => [chem(-1)]]] },
+    ],
+  },
+  {
+    id: 'day-mascot', when: 'day', emoji: '🐻', who: bench, title: (n) => `${n.last} wants to wear the mascot suit`,
+    text: (n) => `${n.full} has asked to secretly be the mascot at the next home game. He has a whole routine planned.`,
+    choices: [
+      { label: 'Let him do it', emoji: '🧸', out: [[3, 'good', (n) => `The reveal at halftime brings the house down. ${n.last} is a legend.`, (id) => [fans(id, 10), chem(2)]], [1, 'bad', () => 'He trips down the stairs in the suit. On camera.', (id) => [fans(id, -4), buff(id, 'energy', -15, 1)]]] },
+      { label: 'Absolutely not', emoji: '🙅', out: [[2, 'bad', (n) => `${n.last} is genuinely sad about it.`, (id) => [morale(id, -5)]], [1, 'neutral', () => 'He laughs it off.', () => []]] },
+      { label: 'Only at a charity event', emoji: '💝', out: [[2, 'good', () => 'The kids adore it.', (id) => [morale(id, 4), teamFans(3)]], [1, 'neutral', () => 'Small crowd. Still cute.', () => []]] },
     ],
   },
 ]

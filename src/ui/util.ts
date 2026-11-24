@@ -3,6 +3,9 @@ import { playerSeasonStats, perGame } from '../engine/stats/stats'
 import type { Game, League, Player, Team } from '../engine/types'
 
 export const ovrOf = (p: Player) => computeOvr(p.ratings, p.pos)
+/** Morale (0–100) as a face and a word. */
+export const moodOf = (m: number) =>
+  m >= 70 ? { emoji: '😄', label: 'Happy' } : m >= 45 ? { emoji: '🙂', label: 'Content' } : m >= 30 ? { emoji: '😕', label: 'Unhappy' } : { emoji: '😠', label: 'Angry' }
 export const fullName = (p: { firstName: string; lastName: string }) => `${p.firstName} ${p.lastName}`
 export const teamFull = (t: Team) => `${t.city} ${t.name}`
 export const rosterOf = (l: League, teamId: string) => Object.values(l.players).filter((p) => p.teamId === teamId)
