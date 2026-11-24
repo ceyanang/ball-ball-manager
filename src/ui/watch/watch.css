@@ -121,7 +121,7 @@
 .w-qbar div.todo span { color: var(--ink); }
 .w-pace { background: var(--surface-2); border-radius: 10px; padding: 10px; font-size: 0.9rem; }
 
-/* OVR tiers: border on the portrait + badge top-left. 95+ prismatic (rainbow), 90-94 red, 86-89 diamond, 81-85 purple, 76-80 gold, 70-75 silver, else bronze. */
+/* OVR tiers: border on the portrait + badge top-left. 95+ prismatic (rainbow), 90-94 red, 85-89 diamond, 80-84 purple, 75-79 gold, 70-74 silver, else bronze. */
 :root { --rainbow: linear-gradient(135deg, #ff3b3b, #ff9f1a, #ffe14d, #3ddc84, #2bb8ff, #7a5cff, #e04bff); }
 .w-face { position: relative; box-sizing: border-box; border: 2px solid transparent; }
 .w-face.tier-bronze { border-color: #b0733a; }
