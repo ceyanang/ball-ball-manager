@@ -7,7 +7,8 @@ describe('ovrTier', () => {
     [70, 'silver'], [75, 'silver'],
     [76, 'gold'], [80, 'gold'],
     [81, 'purple'], [85, 'purple'],
-    [86, 'diamond'], [94, 'diamond'],
+    [86, 'diamond'], [89, 'diamond'],
+    [90, 'red'], [94, 'red'],
     [95, 'prismatic'], [99, 'prismatic'],
   ] as const)('%i is %s', (v, tier) => {
     expect(ovrTier(v)).toBe(tier)

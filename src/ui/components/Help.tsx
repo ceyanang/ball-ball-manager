@@ -4,7 +4,7 @@ export type HelpTopic = 'pot' | 'sta' | 'energy' | 'tiers' | 'need'
 
 const TIERS: [string, string][] = [
   ['#b0733a', 'bronze <70'], ['#c4ccd8', 'silver 70–75'], ['#ffc83d', 'gold 76–80'],
-  ['#a45bff', 'purple 81–85'], ['#7fe7ff', 'diamond 86–94'], ['linear-gradient(135deg,#ff3b3b,#ffe14d,#3ddc84,#2bb8ff,#e04bff)', 'prismatic 95+'],
+  ['#a45bff', 'purple 81–85'], ['#7fe7ff', 'diamond 86–89'], ['#ff3b3b', 'red 90–94'],['linear-gradient(135deg,#ff3b3b,#ffe14d,#3ddc84,#2bb8ff,#e04bff)', 'prismatic 95+'],
 ]
 
 const TEXT: Record<HelpTopic, React.ReactNode> = {

@@ -121,7 +121,7 @@
 .w-qbar div.todo span { color: var(--ink); }
 .w-pace { background: var(--surface-2); border-radius: 10px; padding: 10px; font-size: 0.9rem; }
 
-/* OVR tiers: border on the portrait + badge top-left. 95+ prismatic (rainbow), 86-94 diamond, 81-85 purple, 76-80 gold, 70-75 silver, else bronze. */
+/* OVR tiers: border on the portrait + badge top-left. 95+ prismatic (rainbow), 90-94 red, 86-89 diamond, 81-85 purple, 76-80 gold, 70-75 silver, else bronze. */
 :root { --rainbow: linear-gradient(135deg, #ff3b3b, #ff9f1a, #ffe14d, #3ddc84, #2bb8ff, #7a5cff, #e04bff); }
 .w-face { position: relative; box-sizing: border-box; border: 2px solid transparent; }
 .w-face.tier-bronze { border-color: #b0733a; }
@@ -129,6 +129,7 @@
 .w-face.tier-gold { border-color: #ffc83d; }
 .w-face.tier-purple { border-color: #a45bff; }
 .w-face.tier-diamond { border-color: #7fe7ff; box-shadow: 0 0 6px rgba(127, 231, 255, 0.55); }
+.w-face.tier-red { border-color: #ff3b3b; box-shadow: 0 0 6px rgba(255, 59, 59, 0.55); }
 .w-face.tier-prismatic { background: linear-gradient(#1f2a42, #1f2a42) padding-box, var(--rainbow) border-box; }
 .w-ovr { position: absolute; top: 0; left: 0; z-index: 2; min-width: 1.15rem; padding: 0 3px; border-radius: 0 0 6px 0; font: 900 0.7rem/1.25 var(--display); text-align: center; color: #111; }
 .w-ovr.tier-bronze { background: #b0733a; color: #fff; }
@@ -136,6 +137,7 @@
 .w-ovr.tier-gold { background: #ffc83d; }
 .w-ovr.tier-purple { background: #a45bff; color: #fff; }
 .w-ovr.tier-diamond { background: linear-gradient(135deg, #b9f3ff, #5fd6ff); color: #06232e; }
+.w-ovr.tier-red { background: #ff3b3b; color: #fff; }
 .w-ovr.tier-prismatic { background: var(--rainbow); color: #fff; text-shadow: 0 0 3px #000, 0 0 2px #000; }
 
 /* A swap: the new player drops into his slot with a gold flash. */
