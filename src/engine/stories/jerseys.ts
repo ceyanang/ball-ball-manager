@@ -97,3 +97,13 @@ export function evaluateJerseys(l: League, playerIds: string[], opts: { silent?:
   }
   return out
 }
+
+/** Migration: honor players who retired before this feature existed, oldest retirement first and with no news or pings. */
+export function backfillJerseys(l: League): void {
+  const lastSeason = new Map<string, number>()
+  for (const s of Object.values(l.statLines)) if (!s.playoffs) lastSeason.set(s.playerId, Math.max(lastSeason.get(s.playerId) ?? 0, s.season))
+  const retirees = Object.values(l.players).filter((p) => p.retired && lastSeason.has(p.id))
+    .sort((a, b) => lastSeason.get(a.id)! - lastSeason.get(b.id)! || a.id.localeCompare(b.id))
+  for (const p of retirees)
+    for (const j of evaluateJerseys(l, [p.id], { silent: true })) j.season = lastSeason.get(p.id)! + 1
+}

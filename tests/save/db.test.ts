@@ -123,6 +123,22 @@ describe('save versions', () => {
     expect(m.version).toBe(10)
     expect(Array.isArray(m.retiredJerseys)).toBe(true)
   })
+  it('backfills jerseys for players who retired before v10, quietly', () => {
+    const l = structuredClone(league)
+    const a = Object.keys(l.teams)[0]
+    const p = Object.values(l.players).find((q) => q.teamId === a)!
+    p.teamId = null
+    p.retired = true
+    for (let s = 1; s <= 8; s++)
+      l.statLines[`${s}|r|${p.id}|${a}`] = {
+        playerId: p.id, teamId: a, season: s, playoffs: false, gp: 70, gs: 70, min: 2100, pts: 2100, oreb: 0, dreb: 0, ast: 0,
+        stl: 0, blk: 0, tov: 0, pf: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, pm: 0,
+      }
+    const news = l.news.length
+    const m = parseImport(JSON.stringify({ ...l, version: 9, retiredJerseys: undefined }))
+    expect(m.retiredJerseys.map((j) => [j.teamId, j.playerId, j.season])).toEqual([[a, p.id, 9]])
+    expect(m.news.length).toBe(news)
+  })
   it('rejects version 11', () => {
     expect(() => parseImport(JSON.stringify({ ...league, version: 11 }))).toThrow(SaveImportError)
   })

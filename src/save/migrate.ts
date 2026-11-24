@@ -5,6 +5,7 @@ import type { League } from '../engine/types'
 import { SaveImportError } from './errors'
 import { backfillRecords } from '../engine/stories/records'
 import { emptyStories } from '../engine/stories/state'
+import { backfillJerseys } from '../engine/stories/jerseys'
 import { recomputeFanBase } from '../engine/stories/sentiment'
 import { emptyEvents } from '../engine/events/state'
 
@@ -59,7 +60,11 @@ export function migrateLeague(raw: any): League {
     if (raw.statLines && typeof raw.statLines === 'object' && raw.players && typeof raw.players === 'object' && Array.isArray(raw.awards) && Array.isArray(raw.allStars))
       recomputeFanBase(raw as League)
   }
-  if (raw?.version === 9) raw = { ...raw, version: 10, retiredJerseys: [] }
+  if (raw?.version === 9) {
+    raw = { ...raw, version: 10, retiredJerseys: [] }
+    if (raw.statLines && typeof raw.statLines === 'object' && raw.players && typeof raw.players === 'object' && raw.teams && typeof raw.teams === 'object' && Array.isArray(raw.awards))
+      backfillJerseys(raw as League)
+  }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)
   if (!Array.isArray(raw.favoritePlayerIds)) raw = { ...raw, favoritePlayerIds: [] }
