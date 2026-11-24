@@ -27,7 +27,7 @@ import { Help } from '../components/Help'
 type Phase = 'play' | 'break' | 'final'
 type ShotKind = 'made' | 'miss' | 'blocked'
 
-const SPEEDS = [1, 2, 4] as const
+const SPEEDS = [1, 2, 4, 8] as const
 const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 /** Full-screen replay of the user's game. Shell renders only this while a watch session is open (no spoilers). */
