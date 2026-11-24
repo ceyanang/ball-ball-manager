@@ -114,5 +114,50 @@ const S: Spec[] = [
       { label: 'Not tonight', emoji: '😴', out: [[1, 'neutral', () => 'He goes home to sleep.', () => []], [2, 'bad', (n) => `${n.last} is annoyed.`, (id) => [morale(id, -4)]]] },
     ],
   },
+  {
+    id: 'post-gamewinner', when: 'postGame', emoji: '🎯', who: starter, needs: (c) => won(c) && margin(c) <= 3, title: (n) => `${n.last} wants credit for the game-winner`,
+    text: (n) => `${n.full} is telling every reporter the late bucket was "all him". A teammate set the screen and is not thrilled.`,
+    choices: [
+      { label: 'Let him have his moment', emoji: '🌟', out: [[2, 'good', (n) => `${n.last} is all over the highlights.`, (id) => [fans(id, 8), morale(id, 4)]], [2, 'bad', () => 'The screener stews. The room notices.', () => [chem(-3)]]] },
+      { label: 'Praise the screen in the presser', emoji: '🧱', out: [[3, 'good', () => 'The team-first message lands.', () => [chem(3)]], [1, 'bad', (n) => `${n.last} feels upstaged.`, (id) => [morale(id, -4)]]] },
+      { label: 'Say nothing', emoji: '🤐', out: [[2, 'neutral', () => 'The news cycle moves on.', () => []], [1, 'bad', () => 'A little grumbling in the locker room.', () => [chem(-1)]]] },
+    ],
+  },
+  {
+    id: 'post-hotseat', when: 'postGame', emoji: '🔥', needs: lost, title: (n) => `Coach ${n.last} is asked about his job`,
+    text: () => 'After the loss, a reporter asks if you think you\'ll be fired. The room goes quiet. The cameras zoom in.',
+    choices: [
+      { label: 'Laugh it off', emoji: '😂', out: [[2, 'good', () => 'A great line. The clip goes viral for the right reasons.', () => [teamFans(4)]], [1, 'bad', () => 'It reads as not caring.', () => [teamFans(-4)]]] },
+      { label: 'Defend your players', emoji: '🛡️', out: [[3, 'good', () => 'The locker room hears about it and loves it.', () => [teamMorale(4), chem(2)]], [1, 'bad', () => 'Fans call it excuses.', () => [teamFans(-3)]]] },
+      { label: 'Walk out', emoji: '🚪', out: [[1, 'good', () => 'Weirdly iconic.', () => [teamFans(2)]], [2, 'bad', () => 'The league office is not amused. Neither are the fans.', () => [teamFans(-6)]]] },
+    ],
+  },
+  {
+    id: 'post-flight', when: 'postGame', emoji: '✈️', needs: (c) => !!c.userGame, title: () => 'The team plane is delayed',
+    text: () => 'Mechanical issue. The plane is stuck on the tarmac for four hours. The team is stuck with it.',
+    choices: [
+      { label: 'Book a hotel for the night', emoji: '🏨', out: [[2, 'good', () => 'Everyone sleeps. Crisis averted.', () => [teamBuff('energy', 8, 1)]], [1, 'bad', () => 'The hotel is terrible. Nobody sleeps anyway.', () => [teamBuff('energy', -10, 1)]]] },
+      { label: 'Wait it out, order pizza', emoji: '🍕', out: [[2, 'good', () => 'An impromptu party on the plane.', () => [chem(3)]], [2, 'bad', () => 'Grumpy, cramped, exhausted.', () => [teamBuff('energy', -12, 1), teamMorale(-2)]]] },
+      { label: 'Charter a different plane', emoji: '💸', out: [[2, 'good', () => 'Home in time for bed.', () => [teamMorale(2)]], [1, 'bad', () => 'It\'s a tiny plane. Turbulence. Screaming.', () => [teamMorale(-3)]]] },
+    ],
+  },
+  {
+    id: 'post-refrant', when: 'postGame', emoji: '📢', who: starter, needs: (c) => lost(c) && margin(c) <= 6, title: (n) => `${n.last} wants to blast the refs`,
+    text: (n) => `${n.full} is heading for the microphones and says he's going to "tell the truth" about tonight's officiating.`,
+    choices: [
+      { label: 'Let him speak', emoji: '🎙️', out: [[2, 'good', (n) => `Fans love ${n.last}'s fire.`, (id) => [fans(id, 6), morale(id, 4)]], [2, 'bad', (n) => `The league fines ${n.last}. He is fuming.`, (id) => [morale(id, -6)]]] },
+      { label: 'Pull him aside first', emoji: '🤚', out: [[2, 'good', () => 'He cools down. Smart quotes only.', (id) => [morale(id, 1)]], [1, 'bad', (n) => `${n.last} says you muzzled him.`, (id) => [morale(id, -5)]]] },
+      { label: 'You take the heat instead', emoji: '🧯', out: [[2, 'good', () => 'Your players see you have their back.', () => [teamMorale(3), chem(2)]], [1, 'bad', () => 'You get fined. The front office sighs.', () => [teamFans(-2)]]] },
+    ],
+  },
+  {
+    id: 'post-rookieblame', when: 'postGame', emoji: '😔', who: young, needs: lost, title: (n) => `${n.last} blames himself`,
+    text: (n) => `${n.full} is sitting alone at his locker, still in uniform. He thinks the loss is on him.`,
+    choices: [
+      { label: 'Talk to him yourself', emoji: '🫂', out: [[3, 'good', (n) => `${n.last} leaves feeling better.`, (id) => [morale(id, 7)]], [1, 'neutral', () => 'He nods a lot. Hard to tell.', () => []]] },
+      { label: 'Send a vet over', emoji: '🧓', out: [[2, 'good', () => 'The vet shares his own rookie horror stories. Bonding.', (id) => [morale(id, 5), chem(2)]], [1, 'bad', () => 'The vet is not great at pep talks.', (id) => [morale(id, -3)]]] },
+      { label: 'Let him sit with it', emoji: '🪑', out: [[1, 'good', (n) => `${n.last} comes back hungry.`, (id) => [buff(id, 'all', 2, 2)]], [2, 'bad', (n) => `${n.last} spirals.`, (id) => [morale(id, -6)]]] },
+    ],
+  },
 ]
 export const POST_GAME_EVENTS = S.map(event)

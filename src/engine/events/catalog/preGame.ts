@@ -109,6 +109,59 @@ const S: Spec[] = [
       { label: 'Rest him tonight', emoji: '🛌', out: [[2, 'good', (n) => `${n.last} sits and is grateful. Rested and ready.`, (id) => [rest(id), morale(id, 6)]], [1, 'bad', () => 'The fans wonder where he is. The crowd boos.', (id) => [rest(id), fans(id, -4)]]] },
     ],
   },
+  {
+    id: 'pre-tunnelfit', when: 'preGame', emoji: '🕶️', who: starter, title: (n) => `${n.last}'s tunnel fit is... a lot`,
+    text: (n) => `${n.full} shows up in a full sequined suit and sunglasses for the walk into the arena. The cameras are already rolling.`,
+    choices: [
+      { label: 'Hype it up', emoji: '📸', out: [[3, 'good', (n) => `The fit goes viral. ${n.last} walks in ten feet tall.`, (id) => [fans(id, 8), buff(id, 'shooting', 2, 1)]], [1, 'bad', (n) => `The internet is merciless. ${n.last} is rattled.`, (id) => [fans(id, -5), buff(id, 'shooting', -2, 1)]]] },
+      { label: 'Ask him to tone it down', emoji: '👔', out: [[2, 'neutral', () => 'He swaps to a plain hoodie. Grumbling.', (id) => [morale(id, -2)]], [1, 'bad', (n) => `${n.last} feels like you're killing his vibe.`, (id) => [morale(id, -6)]]] },
+      { label: 'Wear a matching one', emoji: '🪩', out: [[2, 'good', () => 'Coach and player in sequins. The locker room loses it.', () => [chem(4), teamFans(3)]], [2, 'bad', () => 'You look ridiculous. So does the team, by association.', () => [teamFans(-3)]]] },
+    ],
+  },
+  {
+    id: 'pre-routine', when: 'preGame', emoji: '🔁', who: vet, title: (n) => `${n.last}'s routine got broken`,
+    text: (n) => `Someone parked in ${n.full}'s spot and ate his pre-game banana. He has done the same routine for nine years. He is not okay.`,
+    choices: [
+      { label: 'Find him a banana. Now.', emoji: '🍌', out: [[3, 'good', (n) => `Banana secured. ${n.last} is at peace.`, (id) => [morale(id, 3)]], [1, 'bad', () => 'It\'s the wrong kind of banana.', (id) => [buff(id, 'shooting', -3, 1)]]] },
+      { label: 'Tell him it\'s just a banana', emoji: '🙄', out: [[1, 'good', (n) => `${n.last} laughs at himself. Growth.`, (id) => [morale(id, 2)]], [2, 'bad', (n) => `${n.last} is in his own head all night.`, (id) => [buff(id, 'all', -3, 1), morale(id, -3)]]] },
+      { label: 'Find the culprit', emoji: '🕵️', out: [[2, 'good', () => 'A rookie confesses. Everyone laughs it off.', () => [chem(2)]], [2, 'bad', () => 'The interrogation splits the room.', () => [chem(-3)]]] },
+    ],
+  },
+  {
+    id: 'pre-refs', when: 'preGame', emoji: '🦓', title: () => 'Tonight\'s refs call everything',
+    text: (n) => `An assistant brings Coach ${n.last} a report: tonight's crew calls fouls on everything. Play it safe, or play through it?`,
+    choices: [
+      { label: 'Play clean, stay out of trouble', emoji: '🧼', out: [[2, 'good', () => 'Disciplined defense. Few fouls.', () => [teamBuff('defense', 2, 1)]], [2, 'bad', () => 'Too soft. They score at will.', () => [teamBuff('defense', -2, 1)]]] },
+      { label: 'Attack the rim, get to the line', emoji: '🚀', out: [[2, 'good', () => 'Free throws for days.', () => [teamBuff('shooting', 3, 1)]], [2, 'bad', () => 'The refs swallow their whistles on your end, of course.', () => [teamBuff('energy', -10, 1)]]] },
+      { label: 'Ignore the report', emoji: '🗑️', out: [[2, 'neutral', () => 'A normal game.', () => []], [1, 'good', () => 'The team plays loose.', () => [teamMorale(1)]]] },
+    ],
+  },
+  {
+    id: 'pre-sign', when: 'preGame', emoji: '🪧', who: starter, title: (n) => `A fan sign is roasting ${n.last}`,
+    text: (n) => `Behind the visitors' bench, a giant sign mocks ${n.full}'s last missed free throw. It has a drawing. It's a good drawing.`,
+    choices: [
+      { label: 'Tell him to use it as fuel', emoji: '⛽', out: [[3, 'good', (n) => `${n.last} is locked in. Revenge mode.`, (id) => [buff(id, 'shooting', 3, 1)]], [1, 'bad', (n) => `${n.last} presses all night.`, (id) => [buff(id, 'shooting', -3, 1)]]] },
+      { label: 'Ask security to take it down', emoji: '👮', out: [[1, 'neutral', () => 'The sign disappears. The crowd boos.', () => []], [2, 'bad', () => 'Now it\'s a story: "Team scared of a sign."', (id) => [fans(id, -4)]]] },
+      { label: 'Have him sign the sign', emoji: '✍️', out: [[3, 'good', (n) => `${n.last} autographs it after warmups. Instant legend.`, (id) => [fans(id, 9)]], [1, 'bad', () => 'The fan refuses. Awkward.', (id) => [morale(id, -3)]]] },
+    ],
+  },
+  {
+    id: 'pre-analytics', when: 'preGame', emoji: '📊', title: () => 'The analytics guy has a plan',
+    text: () => 'The new analytics hire slides a spreadsheet across the table: "Tonight we shoot only threes and layups. Nothing in between."',
+    choices: [
+      { label: 'Trust the math', emoji: '🧮', out: [[2, 'good', () => 'The threes are falling. The nerds were right.', () => [teamBuff('shooting', 3, 1)]], [2, 'bad', () => 'Brick city. The math was not right tonight.', () => [teamBuff('shooting', -3, 1)]]] },
+      { label: 'Trust the vets', emoji: '🧓', out: [[2, 'good', () => 'The vets appreciate it.', () => [chem(2)]], [1, 'bad', () => 'The analytics guy sulks in the war room.', () => []]] },
+      { label: 'Split the difference', emoji: '⚖️', out: [[2, 'neutral', () => 'A sensible game plan.', () => []], [1, 'good', () => 'A balanced attack. Nice.', () => [teamBuff('all', 1, 1)]]] },
+    ],
+  },
+  {
+    id: 'pre-shootaround', when: 'preGame', emoji: '💤', title: () => 'Shootaround or nap?',
+    text: () => 'Late flight last night. The team is yawning. Do you hold the morning shootaround?',
+    choices: [
+      { label: 'Hold shootaround', emoji: '🏀', out: [[2, 'good', () => 'The rhythm is there.', () => [teamBuff('shooting', 2, 1)]], [2, 'bad', () => 'Heavy legs by the fourth quarter.', () => [teamBuff('energy', -10, 1)]]] },
+      { label: 'Cancel, everyone naps', emoji: '😴', out: [[3, 'good', () => 'Fresh legs all night.', () => [teamBuff('energy', 12, 1)]], [1, 'bad', () => 'Rusty early. Very rusty.', () => [teamBuff('shooting', -2, 1)]]] },
+      { label: 'Walkthrough only', emoji: '🚶', out: [[2, 'neutral', () => 'Fine. Nothing special.', () => []], [1, 'good', () => 'Just enough.', () => [teamBuff('all', 1, 1)]]] },
+    ],
+  },
 ]
-
 export const PRE_GAME_EVENTS = S.map(event)

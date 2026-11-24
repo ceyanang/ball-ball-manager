@@ -43,19 +43,19 @@ export function useSim() {
   const problem = rosterProblem(league)
   const playsToday = nextGame(league, league.userTeamId)?.day === league.day
   const watch: SimAction[] = playsToday ? [{ key: 'watch', label: 'Watch game', short: 'Play today\'s game live', primary: true, run: () => void startWatch() }] : []
-  const series: SimAction[] = league.phase === 'playoffs' && userSeries(league) ? [{ key: 'series', label: 'Sim series', short: 'Until your series is decided', run: () => sim({ type: 'simUntil', target: 'seriesEnd' }) }] : []
+  const series: SimAction[] = league.phase === 'playoffs' && userSeries(league) ? [{ key: 'series', label: 'Sim series', short: 'Until your series is decided, no pop-ups', run: () => sim({ type: 'simUntil', target: 'seriesEnd' }) }] : []
   const base: SimAction[] = league.phase === 'regular'
     ? [
         { key: 'day', label: 'Sim day', short: 'Next day', run: () => sim({ type: 'simDays', days: 1 }) },
-        { key: 'week', label: 'Sim week', short: 'Next 7 days', run: () => void simWeek(sim) },
+        { key: 'week', label: 'Sim week', short: 'Next 7 days (no pop-ups)', run: () => void simWeek(sim) },
         { key: 'event', label: 'Sim to next event', short: 'Until the next pop-up', run: () => sim({ type: 'simUntil', target: 'event' }) },
-        ...(league.day < league.tradeDeadlineDay ? [{ key: 'deadline', label: 'Sim to deadline', short: `Up to the trade deadline (day ${league.tradeDeadlineDay})`, run: () => sim({ type: 'simUntil', target: 'deadline' }) }] : []),
-        { key: 'end', label: 'Sim to end of season', short: 'Play out the regular season', primary: true, run: () => sim({ type: 'simUntil', target: 'regularEnd' }) },
+        ...(league.day < league.tradeDeadlineDay ? [{ key: 'deadline', label: 'Sim to deadline', short: `Up to the trade deadline (day ${league.tradeDeadlineDay}), no pop-ups`, run: () => sim({ type: 'simUntil', target: 'deadline' }) }] : []),
+        { key: 'end', label: 'Sim to end of season', short: 'Play out the regular season, no pop-ups', primary: true, run: () => sim({ type: 'simUntil', target: 'regularEnd' }) },
       ]
     : [
         { key: 'day', label: 'Sim day', short: 'Next playoff day', run: () => sim({ type: 'simDays', days: 1 }) },
         { key: 'event', label: 'Sim to next event', short: 'Until the next pop-up', run: () => sim({ type: 'simUntil', target: 'event' }) },
-        { key: 'end', label: 'Sim playoffs', short: 'Play out the playoffs', primary: true, run: () => sim({ type: 'simUntil', target: 'playoffsEnd' }) },
+        { key: 'end', label: 'Sim playoffs', short: 'Play out the playoffs, no pop-ups', primary: true, run: () => sim({ type: 'simUntil', target: 'playoffsEnd' }) },
       ]
   const actions = [...watch, ...base.slice(0, 1), ...series, ...base.slice(1)].map((a) => (playsToday && a.primary && a.key !== 'watch' ? { ...a, primary: false } : a))
   return { problem, actions, disabled: busy || !!problem || !!league.events.pending, busy }

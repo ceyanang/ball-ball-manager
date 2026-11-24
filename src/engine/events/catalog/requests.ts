@@ -1,5 +1,5 @@
 import type { Ratings } from '../../types'
-import { bench, buff, chem, event, fans, healthy, morale, rest, starter, teamFans, train, vet, young, type Spec } from './helpers'
+import { bench, buff, chem, event, fans, healthy, morale, rest, starter, teamBuff, teamFans, train, vet, young, type Spec } from './helpers'
 
 /** "I want to work on X": approve (he improves, maybe at a cost), decline (he may do it anyway), or make him earn it. */
 const trainSpec = (skill: keyof Ratings, label: string, line: string): Spec => ({
@@ -119,6 +119,35 @@ const S: Spec[] = [
       { label: 'Send the coach instead', emoji: '🧑‍💼', out: [[2, 'neutral', () => 'The coach handles it. Nobody remembers.', () => []], [1, 'good', () => 'The coach gives an unexpectedly great press conference.', () => [teamFans(3)]]] },
     ],
   },
+  {
+    id: 'req-number', when: 'day', request: true, emoji: '🔢', who: healthy, cooldownDays: 60,
+    title: (n) => `${n.last} wants a new jersey number`,
+    text: (n) => `${n.full} says his number is "bad energy" and wants to switch. The team store has 2,000 jerseys with the old one.`,
+    choices: [
+      { label: 'Approve the switch', emoji: '✅', out: [[2, 'good', (n) => `${n.last} feels reborn. New number, new him.`, (id) => [morale(id, 6), buff(id, 'shooting', 2, 2)]], [1, 'bad', () => 'The fans who bought the old jersey are mad.', (id) => [fans(id, -5)]]] },
+      { label: 'Keep the number', emoji: '🙅', out: [[2, 'bad', (n) => `${n.last} insists the curse is real.`, (id) => [morale(id, -5)]], [1, 'neutral', () => 'He forgets about it by Tuesday.', () => []]] },
+      { label: 'Let the fans vote', emoji: '🗳️', out: [[2, 'good', () => 'The vote is a big hit online.', (id) => [fans(id, 6), teamFans(2)]], [1, 'bad', () => 'The fans pick a joke number. Oh no.', (id) => [morale(id, -4)]]] },
+    ],
+  },
+  {
+    id: 'req-chef', when: 'day', request: true, emoji: '🥗', who: starter, cooldownDays: 45,
+    title: (n) => `${n.last} wants a personal chef`,
+    text: (n) => `${n.full} wants the team to pay for his personal chef to travel with the team. "It's for my performance."`,
+    choices: [
+      { label: 'Approve', emoji: '👨‍🍳', out: [[2, 'good', (n) => `${n.last} feels fantastic.`, (id) => [buff(id, 'energy', 15, 4), morale(id, 4)]], [2, 'bad', () => 'Everyone else wants a chef now.', () => [chem(-3)]]] },
+      { label: 'Team chef for everyone', emoji: '🍱', out: [[3, 'good', () => 'Healthy meals for the whole team.', () => [teamBuff('energy', 6, 3)]], [1, 'bad', (n) => `${n.last} wanted HIS chef.`, (id) => [morale(id, -3)]]] },
+      { label: 'Decline', emoji: '🙅', out: [[2, 'bad', (n) => `${n.last} rolls his eyes.`, (id) => [morale(id, -5)]], [1, 'good', () => 'The room respects the fairness.', () => [chem(1)]]] },
+    ],
+  },
+  {
+    id: 'req-family', when: 'day', request: true, emoji: '💐', who: healthy, cooldownDays: 60,
+    title: (n) => `${n.last} wants to be home for a family moment`,
+    text: (n) => `${n.full}'s sister is getting married this week. It would mean missing the next game.`,
+    choices: [
+      { label: 'Go, family first', emoji: '💐', out: [[3, 'good', (n) => `${n.last} is grateful. Deeply.`, (id) => [rest(id), morale(id, 10), chem(1)]], [1, 'bad', () => 'He misses the game and you miss him.', (id) => [rest(id), morale(id, 4)]]] },
+      { label: 'Only if he flies back for the game', emoji: '✈️', out: [[2, 'good', () => 'He makes both. Barely.', (id) => [morale(id, 4), buff(id, 'energy', -15, 1)]], [1, 'bad', () => 'Flight chaos. He is wrecked.', (id) => [buff(id, 'all', -3, 1)]]] },
+      { label: 'Ask him to stay', emoji: '🙅', out: [[3, 'bad', (n) => `${n.last} is hurt. The room thinks it was cold.`, (id) => [morale(id, -10), chem(-2)]], [1, 'good', () => 'He understands. A true pro.', () => []]] },
+    ],
+  },
 ]
-
 export const REQUEST_EVENTS = S.map(event)
