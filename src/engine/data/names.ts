@@ -1,8 +1,10 @@
 import type { Injury } from '../types'
+import { HERITAGES, type Heritage } from '../face/heritage'
+import type { Rng } from '../rng'
 
 const w = (s: string) => s.trim().split(/\s+/)
 
-export const FIRST_NAMES = w(`
+const BASE_FIRST = w(`
 Aaron Abdul Adam Adebayo Adrian Ahmad Aidan Alec Alejandro Alex Alonzo Alvin Amari Ameer Andre Andres Andrew Angelo Anthony Antoine
 Ari Armando Arturo Asher Austin Avery Bam Barry Ben Benedict Bilal Blake Bobby Boban Bojan Brad Brandon Brendan Brent Brian
 Bruno Bryce Byron Caleb Calvin Cam Carlos Carmelo Carter Casey Cedric Chance Chase Chet Chris Christian Clarence Clint Cody Cole
@@ -30,7 +32,7 @@ Salim Santino Sergio Sky Soren Stellan Sy Tajh Tavion Teddy Thaddeus Titus Tomas
 Winston Wolfgang Yosef Yuri Zane Zeke Zeus Zorion
 `)
 
-export const LAST_NAMES = w(`
+const BASE_LAST = w(`
 Abara Acosta Adams Adeyemi Aguilar Alexander Allen Alvarez Anderson Andrews Armstrong Arnold Ashby Atkins Austin Bailey Baker Baldwin Banks Barnes
 Barrett Bates Beasley Bell Bennett Berry Bishop Black Blake Bogdan Booker Bowen Boyd Bradley Brady Brooks Brown Bryant Burke Burton
 Butler Byrd Caldwell Campbell Carroll Carter Castillo Chambers Chandler Chapman Chen Clark Clarke Cole Coleman Collins Cooper Cortez Craig Crawford
@@ -55,6 +57,95 @@ Jaramillo Jovanovic Kapoor Kessler Kowalski Lachance Langston Larkin Lemieux Loc
 Nakamura Navarro Nwosu Oduya Okonkwo Oyelaran Pagano Pemberton Pickett Prescott Quintero Radcliffe Rasmussen Rousseau Rutherford Saldana Sandoval Sato Scarborough Sheridan
 Sinclair Solomon Stavros Strickland Tanaka Thibodeaux Tolliver Underwood Vandermeer Villanueva Voss Waddell Whitaker Winters Yamamoto Yoon Zielinski Zimmerman
 `)
+
+type Pool = { first: string[]; last: string[] }
+
+/** Explicitly tagged non-american names. Anything in the base lists that is not tagged here is american. */
+const TAGGED: Record<Exclude<Heritage, 'american'>, { first: string[]; last: string[] }> = {
+  african: {
+    first: w(`Adebayo Amari Emeka Kofi Kwame Chidi Nnamdi Osei Sekou Obi Olu Ochai Idris Chinedu Tunde Segun Ifeanyi Obinna Ikenna Kelechi
+      Babatunde Femi Kwesi Kojo Yaw Kwabena Amadou Mamadou Moussa Ousmane Ibrahima Seydou Cheikh Jelani Zuberi Tendai Themba Sipho Thabo
+      Ayodele Dayo Uche Uzoma Kamau Otieno Juma Baraka Oluwaseun Chukwudi Nkosana Lwazi Tobenna Gbenga Dapo`),
+    last: w(`Abara Adeyemi Okafor Okeke Nnaji Nwosu Oduya Okonkwo Oyelaran Diallo Kamara Ugwu Ibaka Eze Amadi Ezeli Adewale Osei Mbeki Obi
+      Adeleke Afolabi Akinola Balogun Chukwu Dosunmu Mensah Boateng Asante Owusu Appiah Agyemang Traore Keita Toure Coulibaly Sow Ndiaye
+      Mbaye Camara Njoku Nwachukwu Onyeka Ogunleye Olawale Mwangi Kamau Otieno Ochieng Dlamini Nkosi Khumalo Adebayo Okoro Igwe Nzeogwu Bamba`),
+  },
+  asian: {
+    first: w(`Hiro Kenji Dev Kiran Ajay Haruto Sota Ren Takumi Daiki Yuto Kaito Ryo Shin Minjun Jiho Seojun Dohyun Hyun Joon Wei Jun Lei Ming
+      Hao Jian Bao Tuan Minh Duc Khoa Vikram Arjun Rohan Aarav Rahul Sanjay Amit Nikhil Rajesh Anil Raj Dhruv Ishaan Aditya Siddharth Hung
+      Linh Kenta Yuki Akira Takeshi Satoshi Daichi Shota Jae Sung Tae Woo Cheng Feng Gang Tao Yuji Haru Min Jin Kazuki`),
+    last: w(`Chen Kim Nguyen Park Patel Huang Ikeda Kapoor Nakamura Sato Tanaka Yamamoto Yoon Chaudhry Wang Li Zhang Liu Yang Wu Zhou Xu Sun
+      Zhu Hu Guo Lin Luo Liang Song Tang Han Deng Cao Peng Zeng Xiao Tian Pan Yuan Cai Jiang Du Cheng Wei Shin Choi Jung Kang Cho Jang Lim Oh
+      Seo Suzuki Takahashi Watanabe Ito Yamada Kobayashi Kato Yoshida Yamaguchi Matsumoto Inoue Kimura Hayashi Shimizu Tran Pham Hoang Dang
+      Bui Ngo Singh Sharma Gupta Reddy Rao Mehta Shah Desai Joshi Iyer Nair`),
+  },
+  latino: {
+    first: w(`Alejandro Andres Armando Arturo Cesar Cristian Diego Emilio Ernesto Esteban Felipe Fernando Gustavo Hector Ismael Javier Joaquin
+      Joaquim Jorge Jose Juan Lorenzo Luis Mateo Miguel Pablo Pedro Rafael Ramon Santiago Santino Sergio Ulises Rodrigo Ricardo Eduardo Alberto
+      Alfredo Gonzalo Ignacio Matias Nicolas Sebastian Agustin Facundo Leonel Marcelo Mauricio Octavio Raul Rogelio Salvador Vicente Enrique
+      Francisco Guillermo Angel Cesar Julio Rolando Omar`),
+    last: w(`Acosta Aguilar Alvarez Arroyo Barajas Bonilla Cardenas Castillo Cisneros Cortez Cruz Delgado Diaz Duarte Estrada Fernandez Flores
+      Garcia Gomez Gonzalez Guerrero Gutierrez Hernandez Herrera Jaramillo Lopez Martinez Medina Mendez Morales Moreno Navarro Nunez Ortiz
+      Pacheco Perez Quintero Ramirez Ramos Reyes Rivera Rodriguez Romero Ruiz Salazar Saldana Sanchez Sandoval Santos Silva Soto Torres Valdez
+      Vasquez Vega Villanueva Aguirre Barrios Campos Cardona Contreras Dominguez Espinoza Fuentes Gallegos Ibarra Juarez Lara Luna Mejia
+      Mendoza Miranda Montoya Ochoa Orozco Padilla Paredes Rojas Rios Robles Serrano Tapia Trujillo Vargas Velasquez Zamora`),
+  },
+  european: {
+    first: w(`Boban Bojan Dejan Domantas Giannis Kristaps Luka Nikola Lauri Lars Marek Nikolai Pavel Ilya Jovan Rasmus Soren Stefan Dimitri Dmitri
+      Yuri Tomasz Anders Axel Gunnar Niklas Franz Wolfgang Florian Johan Karl Ivan Serge Aleksandar Milos Nemanja Goran Zoran Vlad Andrei Matteo
+      Luca Marco Stavros Nikos Kostas Dimitrios Henrik Magnus Erik Sven Dieter Klaus Lukas Jakub Piotr Radek Viktor Mirko Tibor Lazlo Gergely Mihai
+      Enes Dag Aleksei Konstantin Bruno Lorcan`),
+    last: w(`Bogdan Kovac Novak Petrovic Jovanovic Kowalski Larsen Lindqvist Zielinski Stavros Saric Zubac Dimitrov Fischer Koch Schmidt Schroeder
+      Wagner Zimmerman Vandermeer Hansen Jensen Olsen Madsen Rasmussen Andersson Nilsson Johansson Eriksson Lindberg Bergstrom Nowak Wisniewski
+      Wojcik Kaminski Horvat Babic Markovic Ilic Stojanovic Nikolic Popovic Kostic Jankovic Kuznetsov Ivanov Smirnov Popov Volkov Sokolov Lebedev
+      Moreau Rousseau Dumont Fontaine Lemieux Lachance Delacroix Beaumont Devereaux Marchetti Lombardi Benedetti Pagano Falcone Dagostino
+      Castellano Romano Bianchi Rossi Ricci Conti Greco Papadopoulos Georgiou Dimitriou Yurtseven Gallo Voss Kessler Eberhart`),
+  },
+}
+
+const uniq = (a: string[]) => [...new Set(a)]
+const taggedSet = (kind: 'first' | 'last') =>
+  new Set(Object.values(TAGGED).flatMap((t) => t[kind]))
+
+export const NAME_POOLS: Record<Heritage, Pool> = {
+  american: {
+    first: uniq(BASE_FIRST.filter((n) => !taggedSet('first').has(n))),
+    last: uniq(BASE_LAST.filter((n) => !taggedSet('last').has(n))),
+  },
+  african: { first: uniq(TAGGED.african.first), last: uniq(TAGGED.african.last) },
+  asian: { first: uniq(TAGGED.asian.first), last: uniq(TAGGED.asian.last) },
+  latino: { first: uniq(TAGGED.latino.first), last: uniq(TAGGED.latino.last) },
+  european: { first: uniq(TAGGED.european.first), last: uniq(TAGGED.european.last) },
+}
+
+export const FIRST_NAMES = uniq(HERITAGES.flatMap((h) => NAME_POOLS[h].first))
+export const LAST_NAMES = uniq(HERITAGES.flatMap((h) => NAME_POOLS[h].last))
+
+const MIXED_RATE = 0.12
+
+/** First/last name for someone of `heritage`; ~12% mix in one part from another bucket (usually american). */
+export function pickName(rng: Rng, heritage: Heritage): { firstName: string; lastName: string } {
+  let firstName = rng.pick(NAME_POOLS[heritage].first)
+  let lastName = rng.pick(NAME_POOLS[heritage].last)
+  if (rng.chance(MIXED_RATE)) {
+    const others = HERITAGES.filter((h) => h !== heritage)
+    const other: Heritage = heritage !== 'american' && rng.chance(0.8) ? 'american' : rng.pick(others)
+    if (rng.chance(0.5)) firstName = rng.pick(NAME_POOLS[other].first)
+    else lastName = rng.pick(NAME_POOLS[other].last)
+  }
+  return { firstName, lastName }
+}
+
+const bucketOf = (kind: 'first' | 'last', name: string): Heritage => {
+  for (const h of HERITAGES) if (h !== 'american' && NAME_POOLS[h][kind].includes(name)) return h
+  return 'american'
+}
+
+/** Migration-only: surname bucket wins unless it is american, then the first name decides. */
+export function heritageOfName(firstName: string, lastName: string): Heritage {
+  const l = bucketOf('last', lastName)
+  return l !== 'american' ? l : bucketOf('first', firstName)
+}
 
 export const HOMETOWNS = w(`
 Akron Albany Albuquerque Anchorage Atlanta Austin Baltimore Baton_Rouge Birmingham Boise Buffalo Charleston Chicago Cincinnati Cleveland Columbus
