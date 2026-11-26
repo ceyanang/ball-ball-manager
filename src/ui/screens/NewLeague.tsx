@@ -7,17 +7,20 @@ import { useStore } from '../store'
 import { fullName, ovrOf, rosterOf, teamFull, teamOvr } from '../util'
 
 const randomSeed = () => Math.floor(Math.random() * 1_000_000)
+type ConfFilter = 'All' | 'East' | 'West'
 
 export function NewLeague() {
   const [seed, setSeed] = useState(randomSeed)
   const [name, setName] = useState('My League')
   const [pick, setPick] = useState<number | null>(null)
+  const [confFilter, setConfFilter] = useState<ConfFilter>('All')
   const [creating, setCreating] = useState(false)
   const newLeague = useStore((s) => s.newLeague)
   const busy = useStore((s) => s.busy)
   const navigate = useNavigate()
   const preview = useMemo(() => createLeague({ seed, userTeamIndex: 0, name: 'preview' }), [seed])
   const teams = Object.values(preview.teams)
+  const confs: ('East' | 'West')[] = confFilter === 'All' ? ['East', 'West'] : [confFilter]
 
   const create = async () => {
     if (pick === null) return
@@ -40,7 +43,12 @@ export function NewLeague() {
         <summary>Advanced</summary>
         <label className="field">Seed<input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value) || 0)} style={{ width: '9rem' }} /></label>
       </details>
-      {(['East', 'West'] as const).map((conf) => (
+      <div className="chips" role="tablist" aria-label="Conference filter">
+        {(['All', 'East', 'West'] as const).map((c) => (
+          <button key={c} role="tab" aria-selected={confFilter === c} className={`chip${confFilter === c ? ' on' : ''}`} onClick={() => setConfFilter(c)}>{c}</button>
+        ))}
+      </div>
+      {confs.map((conf) => (
         <section key={conf} className="stack">
           <h2>{conf}</h2>
           <div className="team-pick">

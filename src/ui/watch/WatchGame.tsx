@@ -118,6 +118,8 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   const [speed, setSpeed] = useState<number>(1)
   const [feed, setFeed] = useState<FeedItem[]>(() => pushFeed([], [{ text: `Tip-off in ${m.teamOf.home.city}…`, kind: 'info' }]))
   const [confirmExit, setConfirmExit] = useState(false)
+  const [paused, setPaused] = useState(false)
+  const [showAllPlays, setShowAllPlays] = useState(false)
   const [sheetId, setSheetId] = useState<string | null>(null)
   const audio = useAudioSettings()
 
@@ -263,7 +265,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
 
   // The replay clock: advance t by real time × speed, fire the events reached, pause at the end of each period.
   useEffect(() => {
-    if (phase !== 'play' || confirmExit) return
+    if (phase !== 'play' || confirmExit || paused) return
     let raf = 0
     let last = performance.now()
     const tick = (now: number) => {
@@ -290,7 +292,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [phase, confirmExit, log, nPeriods])
+  }, [phase, confirmExit, paused, log, nPeriods])
 
   const nextPeriod = () => {
     const period = clockRef.current.period + 1
@@ -332,7 +334,8 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     const l = lineOf(id)
     return (
       <WatchCard key={cardId} cardId={cardId} player={m.players[id] ?? null} team={m.teamOf[side]} benchCount={0}
-        pts={l.pts} reb={l.reb} ast={l.ast} hot={isHot(l.pts, m.ppg[id] ?? null, frac)} fav={favs.has(id)} register={register} />
+        pts={l.pts} reb={l.reb} ast={l.ast} hot={isHot(l.pts, m.ppg[id] ?? null, frac)} fav={favs.has(id)} register={register}
+        onSelect={() => setSheetId(id)} />
     )
   }
   const row = (side: Side) => {
@@ -426,17 +429,23 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
         </div>
 
         {/* Play-by-play, newest on top. Swaps are a dimmer line so they never hide a bucket; hot callouts fade in. */}
-        <ol className="w-feed" aria-label="Play-by-play" aria-live="off">
+        <ol className={`w-feed${showAllPlays ? ' expanded' : ''}`} aria-label="Play-by-play" aria-live="off">
           {feed.map((f) => <li key={f.id} className={`w-ev ${f.kind}`}>{f.text}</li>)}
         </ol>
 
         {phase !== 'final' && (
           <div className="w-controls">
+            <button className="btn" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>{paused ? '▶ Play' : '⏸ Pause'}</button>
             <div className="w-speed" role="group" aria-label="Speed">
               {SPEEDS.map((s) => (
                 <button key={s} aria-pressed={speed === s} onClick={() => { speedRef.current = s; setSpeed(s) }}>{s}×</button>
               ))}
             </div>
+            {feed.length > 4 && (
+              <button className="btn w-feed-toggle" aria-expanded={showAllPlays} onClick={() => setShowAllPlays((v) => !v)}>
+                {showAllPlays ? 'Fewer plays' : `All plays (${feed.length})`}
+              </button>
+            )}
             <span className="w-spacer" />
             <button className="btn" onClick={skipToFinal}>Skip to final</button>
           </div>

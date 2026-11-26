@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Bracket } from '../components/Bracket'
 import { useSim } from '../components/SimControls'
 import { STAKE_LABEL, seriesStake } from '../playoffs/stakes'
@@ -19,7 +20,10 @@ function TodayRow({ league, g, series, watch }: { league: League; g: Game; serie
   return (
     <div className={`tg${watch ? ' mine' : ''}`}>
       <div>
-        <div className="m">{watch && '🏀 '}{away.abbrev} @ {home.abbrev} · Game {g.playoff!.gameNum}</div>
+        <div className="m">
+          {watch && '🏀 '}
+          <Link className="link" to={`/team/${away.id}`}>{away.abbrev}</Link> @ <Link className="link" to={`/team/${home.id}`}>{home.abbrev}</Link> · Game {g.playoff!.gameNum}
+        </div>
         {series && <div className="s">{seriesText(league, series)}{stake && <> · <span className="stake">{STAKE_LABEL[stake]}</span></>}</div>}
       </div>
       {watch && <button className="btn btn-primary" disabled={watch.disabled} onClick={watch.run}>Watch</button>}

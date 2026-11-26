@@ -35,14 +35,26 @@ function seasonsTable(league: League, playerId: string, playoffs: boolean) {
     const pg = perGame(s)
     return (
       <tr key={key}>
-        <td>{label}</td><td className="left">{teamCell}</td><td>{s.gp}</td><td>{s.gs}</td><td>{one(pg.min)}</td><td>{one(pg.pts)}</td><td>{one(pg.reb)}</td><td>{one(pg.ast)}</td>
-        <td>{one(pg.stl)}</td><td>{one(pg.blk)}</td><td>{one(pg.tov)}</td><td>{(pg.fgPct * 100).toFixed(1)}</td><td>{(pg.tpPct * 100).toFixed(1)}</td><td>{(pg.ftPct * 100).toFixed(1)}</td>
+        <td className="m-main"><span className="m-show muted" style={{ fontSize: '0.78rem', marginRight: '0.3rem' }}>{typeof label === 'number' ? 'Season' : ''}</span><strong>{label}</strong></td>
+        <td className="left m-act">{teamCell}</td>
+        <td data-label="GP">{s.gp}</td>
+        <td data-label="GS">{s.gs}</td>
+        <td data-label="MIN">{one(pg.min)}</td>
+        <td className="m-key" data-label="PTS">{one(pg.pts)}</td>
+        <td className="m-key" data-label="REB">{one(pg.reb)}</td>
+        <td className="m-key" data-label="AST">{one(pg.ast)}</td>
+        <td data-label="STL">{one(pg.stl)}</td>
+        <td data-label="BLK">{one(pg.blk)}</td>
+        <td data-label="TO">{one(pg.tov)}</td>
+        <td data-label="FG%">{(pg.fgPct * 100).toFixed(1)}</td>
+        <td data-label="3P%">{(pg.tpPct * 100).toFixed(1)}</td>
+        <td data-label="FT%">{(pg.ftPct * 100).toFixed(1)}</td>
       </tr>
     )
   }
   return (
     <div className="table-wrap">
-      <table className="stats">
+      <table className="stats m-cards">
         <thead><tr><th>Season</th><th className="left">Team</th><th>GP</th><th>GS</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th><th>STL</th><th>BLK</th><th>TO</th><th>FG%</th><th>3P%</th><th>FT%</th></tr></thead>
         <tbody>{rows.map((s) => line(s.season, s, String(s.season), <Link className="link" to={`/team/${s.teamId}`}>{league.teams[s.teamId]?.abbrev ?? '—'}</Link>))}</tbody>
         {career && rows.length > 1 && <tfoot>{line('Career', career, 'career', '')}</tfoot>}
@@ -79,7 +91,7 @@ export function PlayerPage() {
           <Face seed={p.faceSeed} age={p.age} colors={colors} size={110} jersey={p.jersey} title={fullName(p)} />
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <div className="title">{fullName(p)}</div>
+          <h1 className="title">{fullName(p)}</h1>
           <div className="sub">#{p.jersey} · {p.pos} · {team ? teamFull(team) : p.retired ? 'Retired' : league.draftRights[p.id] ? `Draft rights: ${league.teams[league.draftRights[p.id]].name}` : 'Free agent'}</div>
           <span className="archetype-chip">{arch.title}</span>
           {hof && <span className="archetype-chip hof-chip">🎖️ Hall of Fame · S{hof.season}</span>}

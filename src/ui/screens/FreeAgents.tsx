@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { isFreeAgent } from '../../engine/gm/cap'
+import { capRoom, isFreeAgent } from '../../engine/gm/cap'
 import { FA_DAYS, claimWaiver, currentAsk, offerFreeAgent } from '../../engine/gm/roster'
 import { askYears, formOf } from '../../engine/gm/value'
 import { needThresholds, teamNeeds, type NeedLevel } from '../../engine/gm/needs'
@@ -33,14 +33,15 @@ export function FreeAgents() {
   const th = useMemo(() => needThresholds(league), [league])
   const needs = useMemo(() => teamNeeds(league, me, {}, th), [league, me, th])
   // Best 200 by OVR; the table's own position/name/stat filters and sorting work within these.
-  const fas = useMemo<FaRow[]>(() => Object.values(league.players)
+  const allFas = useMemo(() => Object.values(league.players)
     .filter((p) => isFreeAgent(league, p))
-    .sort((a, b) => ovrOf(b) - ovrOf(a))
+    .sort((a, b) => ovrOf(b) - ovrOf(a)), [league])
+  const fas = useMemo<FaRow[]>(() => allFas
     .slice(0, 200)
     .map((p) => ({
       p, ask: currentAsk(league, p, perf), yrs: askYears(p), need: needs[p.pos],
       after: teamNeeds(league, me, { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos],
-    })), [league, perf, needs, me, th])
+    })), [allFas, league, perf, needs, me, th])
   const columns: Column<FaRow>[] = [
     { key: 'player', label: 'Player', align: 'left', defaultDir: 'asc', mobile: 'main', value: (r) => fullName(r.p), cell: (r) => <PlayerCell league={league} p={r.p} subtitle={archetypeFor(r.p)} /> },
     { key: 'pos', label: 'Pos', align: 'left', defaultDir: 'asc', value: (r) => r.p.pos },
@@ -54,6 +55,7 @@ export function FreeAgents() {
     },
   ]
   const myOffers = league.faOffers.filter((o) => o.teamId === me)
+  const pendingCap = myOffers.reduce((s, o) => s + o.salary, 0)
 
   return (
     <div className="stack">
@@ -92,7 +94,7 @@ export function FreeAgents() {
                   return (
                     <tr key={w.playerId}>
                       <td className="m-main"><PlayerCell league={league} p={p} subtitle={archetypeFor(p)} /></td>
-                      <td data-label="From">{league.teams[w.fromTeamId].abbrev}</td><td className="m-key"><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
+                      <td data-label="From"><Link className="link" to={`/team/${w.fromTeamId}`}>{league.teams[w.fromTeamId].abbrev}</Link></td><td className="m-key"><OvrPill value={ovrOf(p)} pot={p.pot} /></td>
                       <td className="m-key">{money(w.contract.salary)} through {w.contract.expires}</td>
                       <td className="m-act">{w.fromTeamId !== me && <button className="btn" onClick={() => act((l) => { claimWaiver(l, me, p.id); return `You claimed ${fullName(p)}.` })}>Claim</button>}</td>
                     </tr>
@@ -106,17 +108,32 @@ export function FreeAgents() {
 
       {myOffers.length > 0 && (
         <section className="panel stack">
-          <h2>Your pending offers</h2>
+          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.35rem 0.75rem' }}>
+            <h2>Your pending offers</h2>
+            <span className="muted" style={{ fontSize: '0.88rem' }}>
+              <Link className="link" to={`/team/${me}`}>{league.teams[me].abbrev}</Link> · {money(pendingCap)}/yr committed · {money(capRoom(league, me))} cap room
+            </span>
+          </div>
           <ul className="tx-list">
-            {myOffers.map((o) => (
-              <li key={o.playerId}><Link className="link" to={`/player/${o.playerId}`}>{fullName(league.players[o.playerId])}</Link><span>{money(o.salary)} × {o.years} yrs</span><span className="muted">ask now {money(currentAsk(league, league.players[o.playerId], perf))}</span></li>
-            ))}
+            {myOffers.map((o) => {
+              const p = league.players[o.playerId]
+              return (
+                <li key={o.playerId}>
+                  <Link className="link" to={`/player/${o.playerId}`}>{fullName(p)} <span className="muted">{p.pos} · {ovrOf(p)}</span></Link>
+                  <span>{money(o.salary)} × {o.years} yrs</span>
+                  <span className="muted">ask now {money(currentAsk(league, p, perf))}</span>
+                </li>
+              )
+            })}
           </ul>
         </section>
       )}
 
       <section className="panel stack">
-        <h2>Available <Help topics={['pot', 'need']} /></h2>
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.35rem 0.75rem' }}>
+          <h2>Available <Help topics={['pot', 'need']} /></h2>
+          {allFas.length > 200 && <span className="muted" style={{ fontSize: '0.85rem' }}>Showing top 200 by OVR — use Filters to narrow down</span>}
+        </div>
         <DataTable<FaRow>
           ariaLabel="Available free agents"
           rows={fas}

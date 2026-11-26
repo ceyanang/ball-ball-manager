@@ -19,20 +19,26 @@ export function RebuildPanel({ league }: { league: League }) {
   const fa = league.offseason?.step === 'freeAgency' || league.offseason?.step === 'ready'
 
   if (deals && snap) {
-    const label = (a: RebuildDeal['got'][number]) => {
-      if (a.kind === 'pick') return `🎟️ ${assetLabel(snap, a)}`
+    const renderAsset = (a: RebuildDeal['got'][number]) => {
+      if (a.kind === 'pick') return <span>🎟️ {assetLabel(snap, a)}</span>
       const p = snap.players[a.id]
-      return `${fullName(p)} (${p.age}, ${ovrOf(p)}/${p.pot})`
+      return <Link className="link" to={`/player/${a.id}`}>{fullName(p)} <span className="muted">({p.age}, {ovrOf(p)}/{p.pot})</span></Link>
     }
+    const renderList = (xs: RebuildDeal['got'], sep: string) => xs.map((a, i) => (
+      <span key={`${a.kind}:${a.id}`}>
+        {i > 0 && sep}
+        {renderAsset(a)}
+      </span>
+    ))
     return (
       <section className="panel stack">
         <h2>💥 Rebuild done</h2>
         {deals.length ? (
           <ul className="progress-list">
             {deals.map((d) => (
-              <li key={d.gave[0].id}>
-                <span><Link className="link" to={`/player/${d.gave[0].id}`}>{d.gave.map(label).join(', ')}</Link> <span className="muted">→ {snap.teams[d.teamId].abbrev}</span></span>
-                <span>{d.got.map(label).join(' + ')}</span>
+              <li key={`${d.teamId}:${d.gave.map((a) => a.id).join(',')}`} style={{ flexWrap: 'wrap' }}>
+                <span>{renderList(d.gave, ', ')} <span className="muted">→ </span><Link className="link" to={`/team/${d.teamId}`}>{snap.teams[d.teamId].abbrev}</Link></span>
+                <span>{renderList(d.got, ' + ')}</span>
               </li>
             ))}
           </ul>

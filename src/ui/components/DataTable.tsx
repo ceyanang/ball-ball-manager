@@ -75,7 +75,7 @@ export function DataTable<T>({ rows, columns, rowKey, groups, filters, defaultSo
             <td
               key={c.key}
               className={[c.align === 'left' ? 'left' : '', c.mobile ? `m-${c.mobile}` : ''].filter(Boolean).join(' ') || undefined}
-              data-label={cards && !c.mobile && c.label ? c.label : undefined}
+              data-label={cards && c.mobile !== 'main' && c.mobile !== 'act' && c.key !== 'ovr' && c.label ? c.label : undefined}
             >{c.cell ? c.cell(r) : (c.text?.(r) ?? c.value(r) ?? '—')}</td>
           ))}
         </tr>
@@ -136,7 +136,7 @@ export function DataTable<T>({ rows, columns, rowKey, groups, filters, defaultSo
           <button className="chip" onClick={reset}>↩ Back to {groups.map((g) => g.label).join('/')}</button>
         </div>
       )}
-      <div className="table-wrap">
+      <div className="table-wrap" tabIndex={0} role="region" aria-label={ariaLabel}>
         <table className={`stats dt-table${cards ? ' m-cards' : ''}`} aria-label={ariaLabel}>
           <thead>
             <tr>

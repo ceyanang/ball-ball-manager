@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { setSettings, useAudioSettings } from '../../audio/settings'
 import { computeStandings } from '../../engine/standings'
 import type { League } from '../../engine/types'
 import { useStore } from '../store'
@@ -9,7 +10,7 @@ import { Icon } from '../components/Icon'
 import { Sheet } from '../components/Sheet'
 import { RosterPeek } from '../components/RosterPeek'
 import { ErrorBoundary } from '../ErrorBoundary'
-import { activeTab, MORE_GROUPS, OFFSEASON, SIDEBAR, TABS } from '../nav'
+import { activeTab, matchesNav, MORE_GROUPS, OFFSEASON, SAVES, SIDEBAR_GROUPS, TABS } from '../nav'
 import { WatchGame } from '../watch/WatchGame'
 import { useMusic } from '../../audio/useMusic'
 
@@ -30,6 +31,7 @@ export function Shell() {
   const { pathname } = useLocation()
   const [moreOpen, setMoreOpen] = useState(false)
   const [peekOpen, setPeekOpen] = useState(false)
+  const audio = useAudioSettings()
   useMusic(pathname, watching)
   // New screen starts at the top (the More sheet closes itself via its links).
   useEffect(() => { window.scrollTo(0, 0) }, [pathname])
@@ -49,7 +51,11 @@ export function Shell() {
     return r ? `${r.w}–${r.l}` : null
   }, [league])
   const offseason = league?.phase === 'offseason'
-  const sidebar = offseason ? [OFFSEASON, ...SIDEBAR] : SIDEBAR
+  const sidebarGroups = !league
+    ? [{ title: 'Start', items: [{ to: '/new', label: 'New League', icon: 'sun' as const, match: ['/new'] }, SAVES] }]
+    : offseason
+      ? [{ title: 'Now', items: [OFFSEASON] }, ...SIDEBAR_GROUPS]
+      : SIDEBAR_GROUPS
   const moreGroups = offseason ? [{ title: 'Now', items: [OFFSEASON] }, ...MORE_GROUPS] : MORE_GROUPS
   const tab = activeTab(pathname)
   const inboxBadge = unread > 0 && <span className="nav-count" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>
@@ -62,24 +68,34 @@ export function Shell() {
       <aside className="side">
         <div className="wordmark">Ball Ball<br /><span>Manager</span></div>
         <nav className="nav" aria-label="Main">
-          {sidebar.map((i) => (
-            <NavLink key={i.to} to={i.to} end={i.to === '/'}>
-              <Icon name={i.icon} size={18} /><span>{i.label}</span>{i.to === '/inbox' && inboxBadge}
-            </NavLink>
+          {sidebarGroups.map((g) => (
+            <div key={g.title} className="nav-group">
+              <div className="nav-head">{g.title}</div>
+              {g.items.map((i) => {
+                const active = matchesNav(pathname, i)
+                return (
+                  <NavLink key={i.to} to={i.to} className={() => (active ? 'active' : undefined)}>
+                    <Icon name={i.icon} size={18} />
+                    <span>{i.label}</span>
+                    {i.to === '/inbox' && inboxBadge}
+                  </NavLink>
+                )
+              })}
+            </div>
           ))}
         </nav>
         {team && (
-          <div className="side-team row" style={{ marginTop: 'auto' }}>
+          <Link to="/my-team" className="side-team row" title="View your rotation and contracts">
             <TeamBadge team={team} size={34} />
-            <div style={{ lineHeight: 1.1 }}>
-              <div style={{ fontWeight: 700 }}>{team.name}</div>
-              <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>{league!.name} · Season {league!.season}</div>
+            <div style={{ lineHeight: 1.15, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.name} {record ? `· ${record}` : ''}</div>
+              <div style={{ fontSize: '0.78rem', opacity: 0.7 }}>{league!.name} · S{league!.season}</div>
             </div>
-          </div>
+          </Link>
         )}
       </aside>
 
-      {/* Mobile app bar: who you are, where you are in the season, and the one action you take most — Sim. */}
+      {/* Mobile app bar: who you are, where you are in the season, and the one action you take most — Watch or Sim. */}
       <header className="mbar">
         {league && team ? (
           <>
@@ -94,16 +110,21 @@ export function Shell() {
             <MobileSim />
           </>
         ) : (
-          <div className="wordmark mbar-word">Ball Ball <span>Manager</span></div>
+          <div className="mbar-pre">
+            <div className="wordmark mbar-word">Ball Ball <span>Manager</span></div>
+            <Link className="btn" to="/saves">Saves</Link>
+          </div>
         )}
       </header>
 
       <main className="main">
         {league && (
           <div className="topbar">
-            <span className="muted">{phaseLabel(league)}</span>
-            <button className="btn" onClick={() => setPeekOpen(true)} title="Quick look at your roster's full stats">📊 My team stats</button>
-            <SimControls />
+            <span className="muted topbar-phase">{phaseLabel(league)}</span>
+            <div className="topbar-actions">
+              <button className="btn" onClick={() => setPeekOpen(true)} title="Quick look at your roster's full stats">📊 My team stats</button>
+              <SimControls />
+            </div>
           </div>
         )}
         {league && <MobileRosterWarning />}
@@ -126,12 +147,15 @@ export function Shell() {
         <nav className="tabbar" aria-label="Main">
           {TABS.map((t) => (
             <Link key={t.to} to={t.to} className={`tab${tab === t.to ? ' active' : ''}`} aria-current={tab === t.to ? 'page' : undefined}>
-              <span className="tab-icon"><Icon name={t.icon} />{t.to === '/inbox' && inboxBadge}</span>
+              <span className="tab-icon"><Icon name={t.icon} /></span>
               <span className="tab-label">{t.label}</span>
             </Link>
           ))}
           <button className={`tab${tab === 'more' ? ' active' : ''}`} onClick={() => setMoreOpen(true)} aria-haspopup="dialog">
-            <span className="tab-icon"><Icon name="more" />{offseason && <span className="tab-dot" aria-label="Offseason in progress" />}</span>
+            <span className="tab-icon">
+              <Icon name="more" />
+              {inboxBadge || (offseason && <span className="tab-dot" aria-label="Offseason in progress" />)}
+            </span>
             <span className="tab-label">More</span>
           </button>
         </nav>
@@ -143,15 +167,31 @@ export function Shell() {
           <section key={g.title} className="more-group">
             <h3>{g.title}</h3>
             <div className="more-grid">
-              {g.items.map((i) => (
-                <NavLink key={i.to} to={i.to} className="more-item" end onClick={() => setMoreOpen(false)}>
-                  <Icon name={i.icon} /><span>{i.label}</span>
-                </NavLink>
-              ))}
+              {g.items.map((i) => {
+                const active = matchesNav(pathname, i)
+                return (
+                  <NavLink key={i.to} to={i.to} className={`more-item${active ? ' active' : ''}`} onClick={() => setMoreOpen(false)}>
+                    <span className="more-item-icon">
+                      <Icon name={i.icon} />
+                      {i.to === '/inbox' && inboxBadge}
+                    </span>
+                    <span>{i.label}</span>
+                  </NavLink>
+                )
+              })}
             </div>
           </section>
         ))}
-        {league && <p className="muted more-foot">{league.name} · Season {league.season}</p>}
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', paddingTop: '0.25rem', borderTop: '1px solid var(--line)' }}>
+          <button
+            className="btn"
+            aria-pressed={audio.muted}
+            onClick={() => setSettings({ muted: !audio.muted })}
+          >
+            {audio.muted ? '🔇 Sound muted' : '🔊 Sound on'}
+          </button>
+          {league && <span className="muted more-foot">{league.name} · Season {league.season}</span>}
+        </div>
       </Sheet>
     </div>
   )

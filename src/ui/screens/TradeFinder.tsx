@@ -94,9 +94,11 @@ function ShopMode() {
                 return (
                   <div key={o.teamId} className="offer">
                     <div className="row" style={{ justifyContent: 'space-between' }}>
-                      <div className="row">
-                        <TeamBadge team={t} size={28} />
-                        <span style={{ fontWeight: 700 }}>{teamFull(t)}</span>
+                      <div className="row" style={{ flexWrap: 'wrap', minWidth: 0 }}>
+                        <Link className="row link" to={`/team/${t.id}`} style={{ gap: '0.5rem', minWidth: 0 }}>
+                          <TeamBadge team={t} size={28} />
+                          <span style={{ fontWeight: 700 }}>{teamFull(t)}</span>
+                        </Link>
                         <span className="muted" style={{ fontSize: '0.8rem' }}>{teamMode(league, t.id) === 'contend' ? 'contending' : 'rebuilding'}</span>
                       </div>
                       <span className={`offer-grade ${cls}`}>{label}</span>

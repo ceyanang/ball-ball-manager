@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { SIDE_SIZE, squadOf, userSideIndex } from '../../engine/allstar/allstar'
 import type { AllStarEvent, League, Team } from '../../engine/types'
@@ -14,22 +15,28 @@ function Squad({ league, ev, team, you }: { league: League; ev: AllStarEvent; te
   const players = squadOf(league, team)
   const starters = new Set(team.rotation.starters)
   const coach = league.coaches[team.coachId]
+  const coachTeam = coach?.teamId ? league.teams[coach.teamId] : null
   return (
     <section className="panel stack">
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <div className="row"><TeamBadge team={team} /><h2 style={{ margin: 0 }}>{team.city} {team.name}</h2></div>
         {you && <span className="pot-chip up">YOUR SIDE</span>}
       </div>
-      {coach && <p className="muted" style={{ margin: 0 }}>Coach: {fullName(coach)} ({league.teams[coach.teamId ?? '']?.name ?? '—'})</p>}
+      {coach && (
+        <p className="muted" style={{ margin: 0 }}>
+          Coach: {fullName(coach)} ({coachTeam ? <Link className="link" to={`/team/${coachTeam.id}`}>{coachTeam.name}</Link> : '—'})
+        </p>
+      )}
       <div className="table-wrap">
-        <table className="stats">
-          <thead><tr><th>Player</th><th>Pos</th><th>OVR</th><th>Votes</th></tr></thead>
+        <table className="stats m-cards">
+          <thead><tr><th className="left">Player</th><th>Pos</th><th>OVR</th><th>Votes</th></tr></thead>
           <tbody>
             {players.map((p, i) => (
               <tr key={p.id} className={i === team.rotation.starters.length - 1 ? 'last-starter' : ''}>
-                <td><PlayerCell league={league} p={p} size={28} showInjury={false} subtitle={`${starters.has(p.id) ? 'Starter · ' : ''}${p.teamId ? league.teams[p.teamId].abbrev : ''}${p.teamId === league.userTeamId ? ' ⭐ yours' : ''}`} /></td>
-                <td>{p.pos}</td><td><OvrPill value={ovrOf(p)} /></td>
-                <td>{ev.votes[p.id] ? `${Math.round(ev.votes[p.id] / 1000)}K` : '—'}</td>
+                <td className="left m-main"><PlayerCell league={league} p={p} size={28} showInjury={false} subtitle={`${starters.has(p.id) ? 'Starter · ' : ''}${p.teamId ? league.teams[p.teamId].abbrev : ''}${p.teamId === league.userTeamId ? ' ⭐ yours' : ''}`} /></td>
+                <td data-label="Pos">{p.pos}</td>
+                <td className="m-key"><OvrPill value={ovrOf(p)} /></td>
+                <td data-label="Votes">{ev.votes[p.id] ? `${Math.round(ev.votes[p.id] / 1000)}K` : '—'}</td>
               </tr>
             ))}
           </tbody>
@@ -40,11 +47,13 @@ function Squad({ league, ev, team, you }: { league: League; ev: AllStarEvent; te
 }
 
 function Result({ league, ev }: { league: League; ev: AllStarEvent }) {
+  const [fullBox, setFullBox] = useState(false)
   const r = ev.result!
   const [a, b] = ev.teams
   const mvp = ev.mvp ? league.players[ev.mvp] : null
   const line = r.box.find((x) => x.playerId === ev.mvp)
-  const top = [...r.box].filter((x) => x.min > 0).sort((x, y) => y.pts - x.pts).slice(0, 5)
+  const sorted = [...r.box].filter((x) => x.min > 0).sort((x, y) => y.pts - x.pts)
+  const shown = fullBox ? sorted : sorted.slice(0, 5)
   return (
     <div className="stack">
       <div className="row" style={{ justifyContent: 'space-around', flexWrap: 'wrap', fontSize: '1.4rem', fontWeight: 800 }}>
@@ -53,14 +62,22 @@ function Result({ league, ev }: { league: League; ev: AllStarEvent }) {
       {mvp && line && (
         <p style={{ margin: 0 }}>🏅 MVP: <Link className="link" to={`/player/${mvp.id}`}>{fullName(mvp)}</Link> — {line.pts} pts, {line.oreb + line.dreb} reb, {line.ast} ast</p>
       )}
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <h3>{fullBox ? 'Full box score' : 'Top scorers'}</h3>
+        <button className="btn" onClick={() => setFullBox((v) => !v)}>{fullBox ? 'Top 5 only' : `All ${sorted.length} players`}</button>
+      </div>
       <div className="table-wrap">
-        <table className="stats">
-          <thead><tr><th>Top scorers</th><th>Side</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th></tr></thead>
+        <table className="stats m-cards">
+          <thead><tr><th className="left">Player</th><th>Side</th><th>MIN</th><th>PTS</th><th>REB</th><th>AST</th></tr></thead>
           <tbody>
-            {top.map((x) => (
+            {shown.map((x) => (
               <tr key={x.playerId}>
-                <td><PlayerCell league={league} p={league.players[x.playerId]} size={28} showInjury={false} subtitle={league.players[x.playerId].pos} /></td>
-                <td>{x.teamId === a.id ? a.abbrev : b.abbrev}</td><td>{x.min}</td><td><strong>{x.pts}</strong></td><td>{x.oreb + x.dreb}</td><td>{x.ast}</td>
+                <td className="left m-main"><PlayerCell league={league} p={league.players[x.playerId]} size={28} showInjury={false} subtitle={league.players[x.playerId].pos} /></td>
+                <td data-label="Side">{x.teamId === a.id ? a.abbrev : b.abbrev}</td>
+                <td data-label="MIN">{x.min}</td>
+                <td className="m-key" data-label="PTS"><strong>{x.pts}</strong></td>
+                <td className="m-key" data-label="REB">{x.oreb + x.dreb}</td>
+                <td className="m-key" data-label="AST">{x.ast}</td>
               </tr>
             ))}
           </tbody>

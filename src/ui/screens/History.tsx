@@ -18,17 +18,31 @@ export function RecordTable({ league, book, scope }: { league: League; book: Rec
   const rows = RECORD_STATS.map((s) => [s, book?.[scope][s]] as const)
   if (rows.every(([, e]) => !e)) return <p className="muted" style={{ margin: 0 }}>No records yet.</p>
   return (
-    <div className="table-wrap">
-      <table className="stats">
-        <thead><tr><th>Stat</th><th>Record</th><th className="left">Holder</th><th>Season</th><th className="left">Previous</th></tr></thead>
+    <div className="table-wrap" tabIndex={0} role="region" aria-label={`${scope} records`}>
+      <table className="stats m-cards">
+        <thead><tr><th className="left">Stat</th><th>Record</th><th className="left">Holder</th><th>Season</th><th className="left">Previous</th></tr></thead>
         <tbody>
           {rows.map(([s, e]) => e && (
             <tr key={s}>
-              <td>{RECORD_LABEL[s]}{scope === 'season' ? ' / game' : ''}</td>
-              <td><strong>{e.value}</strong></td>
-              <td className="left">{league.players[e.playerId] ? <Link className="link" to={`/player/${e.playerId}`}>{fullName(league.players[e.playerId])}</Link> : '—'} <span className="muted">{league.teams[e.teamId]?.abbrev}</span>{e.gameId && league.games.some((g) => g.id === e.gameId && g.result?.box.length) && <> · <Link className="link muted" to={`/game/${e.gameId}`}>box</Link></>}</td>
-              <td>{e.season}</td>
-              <td className="left muted">{e.prev ? `${e.prev.value} · ${league.players[e.prev.playerId] ? fullName(league.players[e.prev.playerId]) : '—'} (S${e.prev.season})` : '—'}</td>
+              <td className="left m-main"><strong>{RECORD_LABEL[s]}{scope === 'season' ? ' / game' : ''}</strong></td>
+              <td className="m-key"><strong>{e.value}</strong></td>
+              <td className="left" data-label="Holder">
+                {league.players[e.playerId] ? <Link className="link" to={`/player/${e.playerId}`}>{fullName(league.players[e.playerId])}</Link> : '—'}{' '}
+                {league.teams[e.teamId] && <Link className="link muted" to={`/team/${e.teamId}`}>{league.teams[e.teamId].abbrev}</Link>}
+                {e.gameId && league.games.some((g) => g.id === e.gameId && g.result?.box.length) && <> · <Link className="link muted" to={`/game/${e.gameId}`}>box</Link></>}
+              </td>
+              <td data-label="Season">{e.season}</td>
+              <td className="left muted" data-label="Previous">
+                {e.prev ? (
+                  <>
+                    {e.prev.value} ·{' '}
+                    {league.players[e.prev.playerId]
+                      ? <Link className="link" to={`/player/${e.prev.playerId}`}>{fullName(league.players[e.prev.playerId])}</Link>
+                      : '—'}{' '}
+                    (S{e.prev.season})
+                  </>
+                ) : '—'}
+              </td>
             </tr>
           ))}
         </tbody>
@@ -68,7 +82,7 @@ function Seasons({ league }: { league: League }) {
                   {(['East', 'West'] as const).map((conf) => (
                     <div key={conf} className="table-wrap">
                       <table className="stats">
-                        <thead><tr><th>{conf}</th><th>W</th><th>L</th></tr></thead>
+                        <thead><tr><th className="left">{conf}</th><th>W</th><th>L</th></tr></thead>
                         <tbody>{h.standings.filter((r) => r.conf === conf).map((r) => (
                           <tr key={r.teamId} className={r.teamId === league.userTeamId ? 'me' : ''}><td><Link className="link" to={`/team/${r.teamId}`}>{league.teams[r.teamId].name}</Link>{r.teamId === h.championId ? ' 🏆' : ''}</td><td>{r.w}</td><td>{r.l}</td></tr>
                         ))}</tbody>
@@ -79,11 +93,26 @@ function Seasons({ league }: { league: League }) {
                 <div className="stack" style={{ gap: '0.5rem' }}>
                   <h3>Stat leaders</h3>
                   <ul className="progress-list">
-                    {h.leaders.map((x) => <li key={x.stat}><span>{x.stat}: {league.players[x.playerId] ? <Link className="link" to={`/player/${x.playerId}`}>{fullName(league.players[x.playerId])}</Link> : '—'} <span className="muted">{league.teams[x.teamId]?.abbrev}</span></span><strong>{x.value}</strong></li>)}
+                    {h.leaders.map((x) => (
+                      <li key={x.stat}>
+                        <span>
+                          {x.stat}: {league.players[x.playerId] ? <Link className="link" to={`/player/${x.playerId}`}>{fullName(league.players[x.playerId])}</Link> : '—'}{' '}
+                          {league.teams[x.teamId] && <Link className="link muted" to={`/team/${x.teamId}`}>{league.teams[x.teamId].abbrev}</Link>}
+                        </span>
+                        <strong>{x.value}</strong>
+                      </li>
+                    ))}
                   </ul>
                   {picks.length > 0 && <>
                     <h3>Draft · first round</h3>
-                    <ul className="progress-list">{picks.slice(0, 10).map((p) => <li key={p.id}><span>#{p.draft!.pick} <Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link></span><span className="muted">{league.teams[p.draft!.teamId]?.abbrev}</span></li>)}</ul>
+                    <ul className="progress-list">
+                      {picks.slice(0, 10).map((p) => (
+                        <li key={p.id}>
+                          <span>#{p.draft!.pick} <Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link></span>
+                          {league.teams[p.draft!.teamId] && <Link className="link muted" to={`/team/${p.draft!.teamId}`}>{league.teams[p.draft!.teamId].abbrev}</Link>}
+                        </li>
+                      ))}
+                    </ul>
                   </>}
                   <h3>Trades ({trades.length})</h3>
                   {trades.length ? <ul className="tx-list">{trades.map((t, i) => <li key={i}>{t.text}</li>)}</ul> : <span className="muted">None.</span>}

@@ -1,11 +1,11 @@
 import { needThresholds, teamNeeds } from '../../engine/gm/needs'
 import { NeedDot, NeedsStrip } from '../components/NeedDot'
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { capSeason, committed, payroll, tradesOpen } from '../../engine/gm/cap'
 import { rosterSynergy } from '../../engine/gm/synergy'
 import { proposeTrade, suggestPackage, tradeableAssets, tradeProblem, type Asset, type Trade as TradeT } from '../../engine/gm/trade'
-import { projectedSlot } from '../../engine/gm/value'
+import { projectedSlot, standingsOf, teamMode } from '../../engine/gm/value'
 import { archetypeFor } from '../../engine/player/archetype'
 import type { League } from '../../engine/types'
 import { CapBar } from '../components/CapBar'
@@ -41,17 +41,27 @@ export function AssetList({ league, teamId, assets, picked, toggle, pos, q }: {
         const on = picked.has(key(a))
         const yrs = p.contract ? p.contract.expires - capSeason(league) + 1 : 0
         return (
-          <label key={p.id} className={`asset${on ? ' on' : ''}`}>
-            <input type="checkbox" checked={on} onChange={() => toggle(a)} />
-            <Face seed={p.faceSeed} age={p.age} colors={team.colors} size={30} />
-            <span className="asset-main">
-              <span className="asset-name">{fullName(p)}{p.injury ? ' 🤕' : ''}</span>
-              {/* Salary sits on the second line so the name keeps the row's width on a phone. */}
-              <span className="asset-sub">{p.pos} · {p.age}y{p.contract ? ` · ${money(p.contract.salary)} · ${yrs}y` : ''}<span className="m-hide"> · {archetypeFor(p)}</span></span>
-            </span>
-            <NeedDot level={myNeeds[p.pos]} after={teamNeeds(league, me, teamId === me ? { removeIds: [p.id] } : { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos]} />
-            <OvrPill value={ovrOf(p)} pot={p.pot} />
-          </label>
+          <div key={p.id} className={`asset${on ? ' on' : ''}`}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0, cursor: 'pointer' }}>
+              <input type="checkbox" checked={on} onChange={() => toggle(a)} />
+              <Face seed={p.faceSeed} age={p.age} colors={team.colors} size={30} />
+              <span className="asset-main">
+                <span className="asset-name">{fullName(p)}{p.injury ? ' 🤕' : ''}</span>
+                {/* Salary sits on the second line so the name keeps the row's width on a phone. */}
+                <span className="asset-sub">{p.pos} · {p.age}y{p.contract ? ` · ${money(p.contract.salary)} · ${yrs}y` : ''}<span className="m-hide"> · {archetypeFor(p)}</span></span>
+              </span>
+              <NeedDot level={myNeeds[p.pos]} after={teamNeeds(league, me, teamId === me ? { removeIds: [p.id] } : { add: [{ pos: p.pos, ovr: ovrOf(p) }] }, th)[p.pos]} />
+              <OvrPill value={ovrOf(p)} pot={p.pot} />
+            </label>
+            <Link
+              to={`/player/${p.id}`}
+              onClick={(e) => e.stopPropagation()}
+              className="icon-btn"
+              style={{ textDecoration: 'none', flex: 'none' }}
+              aria-label={`View ${fullName(p)} profile`}
+              title="View profile"
+            >↗</Link>
+          </div>
         )
       })}
       {picks.map((a) => {
@@ -85,9 +95,13 @@ export function Trade() {
   const [give, setGive] = useState<Set<string>>(() => new Set(keys('gives')))
   const [get, setGet] = useState<Set<string>>(() => new Set([...keys('gets'), ...keys('get').map((id) => `player:${id}`)]))
   const [hint, setHint] = useState<string | null>(null)
-  const [pos, setPos] = useState<PosFilter>('All')
-  const [q, setQ] = useState('')
+  const [findPos, setFindPos] = useState<PosFilter>('All')
+  const [findQ, setFindQ] = useState('')
   const [findTeam, setFindTeam] = useState('All')
+  const [myPos, setMyPos] = useState<PosFilter>('All')
+  const [myQ, setMyQ] = useState('')
+  const [theirPos, setTheirPos] = useState<PosFilter>('All')
+  const [theirQ, setTheirQ] = useState('')
   /** Whose roster stats sheet is open; it floats over the trade and never touches the offer. */
   const [peek, setPeek] = useState<'me' | 'them' | null>(null)
 
@@ -96,9 +110,9 @@ export function Trade() {
   const finds = useMemo(() => {
     const ids = others.filter((t) => findTeam === 'All' || t.id === findTeam)
       .flatMap((t) => tradeableAssets(league, t.id).filter((a) => a.kind === 'player').map((a) => league.players[a.id]))
-    return filterPlayers(ids, { pos, q })
+    return filterPlayers(ids, { pos: findPos, q: findQ })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [league, findTeam, pos, q])
+  }, [league, findTeam, findPos, findQ])
   const myNeeds = useMemo(() => teamNeeds(league, me, {}, needThresholds(league)), [league, me])
   const parse = (s: Set<string>, pool: Asset[]) => pool.filter((a) => s.has(key(a)))
   const trade: TradeT = { a: me, b: partner, aGives: parse(give, myAssets), bGives: parse(get, theirAssets) }
@@ -121,10 +135,18 @@ export function Trade() {
   if (!tradesOpen(league))
     return (
       <div className="stack">
-        <h1>Trade</h1>
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <h1>Trade</h1>
+          <Link to="/trade-finder" className="btn">🔎 Trade finder →</Link>
+        </div>
         <p className="notice">{league.phase === 'playoffs' ? 'Trades are closed during the playoffs. They reopen after the Finals.' : 'The trade deadline has passed. Trades reopen after the Finals.'}</p>
       </div>
     )
+
+  const partnerTeam = league.teams[partner]
+  const partnerRow = standingsOf(league).find((r) => r.teamId === partner)
+  const partnerRecord = partnerRow && (partnerRow.w + partnerRow.l > 0) ? `${partnerRow.w}–${partnerRow.l}` : ''
+  const partnerHint = teamMode(league, partner) === 'contend' ? 'contending' : 'rebuilding'
 
   const whatWouldItTake = () => {
     const pkg = suggestPackage(league, me, partner, trade.bGives)
@@ -157,7 +179,8 @@ export function Trade() {
             {others.map((t) => <option key={t.id} value={t.id}>{teamFull(t)}</option>)}
           </select>
         </label>
-        <div className="row">
+        <div className="row" style={{ flexWrap: 'wrap' }}>
+          <Link to="/trade-finder" className="btn">🔎 Trade finder →</Link>
           <button className="btn" onClick={() => setPeek('me')}>📊 My team</button>
           <button className="btn" onClick={() => setPeek('them')}>📊 Their team</button>
         </div>
@@ -178,13 +201,12 @@ export function Trade() {
             </select>
           </label>
           <label className="field">Search
-            <input type="search" placeholder="Player name" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input type="search" placeholder="Player name" value={findQ} onChange={(e) => setFindQ(e.target.value)} />
           </label>
           <div className="seg" role="group" aria-label="Position">
-            {(['All', ...POSITIONS] as PosFilter[]).map((x) => <button key={x} className="btn" aria-pressed={pos === x} onClick={() => setPos(x)}>{x}</button>)}
+            {(['All', ...POSITIONS] as PosFilter[]).map((x) => <button key={x} className="btn" aria-pressed={findPos === x} onClick={() => setFindPos(x)}>{x}</button>)}
           </div>
         </div>
-        <p className="muted" style={{ margin: 0, fontSize: '0.85rem' }}>Position and name also filter both lists below.</p>
         <div className="asset-list" style={{ maxHeight: 300 }}>
           {finds.slice(0, 40).map((p) => {
             const t = league.teams[p.teamId!]
@@ -193,8 +215,8 @@ export function Trade() {
               <div key={p.id} className={`asset${on ? ' on' : ''}`}>
                 <Face seed={p.faceSeed} age={p.age} colors={t.colors} size={30} />
                 <span className="asset-main">
-                  <span className="asset-name">{fullName(p)}{p.injury ? ' 🤕' : ''}</span>
-                  <span className="asset-sub">{p.pos} · {p.age}y · {t.abbrev}{p.contract ? ` · ${money(p.contract.salary)}` : ''}<span className="m-hide"> · {archetypeFor(p)}</span></span>
+                  <Link className="asset-name link" to={`/player/${p.id}`}>{fullName(p)}{p.injury ? ' 🤕' : ''}</Link>
+                  <span className="asset-sub">{p.pos} · {p.age}y · <Link className="link" to={`/team/${t.id}`}>{t.abbrev}</Link>{p.contract ? ` · ${money(p.contract.salary)}` : ''}<span className="m-hide"> · {archetypeFor(p)}</span></span>
                 </span>
                 <OvrPill value={ovrOf(p)} pot={p.pot} />
                 <button className="btn" disabled={on} onClick={() => target(t.id, p.id)}>{on ? 'Added' : 'Target'}</button>
@@ -207,12 +229,42 @@ export function Trade() {
 
       <div className="trade-grid">
         <section className="panel stack">
-          <div className="row"><TeamBadge team={league.teams[me]} size={32} /><h2>You send</h2><Help topics={['pot', 'need']} /></div>
-          <AssetList league={league} teamId={me} assets={myAssets} picked={give} toggle={toggle(give, setGive)} pos={pos} q={q} />
+          <div className="row" style={{ flexWrap: 'wrap' }}>
+            <Link className="row link" to={`/team/${me}`} style={{ gap: '0.6rem', minWidth: 0 }}>
+              <TeamBadge team={league.teams[me]} size={32} />
+              <h2 style={{ margin: 0 }}>You send</h2>
+            </Link>
+            <Help topics={['pot', 'need']} />
+          </div>
+          <details className="dt-filter-details">
+            <summary>🔍 Filter{myPos !== 'All' || myQ.trim() ? ' · on' : ''}</summary>
+            <div className="filters">
+              <label className="field">Search<input type="search" placeholder="Name" value={myQ} onChange={(e) => setMyQ(e.target.value)} /></label>
+              <div className="seg" role="group" aria-label="My team position">
+                {(['All', ...POSITIONS] as PosFilter[]).map((x) => <button key={x} className="btn" aria-pressed={myPos === x} onClick={() => setMyPos(x)}>{x}</button>)}
+              </div>
+            </div>
+          </details>
+          <AssetList league={league} teamId={me} assets={myAssets} picked={give} toggle={toggle(give, setGive)} pos={myPos} q={myQ} />
         </section>
         <section className="panel stack">
-          <div className="row"><TeamBadge team={league.teams[partner]} size={32} /><h2>You get</h2></div>
-          <AssetList league={league} teamId={partner} assets={theirAssets} picked={get} toggle={toggle(get, setGet)} pos={pos} q={q} />
+          <div className="row" style={{ flexWrap: 'wrap', gap: '0.4rem 0.6rem' }}>
+            <Link className="row link" to={`/team/${partner}`} style={{ gap: '0.6rem', minWidth: 0 }}>
+              <TeamBadge team={partnerTeam} size={32} />
+              <h2 style={{ margin: 0 }}>You get · {teamFull(partnerTeam)}</h2>
+            </Link>
+            <span className="muted" style={{ fontSize: '0.85rem' }}>{partnerRecord ? `${partnerRecord} · ` : ''}{partnerHint}</span>
+          </div>
+          <details className="dt-filter-details">
+            <summary>🔍 Filter{theirPos !== 'All' || theirQ.trim() ? ' · on' : ''}</summary>
+            <div className="filters">
+              <label className="field">Search<input type="search" placeholder="Name" value={theirQ} onChange={(e) => setTheirQ(e.target.value)} /></label>
+              <div className="seg" role="group" aria-label="Partner team position">
+                {(['All', ...POSITIONS] as PosFilter[]).map((x) => <button key={x} className="btn" aria-pressed={theirPos === x} onClick={() => setTheirPos(x)}>{x}</button>)}
+              </div>
+            </div>
+          </details>
+          <AssetList league={league} teamId={partner} assets={theirAssets} picked={get} toggle={toggle(get, setGet)} pos={theirPos} q={theirQ} />
         </section>
       </div>
 

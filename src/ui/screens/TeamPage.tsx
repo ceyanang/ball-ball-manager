@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Navigate, useParams } from 'react-router-dom'
 import { computeStandings } from '../../engine/standings'
 import { RosterTable } from '../components/RosterTable'
@@ -14,6 +15,7 @@ const ord = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2
 export function TeamPage() {
   const { id } = useParams()
   const league = useStore((s) => s.league)!
+  const [recScope, setRecScope] = useState<'game' | 'season' | 'career'>('game')
   const team = id && Object.hasOwn(league.teams, id) ? league.teams[id] : undefined
   if (!team) return <Navigate to="/teams" replace />
   const st = computeStandings(league, league.season)[team.conf]
@@ -39,10 +41,10 @@ export function TeamPage() {
       <div className="page-head" style={{ background: `linear-gradient(110deg, ${team.colors.primary} 55%, ${team.colors.secondary})` }}>
         <TeamBadge team={team} size={72} />
         <div style={{ flex: 1, minWidth: 200 }}>
-          <div className="title">{teamFull(team)}</div>
+          <h1 className="title">{teamFull(team)}</h1>
           <div className="sub">{row.w}–{row.l} · {ord(st.indexOf(row) + 1)} in the {team.conf}</div>
         </div>
-        <div className="row" style={{ background: 'rgba(0,0,0,0.18)', borderRadius: 12, padding: '0.5rem 0.8rem' }}>
+        <div className="row" style={{ background: 'rgba(0,0,0,0.18)', borderRadius: 12, padding: '0.5rem 0.8rem', cursor: 'default' }}>
           <Face seed={coach.faceSeed} age={coach.age} colors={{ primary: '#2a2f3d', secondary: '#ffffff' }} size={48} />
           <div>
             <div style={{ fontWeight: 700 }}>Coach {coach.firstName} {coach.lastName}</div>
@@ -72,13 +74,15 @@ export function TeamPage() {
       )}
 
       <section className="panel stack">
-        <h2>Franchise records</h2>
-        <h3>Single game</h3>
-        <RecordTable league={league} book={league.records.teams[team.id]} scope="game" />
-        <h3>Single season</h3>
-        <RecordTable league={league} book={league.records.teams[team.id]} scope="season" />
-        <h3>Career with the {team.name}</h3>
-        <RecordTable league={league} book={league.records.teams[team.id]} scope="career" />
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <h2>Franchise records</h2>
+          <div className="seg" role="group" aria-label="Record scope">
+            {([['game', 'Single game'], ['season', 'Single season'], ['career', 'Career']] as const).map(([k, label]) => (
+              <button key={k} className="btn" aria-pressed={recScope === k} onClick={() => setRecScope(k)}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <RecordTable league={league} book={league.records.teams[team.id]} scope={recScope} />
       </section>
 
       <section className="panel stack">

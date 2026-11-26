@@ -34,10 +34,10 @@ export function MinutesPanel({ rot, players, disabled, onChange }: {
   for (const id of active) byPos[players[id].pos] += mins[id] ?? 0
 
   return (
-    <section className="panel stack mins-panel">
+    <section className="panel stack mins-panel" style={{ minWidth: 0, maxWidth: '100%' }}>
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <h3>Minutes <Help topics={['sta']} /></h3>
-        <div className="row">
+        <div className="row" style={{ flexWrap: 'wrap' }}>
           <span className={`mins-left${remaining !== 0 ? ' off' : ''}`} role="status">
             Remaining minutes: <b>{remaining}</b>
           </span>
@@ -50,7 +50,7 @@ export function MinutesPanel({ rot, players, disabled, onChange }: {
         High-stamina guys (and anyone on a heater 🔥) can carry big minutes — past their 🔋 comfort zone, they’ll fade late.
       </p>
 
-      <div className="mins-pos" aria-label="Minutes by natural position">
+      <div className="mins-pos" aria-label="Minutes by natural position" style={{ minWidth: 0, width: '100%' }}>
         {SLOTS.map((pos) => (
           <div key={pos} className="mins-pos-row">
             <span>{pos}</span>
@@ -62,8 +62,8 @@ export function MinutesPanel({ rot, players, disabled, onChange }: {
         ))}
       </div>
 
-      <div className="table-wrap">
-        <table className="stats mins-table">
+      <div className="table-wrap" style={{ minWidth: 0, maxWidth: '100%' }}>
+        <table className="stats mins-table" style={{ width: '100%', maxWidth: '100%' }}>
           <thead><tr><th>Player</th><th className="mins-wide">Pos</th><th className="mins-wide">OVR</th><th className="mins-wide" title="Stamina rating">STA</th><th>Minutes</th><th title="Coach's suggestion">Sugg.</th></tr></thead>
           <tbody>
             {active.map((id, i) => {
@@ -84,12 +84,13 @@ export function MinutesPanel({ rot, players, disabled, onChange }: {
                   <td className="mins-wide">{p.pos}</td>
                   <td className="mins-wide">{ovrOf(p)}</td>
                   <td className="mins-wide" title={`Comfortable up to ~${comfort} min`}>{p.ratings.stamina}</td>
-                  <td>
-                    <span className="mins-edit">
+                  <td style={{ minWidth: 0 }}>
+                    <span className="mins-edit" style={{ minWidth: 0, maxWidth: '100%' }}>
                       <button className="btn mins-step" disabled={disabled || m <= 0} aria-label={`Fewer minutes for ${fullName(p)}`} onClick={() => set(id, m - 1)}>−</button>
                       <input
                         type="range" min={0} max={MAX_PLAN_MIN} step={1} value={m} disabled={disabled}
                         aria-label={`Minutes for ${fullName(p)}`}
+                        style={{ minWidth: 0 }}
                         onChange={(e) => set(id, Number(e.target.value))}
                       />
                       <button className="btn mins-step" disabled={disabled || m >= MAX_PLAN_MIN} aria-label={`More minutes for ${fullName(p)}`} onClick={() => set(id, m + 1)}>+</button>

@@ -62,18 +62,18 @@ export function Home() {
         </Link>
       )}
       {champ && (
-        <div className="scoreboard" style={{ background: `linear-gradient(120deg, ${champ.colors.primary}, ${champ.colors.secondary})` }}>
+        <Link to={`/team/${champ.id}`} className="scoreboard" style={{ background: `linear-gradient(120deg, ${champ.colors.primary}, ${champ.colors.secondary})`, textDecoration: 'none' }}>
           <TeamBadge team={champ} size={64} />
           <div>
             <div className="team-line">{teamFull(champ)} are champions</div>
             <div className="sub">Season {league.season} is in the books.</div>
           </div>
-        </div>
+        </Link>
       )}
       <div className="scoreboard" style={{ background: `linear-gradient(110deg, ${team.colors.primary} 55%, ${team.colors.secondary})` }}>
-        <TeamBadge team={team} size={64} />
+        <Link to="/my-team" aria-label={`${teamFull(team)} rotation`}><TeamBadge team={team} size={64} /></Link>
         <div>
-          <div className="team-line">{teamFull(team)}</div>
+          <div className="team-line"><Link className="link" to="/my-team">{teamFull(team)}</Link></div>
           <div className="sub">{me.w + me.l > 0 ? `${ordinal(rank)} in the ${team.conf}` : `${team.conf} · no games yet`} · {league.coaches[team.coachId].firstName} {league.coaches[team.coachId].lastName}, coach</div>
         </div>
         <div className="record" aria-label={`Record ${me.w} wins ${me.l} losses`}>{me.w}–{me.l}</div>
@@ -110,9 +110,9 @@ export function Home() {
             const opp = league.teams[home ? next.awayId : next.homeId]
             return (
               <div className="row">
-                <TeamBadge team={opp} size={48} />
+                <Link to={`/team/${opp.id}`} aria-label={teamFull(opp)}><TeamBadge team={opp} size={48} /></Link>
                 <div>
-                  <div style={{ fontWeight: 700 }}>{home ? 'vs' : 'at'} {teamFull(opp)}</div>
+                  <div style={{ fontWeight: 700 }}>{home ? 'vs' : 'at'} <Link className="link" to={`/team/${opp.id}`}>{teamFull(opp)}</Link></div>
                   <div className="muted">Day {next.day}{next.playoff ? ` · Playoffs, game ${next.playoff.gameNum}` : ''}</div>
                 </div>
               </div>
@@ -200,13 +200,13 @@ export function Home() {
       <section className="panel stack">
         <h2>Top performers</h2>
         {performers.length ? (
-          <div className="grid-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+          <div className="grid-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(225px, 100%), 1fr))' }}>
             {performers.map(({ p, line }) => (
               <Link key={p.id} to={`/player/${p.id}`} className="row link">
                 <Face seed={p.faceSeed} age={p.age} colors={team.colors} size={52} jersey={p.jersey} title={fullName(p)} />
-                <div>
+                <div style={{ minWidth: 0 }}>
                   <div style={{ fontWeight: 700 }}>{fullName(p)}</div>
-                  <div className="muted">{one(line!.pg.pts)} pts · {one(line!.pg.reb)} reb · {one(line!.pg.ast)} ast</div>
+                  <div className="muted" style={{ fontSize: '0.86rem', whiteSpace: 'nowrap' }}>{one(line!.pg.pts)} pts · {one(line!.pg.reb)} reb · {one(line!.pg.ast)} ast</div>
                 </div>
               </Link>
             ))}

@@ -24,24 +24,37 @@ function AssetList({ league, assets }: { league: League; assets: TradeAsset[] })
 }
 
 const when = (i: InboxItem) => `S${i.season} · ${i.phase === 'offseason' ? `Offseason${i.day ? ` · FA day ${i.day}` : ''}` : `${i.phase === 'playoffs' ? 'Playoffs · ' : ''}Day ${i.day}`}`
+type Filter = 'all' | 'unread' | 'offers'
 
 export function Inbox() {
   const league = useStore((s) => s.league)!
   const act = useStore((s) => s.act)
   const [showDismissed, setShowDismissed] = useState(false)
-  const items = [...league.inbox].reverse().filter((i) => showDismissed || !i.dismissed)
+  const [filter, setFilter] = useState<Filter>('all')
+  const items = [...league.inbox].reverse().filter((i) => {
+    if (!showDismissed && i.dismissed) return false
+    if (filter === 'unread') return !i.read
+    if (filter === 'offers') return !!i.offer
+    return true
+  })
   const unread = league.inbox.filter((i) => !i.read && !i.dismissed).length
+  const openOffers = league.inbox.filter((i) => !i.dismissed && i.offer?.status === 'open').length
   const mark = (id: string, patch: Partial<InboxItem>) => act((l) => { Object.assign(l.inbox.find((i) => i.id === id)!, patch) })
 
   return (
     <div className="stack">
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <h1>Inbox {unread > 0 && <span className="count-pill">{unread}</span>}</h1>
-        <div className="row">
+        <div className="row" style={{ flexWrap: 'wrap' }}>
           <Link className="btn" to="/events">🎲 Events</Link>
           {unread > 0 && <button className="btn" onClick={() => act((l) => { for (const i of l.inbox) i.read = true })}>Mark all read</button>}
           <label className="row" style={{ gap: '0.4rem' }}><input type="checkbox" checked={showDismissed} onChange={(e) => setShowDismissed(e.target.checked)} /> Show dismissed</label>
         </div>
+      </div>
+      <div className="chips" role="tablist" aria-label="Inbox filter">
+        <button role="tab" aria-selected={filter === 'all'} className={`chip${filter === 'all' ? ' on' : ''}`} onClick={() => setFilter('all')}>All</button>
+        <button role="tab" aria-selected={filter === 'unread'} className={`chip${filter === 'unread' ? ' on' : ''}`} onClick={() => setFilter('unread')}>Unread{unread > 0 ? ` (${unread})` : ''}</button>
+        <button role="tab" aria-selected={filter === 'offers'} className={`chip${filter === 'offers' ? ' on' : ''}`} onClick={() => setFilter('offers')}>Trade offers{openOffers > 0 ? ` (${openOffers})` : ''}</button>
       </div>
       <p className="muted" style={{ margin: 0 }}>Your assistant GM’s notes. Suggestions only — every call is yours.</p>
       {items.length === 0 && <section className="panel"><p className="muted" style={{ margin: 0 }}>Nothing here yet. Sim some games and your assistant will start flagging things.</p></section>}
@@ -61,11 +74,16 @@ export function Inbox() {
             {o && team && (
               <div className="offer-box">
                 <div className="grid-2">
-                  <div><div className="row" style={{ gap: '0.5rem' }}><TeamBadge team={team} size={28} /><strong>{team.name} send</strong></div><AssetList league={league} assets={o.theyGive} /></div>
+                  <div>
+                    <Link className="row link" style={{ gap: '0.5rem' }} to={`/team/${team.id}`} onClick={(e) => e.stopPropagation()}>
+                      <TeamBadge team={team} size={28} /><strong>{team.name} send</strong>
+                    </Link>
+                    <AssetList league={league} assets={o.theyGive} />
+                  </div>
                   <div><strong>You send</strong><AssetList league={league} assets={o.youGive} /></div>
                 </div>
                 {o.status === 'open' ? (
-                  <div className="row">
+                  <div className="row" style={{ flexWrap: 'wrap' }}>
                     <button className="btn btn-primary" onClick={(e) => { e.stopPropagation(); act((l) => respondToOffer(l, i.id, true)) }}>✅ Accept</button>
                     <button className="btn" onClick={(e) => { e.stopPropagation(); act((l) => respondToOffer(l, i.id, false)) }}>Decline</button>
                     <Link className="link muted" to={`/trade?team=${team.id}`} onClick={(e) => e.stopPropagation()}>Counter in the trade builder →</Link>

@@ -9,7 +9,7 @@ export function PlayerCell({ league, p, size = 34, showInjury = true, subtitle, 
   return (
     <div className="pcell">
       <Face seed={p.faceSeed} age={p.age} colors={colors} size={size} title={fullName(p)} />
-      <span>
+      <span className="pcell-text">
         {plain ? <span className="pname">{fullName(p)}</span> : <Link className="link pname" to={`/player/${p.id}`}>{fullName(p)}</Link>}
         {league.favoritePlayerIds.includes(p.id) && <span title="Your guy" aria-label="Your guy"> ⭐</span>}
         {subtitle && <span className="sub">{subtitle}</span>}

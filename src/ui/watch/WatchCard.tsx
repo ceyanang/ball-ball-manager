@@ -151,7 +151,7 @@ function PortraitFx({ tier }: { tier: OvrTier }) {
 }
 
 /** One of the six cards in a row: a starter (portrait) or the bench (player = null). */
-export const WatchCard = memo(function WatchCard({ cardId, player, team, benchCount, pts, reb, ast, hot, fav, register }: {
+export const WatchCard = memo(function WatchCard({ cardId, player, team, benchCount, pts, reb, ast, hot, fav, register, onSelect }: {
   cardId: string
   player: Player | null
   team: Team
@@ -159,13 +159,23 @@ export const WatchCard = memo(function WatchCard({ cardId, player, team, benchCo
   pts: number; reb: number; ast: number
   hot: boolean; fav: boolean
   register: (cardId: string, el: HTMLElement | null) => void
+  onSelect?: () => void
 }) {
   const ref = useCallback((el: HTMLDivElement | null) => register(cardId, el), [register, cardId])
   const ovr = player ? ovrOf(player) : 0
   const tier = player ? ovrTier(ovr) : null
   const cls = `w-card${player ? '' : ' bench'}${hot ? ' hot' : ''}${fav ? ' fav' : ''}`
+  const interactive = !!player && !!onSelect
   return (
-    <div className={cls} ref={ref} aria-label={player ? `${fullName(player)}: ${pts} points, ${reb} rebounds, ${ast} assists` : `${team.name} bench: ${pts} points`}>
+    <div
+      className={cls}
+      ref={ref}
+      role={interactive ? 'button' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      onClick={interactive ? onSelect : undefined}
+      onKeyDown={interactive ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect() } } : undefined}
+      aria-label={player ? `${fullName(player)}: ${pts} points, ${reb} rebounds, ${ast} assists` : `${team.name} bench: ${pts} points`}
+    >
       {fav && <span className="w-mark star" aria-hidden="true">⭐</span>}
       {hot && <span className="w-mark fire" aria-hidden="true">🔥</span>}
       <div className="w-face-box">

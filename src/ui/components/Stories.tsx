@@ -16,6 +16,7 @@ const whenLabel = (season: number, day: number, playoffs = false) => `S${season}
 export function NewsCard({ league, n }: { league: League; n: NewsItem }) {
   const team = n.teamIds[0] ? league.teams[n.teamIds[0]] : null
   const p = n.playerIds[0] ? league.players[n.playerIds[0]] : null
+  const players = n.playerIds.slice(0, 2).map((id) => league.players[id]).filter(Boolean)
   return (
     <article className={`news-card${n.weight >= 8 ? ' big' : ''}`} style={{ borderLeftColor: team?.colors.primary ?? 'var(--accent)' }}>
       <div className="news-emoji" aria-hidden="true">{n.emoji}</div>
@@ -24,11 +25,16 @@ export function NewsCard({ league, n }: { league: League; n: NewsItem }) {
         <div className="muted">{n.text}</div>
         <div className="news-meta">
           <span>{whenLabel(n.season, n.day, n.playoffs)}</span>
-          {p && <Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link>}
+          {team && <Link className="link" to={`/team/${team.id}`}>{team.abbrev}</Link>}
+          {players.map((pl) => <Link key={pl.id} className="link" to={`/player/${pl.id}`}>{fullName(pl)}</Link>)}
           {n.gameId && league.games.some((g) => g.id === n.gameId && g.result?.box.length) && <Link className="link" to={`/game/${n.gameId}`}>Box score →</Link>}
         </div>
       </div>
-      {p && <Face seed={p.faceSeed} age={p.age} colors={p.teamId ? league.teams[p.teamId].colors : NEUTRAL} size={46} title={fullName(p)} />}
+      {p && (
+        <Link to={`/player/${p.id}`} aria-label={fullName(p)}>
+          <Face seed={p.faceSeed} age={p.age} colors={p.teamId ? league.teams[p.teamId].colors : NEUTRAL} size={46} title={fullName(p)} />
+        </Link>
+      )}
     </article>
   )
 }
@@ -41,7 +47,8 @@ export function PostCard({ league, post }: { league: League; post: Post }) {
   if (a.kind === 'player') {
     const p = league.players[a.playerId]
     const colors = p?.teamId ? league.teams[p.teamId].colors : NEUTRAL
-    face = p ? <Face seed={p.faceSeed} age={p.age} colors={colors} size={42} title={fullName(p)} /> : null
+    const avatar = p ? <Face seed={p.faceSeed} age={p.age} colors={colors} size={42} title={fullName(p)} /> : null
+    face = p ? <Link to={`/player/${p.id}`} aria-label={fullName(p)}>{avatar}</Link> : null
     name = p ? <Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> : 'Former player'
     handle = p ? `${p.firstName[0]}${p.lastName}${p.jersey}`.replace(/[^A-Za-z0-9]/g, '') : 'player'
     badge = '✔️'
@@ -53,8 +60,9 @@ export function PostCard({ league, post }: { league: League; post: Post }) {
     badge = a.id === 'insider' || a.id === 'stats' ? '✔️' : ''
   } else {
     const t = a.teamId ? league.teams[a.teamId] : null
-    face = <Face seed={a.seed} age={26} colors={t?.colors ?? NEUTRAL} size={42} title={a.name} />
-    name = a.name
+    const avatar = <Face seed={a.seed} age={26} colors={t?.colors ?? NEUTRAL} size={42} title={a.name} />
+    face = t ? <Link to={`/team/${t.id}`} aria-label={t.name}>{avatar}</Link> : avatar
+    name = t ? <>{a.name} <Link className="link muted" to={`/team/${t.id}`}>({t.abbrev})</Link></> : a.name
     handle = a.handle
   }
   return (
@@ -66,6 +74,7 @@ export function PostCard({ league, post }: { league: League; post: Post }) {
         <div className="post-foot muted">
           <span>🔁 {compact(post.reposts)}</span><span>❤️ {compact(post.likes)}</span>
           {post.playerIds.slice(0, 2).map((id) => league.players[id] && <Link key={id} className="link" to={`/player/${id}`}>{fullName(league.players[id])}</Link>)}
+          {post.playerIds.length === 0 && post.teamIds.slice(0, 2).map((id) => league.teams[id] && <Link key={id} className="link" to={`/team/${id}`}>{league.teams[id].abbrev}</Link>)}
           {post.gameId && league.games.some((g) => g.id === post.gameId && g.result?.box.length) && <Link className="link" to={`/game/${post.gameId}`}>Game →</Link>}
         </div>
       </div>
@@ -88,17 +97,18 @@ export function AwardsCeremony({ league, a, reveal = true }: { league: League; a
   const champ = a.championId ? league.teams[a.championId] : null
   const cards: React.ReactNode[] = []
   if (champ) cards.push(
-    <div key="champ" className="award-card champ-card" style={{ background: `linear-gradient(120deg, ${champ.colors.primary}, ${champ.colors.secondary})` }}>
+    <Link key="champ" to={`/team/${champ.id}`} className="award-card champ-card link" style={{ background: `linear-gradient(120deg, ${champ.colors.primary}, ${champ.colors.secondary})` }}>
       <TeamBadge team={champ} size={56} />
       <div><div className="award-name">🏆 Champions</div><div className="award-winner">{champ.city} {champ.name}</div></div>
-    </div>,
+    </Link>,
   )
   if (a.coy) {
     const c = league.coaches[a.coy.coachId]
+    const ct = league.teams[a.coy.teamId]
     cards.push(
       <div key="coy" className="award-card">
-        <Face seed={c.faceSeed} age={c.age} colors={league.teams[a.coy.teamId].colors} size={56} />
-        <div><div className="award-name">Coach of the Year</div><div className="award-winner">{c.firstName} {c.lastName}</div><div className="muted">{league.teams[a.coy.teamId].name}</div></div>
+        <Face seed={c.faceSeed} age={c.age} colors={ct.colors} size={56} />
+        <div><div className="award-name">Coach of the Year</div><div className="award-winner">{c.firstName} {c.lastName}</div><Link className="link muted" to={`/team/${ct.id}`}>{ct.name}</Link></div>
       </div>,
     )
   }

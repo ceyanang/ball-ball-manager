@@ -26,12 +26,12 @@ export function FrontOffice() {
     league.phase === 'regular' ? (open ? `Trade deadline: day ${league.tradeDeadlineDay}` : 'The trade deadline has passed.')
     : league.phase === 'playoffs' ? 'Trades reopen after the Finals.' : 'Trades are open all offseason.'
 
-  const cards: [string, string, string, boolean][] = [
-    ['/trade', '🔄 Trade', open ? 'Build a deal or ask what it would take.' : deadlineNote, true],
-    ['/trade-finder', '🔎 Trade finder', open ? 'Shop your players and see what teams offer.' : deadlineNote, open],
-    ['/free-agents', '✍️ Free agents', 'Sign players and claim waivers.', true],
-    ['/draft', '🎓 Draft', league.draft ? 'Lottery, big board and draft room.' : 'Opens after the season.', !!league.draft],
-    ['/offseason', '🗓️ Offseason', league.phase === 'offseason' ? 'Pick up where you left off.' : 'Starts after the Finals.', league.phase === 'offseason'],
+  const cards: { to: string; title: string; sub: string; on: boolean; lockLabel?: string }[] = [
+    { to: '/trade', title: '🔄 Trade', sub: open ? 'Build a deal or ask what it would take.' : deadlineNote, on: open, lockLabel: 'Closed' },
+    { to: '/trade-finder', title: '🔎 Trade finder', sub: open ? 'Shop your players and see what teams offer.' : deadlineNote, on: open, lockLabel: 'Closed' },
+    { to: '/free-agents', title: '✍️ Free agents', sub: 'Sign players and claim waivers.', on: true },
+    { to: '/draft', title: '🎓 Draft', sub: league.draft ? 'Lottery, big board and draft room.' : 'Opens after the season.', on: !!league.draft, lockLabel: 'Locked' },
+    { to: '/offseason', title: '🗓️ Offseason', sub: league.phase === 'offseason' ? 'Pick up where you left off.' : 'Starts after the Finals.', on: league.phase === 'offseason', lockLabel: 'Locked' },
   ]
 
   return (
@@ -46,11 +46,19 @@ export function FrontOffice() {
       </section>
 
       <div className="office-cards">
-        {cards.map(([to, title, sub, on]) => (
-          <Link key={to} to={to} className={`office-card${on ? '' : ' off'}`}>
+        {cards.map(({ to, title, sub, on, lockLabel }) => on ? (
+          <Link key={to} to={to} className="office-card">
             <span className="office-title">{title}</span>
             <span className="muted">{sub}</span>
           </Link>
+        ) : (
+          <div key={to} className="office-card off" aria-disabled="true">
+            <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem' }}>
+              <span className="office-title">{title}</span>
+              <span className="tx-tag">{lockLabel ?? 'Locked'}</span>
+            </div>
+            <span className="muted">{sub}</span>
+          </div>
         ))}
       </div>
 
@@ -72,13 +80,14 @@ export function FrontOffice() {
               ariaLabel="Available coaches"
               rows={pool}
               rowKey={(c) => c.id}
+              cards
               columns={[
-                { key: 'coach', label: 'Coach', align: 'left', defaultDir: 'asc', value: (c) => `${c.firstName} ${c.lastName}` },
+                { key: 'coach', label: 'Coach', align: 'left', defaultDir: 'asc', mobile: 'main', value: (c) => `${c.firstName} ${c.lastName}` },
                 { key: 'style', label: 'Style', align: 'left', defaultDir: 'asc', value: (c) => STYLE[c.style] },
-                { key: 'dev', label: 'Dev', defaultDir: 'desc', value: (c) => c.dev },
+                { key: 'dev', label: 'Dev', defaultDir: 'desc', mobile: 'key', value: (c) => c.dev, cell: (c) => <><span className="m-show muted">Dev </span><strong>{c.dev}</strong></> },
                 { key: 'career', label: 'Career', defaultDir: 'desc', value: (c) => c.wins, text: (c) => `${c.wins}–${c.losses}` },
                 { key: 'age', label: 'Age', defaultDir: 'asc', value: (c) => c.age },
-                { key: 'hire', label: '', defaultDir: 'asc', sortable: false, value: () => null, cell: (c) => <button className="btn" onClick={() => act((l) => { hireCoach(l, c.id); return `${c.firstName} ${c.lastName} is your new coach.` })}>Hire</button> },
+                { key: 'hire', label: '', defaultDir: 'asc', sortable: false, mobile: 'act', value: () => null, cell: (c) => <button className="btn" onClick={() => act((l) => { hireCoach(l, c.id); return `${c.firstName} ${c.lastName} is your new coach.` })}>Hire</button> },
               ] satisfies Column<Coach>[]}
             />
           </>
@@ -95,9 +104,29 @@ export function FrontOffice() {
         </div>
         {tx.length ? (
           <ul className="tx-list">
-            {tx.map((t, i) => (
-              <li key={i}><span className={`tx-tag ${t.type}`}>{t.type}</span><span>{t.text}</span><span className="muted">S{t.season}{t.phase === 'offseason' ? ' offseason' : ` · day ${t.day}`}</span></li>
-            ))}
+            {tx.map((t, i) => {
+              const teamLinks = [...new Set(t.teamIds)].filter((id) => league.teams[id])
+              const playerLinks = [...new Set(t.playerIds)].filter((id) => league.players[id])
+              return (
+                <li key={i}>
+                  <span className={`tx-tag ${t.type}`}>{t.type}</span>
+                  <span style={{ flex: '1 1 200px', minWidth: 0 }}>
+                    <span>{t.text}</span>
+                    {(teamLinks.length > 0 || playerLinks.length > 0) && (
+                      <span className="row" style={{ flexWrap: 'wrap', gap: '0.15rem 0.55rem', fontSize: '0.82rem', marginTop: '0.15rem' }}>
+                        {teamLinks.map((id) => (
+                          <Link key={`t:${id}`} className="link muted" to={`/team/${id}`}>{league.teams[id].abbrev}</Link>
+                        ))}
+                        {playerLinks.map((id) => (
+                          <Link key={`p:${id}`} className="link" to={`/player/${id}`}>{fullName(league.players[id])}</Link>
+                        ))}
+                      </span>
+                    )}
+                  </span>
+                  <span className="muted">S{t.season}{t.phase === 'offseason' ? ' offseason' : ` · day ${t.day}`}</span>
+                </li>
+              )
+            })}
           </ul>
         ) : <p className="muted" style={{ margin: 0 }}>No moves yet.</p>}
       </section>

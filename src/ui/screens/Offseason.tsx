@@ -97,7 +97,15 @@ export function Offseason() {
             ) : <p className="muted">No notable retirements.</p>}
             <span className="muted">{r.retired.length} players retired in all.</span>
             {league.hof.some((h) => h.season === league.season) && (
-              <p className="notice" style={{ margin: 0 }}>🎖️ Hall of Fame: {league.hof.filter((h) => h.season === league.season).map((h) => fullName(league.players[h.playerId])).join(', ')}</p>
+              <p className="notice" style={{ margin: 0 }}>
+                🎖️ Hall of Fame:{' '}
+                {league.hof.filter((h) => h.season === league.season).map((h, i) => (
+                  <span key={h.playerId}>
+                    {i > 0 && ', '}
+                    <Link className="link" to={`/player/${h.playerId}`}>{fullName(league.players[h.playerId])}</Link>
+                  </span>
+                ))}
+              </p>
             )}
           </section>
           <section className="panel stack">
@@ -107,7 +115,7 @@ export function Offseason() {
                 {r.coaching.map((c) => {
                   const h = league.coaches[c.hiredId]
                   const f = c.firedId ? league.coaches[c.firedId] : null
-                  return <li key={c.teamId}><span>{league.teams[c.teamId].name}</span><span className="muted">{f ? `fired ${f.lastName}, ` : ''}hired {h.firstName} {h.lastName}</span></li>
+                  return <li key={c.teamId}><Link className="link" to={`/team/${c.teamId}`}>{league.teams[c.teamId].name}</Link><span className="muted">{f ? `fired ${f.lastName}, ` : ''}hired {h.firstName} {h.lastName}</span></li>
                 })}
               </ul>
             ) : <p className="muted">Every coach kept his job.</p>}
@@ -158,16 +166,17 @@ export function Offseason() {
                 }
               })}
               rowKey={(r) => r.p.id}
+              cards
               columns={[
-                { key: 'player', label: 'Player', align: 'left', defaultDir: 'asc', value: (r) => fullName(r.p), cell: (r) => <PlayerCell league={league} p={r.p} subtitle={`${r.p.pos} · was ${money(r.p.contract!.salary)}`} /> },
+                { key: 'player', label: 'Player', align: 'left', defaultDir: 'asc', mobile: 'main', value: (r) => fullName(r.p), cell: (r) => <PlayerCell league={league} p={r.p} subtitle={`${r.p.pos} · was ${money(r.p.contract!.salary)}`} /> },
                 { key: 'need', label: 'Need', defaultDir: 'desc', value: (r) => NEED_RANK[r.need], cell: (r) => <NeedDot level={r.need} after={r.after} /> },
                 { key: 'age', label: 'Age', defaultDir: 'asc', value: (r) => r.p.age },
-                { key: 'ovr', label: 'OVR', defaultDir: 'desc', value: (r) => ovrOf(r.p), cell: (r) => <OvrPill value={ovrOf(r.p)} pot={r.p.pot} /> },
+                { key: 'ovr', label: 'OVR', defaultDir: 'desc', mobile: 'key', value: (r) => ovrOf(r.p), cell: (r) => <OvrPill value={ovrOf(r.p)} pot={r.p.pot} /> },
                 { key: 'mood', label: 'Mood', defaultDir: 'desc', value: (r) => r.p.morale },
-                { key: 'ask', label: 'Asking', defaultDir: 'desc', value: (r) => r.ask, text: (r) => `${money(r.ask)} × ${r.yrs}y` },
+                { key: 'ask', label: 'Asking', defaultDir: 'desc', mobile: 'key', value: (r) => r.ask, text: (r) => `${money(r.ask)} × ${r.yrs}y` },
                 { key: 'odds', label: 'Odds at ask', defaultDir: 'desc', value: (r) => r.odds, text: (r) => `${Math.round(r.odds * 100)}%` },
                 {
-                  key: 'offer', label: '', defaultDir: 'asc', sortable: false, value: () => null,
+                  key: 'offer', label: '', defaultDir: 'asc', sortable: false, mobile: 'act', value: () => null,
                   cell: (r) => (r.done ? <span className="loss">Won’t talk</span> : <button className="btn" onClick={() => setOpen(open === r.p.id ? null : r.p.id)}>Offer{r.tries ? ` (${3 - r.tries} left)` : ''}</button>),
                 },
               ] satisfies Column<ReSignRow>[]}
@@ -209,7 +218,7 @@ export function Offseason() {
         </section>
       )}
 
-      <RebuildPanel league={league} />
+      {os.step !== 'awards' && os.step !== 'ready' && <RebuildPanel league={league} />}
 
       <div className="row" style={{ justifyContent: 'flex-end' }}>
         {busy && <span className="spinner" role="status" aria-label="Working" />}

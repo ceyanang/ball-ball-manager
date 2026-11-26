@@ -10,8 +10,8 @@ const FILTERS: [string, NewsKind[] | null][] = [
 
 export function Highlights() {
   const league = useStore((s) => s.league)!
-  const seasons = [...new Set(league.news.map((n) => n.season))].sort((a, b) => b - a)
-  const [season, setSeason] = useState(seasons[0] ?? league.season)
+  const seasons = [...new Set([league.season, ...league.news.map((n) => n.season)])].sort((a, b) => b - a)
+  const [season, setSeason] = useState(league.season)
   const [filter, setFilter] = useState(0)
   const [mine, setMine] = useState(false)
   const kinds = FILTERS[filter][1]
@@ -31,7 +31,7 @@ export function Highlights() {
       <div className="chips" role="tablist">
         {FILTERS.map(([label], i) => <button key={label} role="tab" aria-selected={i === filter} className={`chip${i === filter ? ' on' : ''}`} onClick={() => setFilter(i)}>{label}</button>)}
       </div>
-      {items.length ? <div className="stack" style={{ gap: '0.6rem' }}>{items.map((n) => <NewsCard key={n.id} league={league} n={n} />)}</div>
+      {items.length ? <div className="stack" style={{ gap: '0.6rem', maxWidth: '860px' }}>{items.map((n) => <NewsCard key={n.id} league={league} n={n} />)}</div>
         : <section className="panel"><p className="muted" style={{ margin: 0 }}>No highlights yet. Big nights, buzzer-beaters and records show up here.</p></section>}
     </div>
   )

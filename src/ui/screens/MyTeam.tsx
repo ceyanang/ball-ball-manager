@@ -20,6 +20,8 @@ import { ratingColor } from '../ratingColor'
 import { useUnsavedGuard } from '../useUnsavedGuard'
 import { Help } from '../components/Help'
 import { DataTable, type Column } from '../components/DataTable'
+import { SubNav } from '../components/SubNav'
+import { TEAM_SUBNAV } from '../nav'
 
 const LABEL: Record<Section, string> = { starters: 'Starting five', bench: 'Bench', inactive: 'Inactive' }
 const BENCH_SLOTS = ACTIVE_MAX - STARTERS
@@ -157,6 +159,7 @@ export function MyTeam() {
           {p.injury && <span className="hurt">🤕 {p.injury.gamesRemaining >= 999 ? 'out for season' : `${p.injury.gamesRemaining}g`}</span>}
         </span>
         <OvrPill value={ovrOf(p)} pot={p.pot} />
+        <Link to={`/player/${p.id}`} className="icon-btn" title={`${fullName(p)} profile`} aria-label={`${fullName(p)} profile`} style={{ textDecoration: 'none', flex: 'none' }}>👤</Link>
       </div>
     )
   }
@@ -182,17 +185,17 @@ export function MyTeam() {
   const rosterSyn = rosterSynergy(roster)
 
   const contractColumns: Column<Player>[] = [
-    { key: 'player', label: 'Player', align: 'left', defaultDir: 'asc', value: (p) => fullName(p), cell: (p) => <Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> },
+    { key: 'player', label: 'Player', align: 'left', mobile: 'main', defaultDir: 'asc', value: (p) => fullName(p), cell: (p) => <Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> },
     { key: 'pos', label: 'Pos', align: 'left', defaultDir: 'asc', value: (p) => p.pos },
     { key: 'age', label: 'Age', defaultDir: 'asc', value: (p) => p.age },
-    { key: 'ovr', label: 'OVR', defaultDir: 'desc', value: (p) => ovrOf(p), cell: (p) => <OvrPill value={ovrOf(p)} pot={p.pot} /> },
-    { key: 'salary', label: 'Salary', defaultDir: 'desc', value: (p) => p.contract?.salary ?? null, text: (p) => (p.contract ? money(p.contract.salary) : '—') },
+    { key: 'ovr', label: 'OVR', mobile: 'key', defaultDir: 'desc', value: (p) => ovrOf(p), cell: (p) => <OvrPill value={ovrOf(p)} /> },
+    { key: 'salary', label: 'Salary', mobile: 'key', defaultDir: 'desc', value: (p) => p.contract?.salary ?? null, text: (p) => (p.contract ? money(p.contract.salary) : '—') },
     {
       key: 'through', label: 'Through', defaultDir: 'desc', value: (p) => p.contract?.expires ?? null,
       cell: (p) => (!p.contract || p.contract.expires < capSeason(league) ? <span className="muted">expiring</span> : `Season ${p.contract.expires}`),
     },
     {
-      key: 'release', label: '', defaultDir: 'asc', sortable: false, value: () => null,
+      key: 'release', label: '', mobile: 'act', defaultDir: 'asc', sortable: false, value: () => null,
       cell: (p) => {
         const expiring = !p.contract || p.contract.expires < capSeason(league)
         return (
@@ -206,10 +209,11 @@ export function MyTeam() {
   ]
 
   return (
-    <div className={`stack${drag ? ' is-dragging' : ''}`}>
+    <div className={`stack${drag ? ' is-dragging' : ''}`} style={{ minWidth: 0, maxWidth: '100%' }}>
+      <SubNav items={TEAM_SUBNAV} label="Team sections" />
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
         <h1>{team.name} rotation</h1>
-        <div className="row">
+        <div className="row" style={{ flexWrap: 'wrap' }}>
           <button className="btn" disabled={locked} title="Best starters and bench, with the coach's suggested minutes" onClick={() => { setPicked(null); setDraft(autoRotation(roster)) }}>Best lineup</button>
           <button className="btn" disabled={!dirty} onClick={reset}>Reset</button>
           <button className="btn btn-primary" disabled={!dirty || problems.length > 0 || busy} onClick={save}>Save rotation</button>
@@ -228,7 +232,7 @@ export function MyTeam() {
       </label>
       {problems.length > 0 && <div className="notice" role="status">{problems.join(' ')}</div>}
 
-      <section className="panel rot-section">
+      <section className="panel rot-section" style={{ minWidth: 0 }}>
         <h3>{LABEL.starters} <Help topics={['pot', 'sta']} /></h3>
         <div className="rot-grid starters">
           {draft.starters.map((id, i) => card(league.players[id], { section: 'starters', index: i }, SLOTS[i] ?? '—'))}
@@ -237,17 +241,35 @@ export function MyTeam() {
 
       <LineupFitPanel starters={starterPlayers} />
 
-      <section className="panel rot-section">
+      <section className="panel stack" style={{ minWidth: 0 }}>
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <h3>Roster synergy</h3>
+          <span className="muted">Overall fit <strong style={{ color: ratingColor(rosterSyn.overall) }}>{rosterSyn.overall}</strong></span>
+        </div>
+        <div className="synergy-grid">
+          {rosterSyn.pillars.map((pil) => (
+            <div key={pil.key} className="synergy-card">
+              <div className="row" style={{ justifyContent: 'space-between' }}>
+                <strong>{pil.label}</strong>
+                <span className="grade" style={{ color: ratingColor(pil.score) }}>{pil.grade} · {pil.score}</span>
+              </div>
+              <span className="muted" style={{ fontSize: '0.8rem' }}>{pil.detail}</span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel rot-section" style={{ minWidth: 0 }}>
         <h3>{LABEL.bench} <span className="count">{draft.bench.length}/{BENCH_SLOTS}</span></h3>
-        <div className="rot-grid">
+        <div className="rot-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))' }}>
           {draft.bench.map((id, i) => card(league.players[id], { section: 'bench', index: i }, ordinal(i + 6)))}
           {draft.bench.length < BENCH_SLOTS && openSlot('bench', '+ Open bench spot', 'bench-open')}
         </div>
       </section>
 
-      <section className="panel rot-section">
+      <section className="panel rot-section" style={{ minWidth: 0 }}>
         <h3>{LABEL.inactive} <span className="count">{draft.inactive.length}</span></h3>
-        <div className="rot-grid">
+        <div className="rot-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(260px, 100%), 1fr))' }}>
           {draft.inactive.map((id, i) => card(league.players[id], { section: 'inactive', index: i }))}
           {openSlot('inactive', '+ Move to inactive', 'inactive-open')}
         </div>
@@ -268,25 +290,7 @@ export function MyTeam() {
       )}
       {saved && <div className="toast" role="status">✓ Rotation saved</div>}
 
-      <section className="panel stack">
-        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <h3>Roster synergy</h3>
-          <span className="muted">Overall fit <strong style={{ color: ratingColor(rosterSyn.overall) }}>{rosterSyn.overall}</strong></span>
-        </div>
-        <div className="synergy-grid">
-          {rosterSyn.pillars.map((pil) => (
-            <div key={pil.key} className="synergy-card">
-              <div className="row" style={{ justifyContent: 'space-between' }}>
-                <strong>{pil.label}</strong>
-                <span className="grade" style={{ color: ratingColor(pil.score) }}>{pil.grade} · {pil.score}</span>
-              </div>
-              <span className="muted" style={{ fontSize: '0.8rem' }}>{pil.detail}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="panel stack">
+      <section className="panel stack" style={{ minWidth: 0 }}>
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <h3>Contracts</h3>
           <Link className="link muted" to="/office">Front office →</Link>
@@ -297,6 +301,7 @@ export function MyTeam() {
           rows={roster}
           rowKey={(p) => p.id}
           defaultSort={{ key: 'salary', dir: 'desc' }}
+          cards
           columns={contractColumns}
         />
       </section>

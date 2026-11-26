@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { committed } from '../../engine/gm/cap'
 import { userSeries } from '../../engine/season/advance'
@@ -31,9 +31,9 @@ async function simWeek(sim: (cmd: { type: 'simDays'; days: number }) => Promise<
   useStore.setState({ notice: week.length ? `Week: ${w}–${l}` : 'Week done — no games for you this week.' })
 }
 
-type SimAction = { key: string; label: string; short: string; primary?: boolean; run: () => void }
+type SimAction = { key: string; label: string; short: string; primary?: boolean; caution?: boolean; run: () => void }
 
-/** Shared by the desktop button row and the mobile header so both offer the same sims. */
+/** Shared by the desktop topbar and the mobile header so both offer the same sims. */
 export function useSim() {
   const league = useStore((s) => s.league)
   const busy = useStore((s) => s.busy)
@@ -46,18 +46,18 @@ export function useSim() {
   const series: SimAction[] = league.phase === 'playoffs' && userSeries(league) ? [{ key: 'series', label: 'Sim series', short: 'Until your series is decided, no pop-ups', run: () => sim({ type: 'simUntil', target: 'seriesEnd' }) }] : []
   const base: SimAction[] = league.phase === 'regular'
     ? [
-        { key: 'day', label: 'Sim day', short: 'Next day', run: () => sim({ type: 'simDays', days: 1 }) },
+        { key: 'day', label: 'Sim day', short: 'Next day', primary: !playsToday, run: () => sim({ type: 'simDays', days: 1 }) },
         { key: 'week', label: 'Sim week', short: 'Next 7 days (no pop-ups)', run: () => void simWeek(sim) },
         { key: 'event', label: 'Sim to next event', short: 'Until the next pop-up', run: () => sim({ type: 'simUntil', target: 'event' }) },
         ...(league.day < league.tradeDeadlineDay ? [{ key: 'deadline', label: 'Sim to deadline', short: `Up to the trade deadline (day ${league.tradeDeadlineDay}), no pop-ups`, run: () => sim({ type: 'simUntil', target: 'deadline' }) }] : []),
-        { key: 'end', label: 'Sim to end of season', short: 'Play out the regular season, no pop-ups', primary: true, run: () => sim({ type: 'simUntil', target: 'regularEnd' }) },
+        { key: 'end', label: 'Sim to end of season', short: 'Play out the regular season, no pop-ups', caution: true, run: () => sim({ type: 'simUntil', target: 'regularEnd' }) },
       ]
     : [
-        { key: 'day', label: 'Sim day', short: 'Next playoff day', run: () => sim({ type: 'simDays', days: 1 }) },
+        { key: 'day', label: 'Sim day', short: 'Next playoff day', primary: !playsToday, run: () => sim({ type: 'simDays', days: 1 }) },
         { key: 'event', label: 'Sim to next event', short: 'Until the next pop-up', run: () => sim({ type: 'simUntil', target: 'event' }) },
-        { key: 'end', label: 'Sim playoffs', short: 'Play out the playoffs, no pop-ups', primary: true, run: () => sim({ type: 'simUntil', target: 'playoffsEnd' }) },
+        { key: 'end', label: 'Sim playoffs', short: 'Play out the playoffs, no pop-ups', caution: true, run: () => sim({ type: 'simUntil', target: 'playoffsEnd' }) },
       ]
-  const actions = [...watch, ...base.slice(0, 1), ...series, ...base.slice(1)].map((a) => (playsToday && a.primary && a.key !== 'watch' ? { ...a, primary: false } : a))
+  const actions = [...watch, ...base.slice(0, 1), ...series, ...base.slice(1)]
   return { problem, actions, disabled: busy || !!problem || !!league.events.pending, busy }
 }
 
@@ -66,6 +66,18 @@ const OFFSEASON_STEP: Record<string, string> = { awards: 'Awards', recap: 'Recap
 export function SimControls() {
   const league = useStore((s) => s.league)
   const s = useSim()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const onDown = (e: MouseEvent) => { if (!wrapRef.current?.contains(e.target as Node)) setMenuOpen(false) }
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenuOpen(false) }
+    window.addEventListener('mousedown', onDown)
+    window.addEventListener('keydown', onKey)
+    return () => { window.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [menuOpen])
+
   if (!league) return null
   if (!s) {
     const step = league.offseason?.step
@@ -76,18 +88,55 @@ export function SimControls() {
       </div>
     )
   }
+
+  // Keep the desktop topbar to 1 crisp row: Watch/Sim day + Sim week + Sim ahead dropdown.
+  const quickKeys = new Set(['watch', 'day', 'week'])
+  const quick = s.actions.filter((a) => quickKeys.has(a.key)).slice(0, 2)
+  const more = s.actions.filter((a) => !quick.includes(a))
+
   return (
-    <div className="sim-controls" aria-busy={s.busy}>
+    <div className="sim-controls" aria-busy={s.busy} ref={wrapRef}>
       {s.problem && <Link to="/free-agents" className="loss" style={{ fontWeight: 600 }}>⚠️ {s.problem}</Link>}
-      {s.actions.map((a) => (
-        <button key={a.key} className={a.primary ? 'btn btn-primary' : 'btn'} disabled={s.disabled} onClick={a.run}>{a.label}</button>
+      {quick.map((a) => (
+        <button key={a.key} className={a.primary ? 'btn btn-primary' : 'btn'} disabled={s.disabled} onClick={a.run}>
+          {a.key === 'watch' ? '▶ ' : ''}{a.label}
+        </button>
       ))}
+      {more.length > 0 && (
+        <div className="sim-pop-wrap">
+          <button
+            className="btn"
+            disabled={s.disabled}
+            aria-expanded={menuOpen}
+            aria-haspopup="true"
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            Sim ahead ▾
+          </button>
+          {menuOpen && (
+            <div className="sim-pop" role="menu" aria-label="Sim options">
+              {more.map((a) => (
+                <button
+                  key={a.key}
+                  role="menuitem"
+                  className={`sim-pop-item${a.caution ? ' caution' : ''}`}
+                  disabled={s.disabled}
+                  onClick={() => { setMenuOpen(false); a.run() }}
+                >
+                  <span className="sim-pop-main">{a.label}</span>
+                  <span className="sim-pop-sub">{a.short}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {s.busy && <span className="spinner" role="status" aria-label="Simulating" />}
     </div>
   )
 }
 
-/** Mobile: one big thumb-sized "Sim day" plus a sheet with the longer sims. */
+/** Mobile: one primary thumb-sized button ("Watch" or "Sim day") plus a sheet with all other sim options, leaving room for the team name. */
 export function MobileSim() {
   const league = useStore((s) => s.league)
   const s = useSim()
@@ -96,9 +145,7 @@ export function MobileSim() {
   if (!s) {
     return <Link className="btn btn-primary msim-go" to="/offseason">Offseason</Link>
   }
-  const [first, ...others] = s.actions
-  const simDay = first.key === 'watch' ? others.find((a) => a.key === 'day') : undefined
-  const rest = simDay ? others.filter((a) => a !== simDay) : others
+  const [first, ...rest] = s.actions
   return (
     <>
       <div className="msim" aria-busy={s.busy}>
@@ -106,15 +153,19 @@ export function MobileSim() {
           {s.busy ? <span className="spinner on-accent" role="status" aria-label="Simulating" /> : <Icon name="play" size={16} />}
           {s.busy ? 'Simming' : first.key === 'watch' ? 'Watch' : first.label}
         </button>
-        {simDay && <button className="btn msim-day" disabled={s.disabled} onClick={simDay.run}>Sim day</button>}
         <button className="btn msim-more" disabled={s.disabled} onClick={() => setOpen(true)} aria-label="More sim options" aria-haspopup="dialog">
           <Icon name="more" size={20} />
         </button>
       </div>
-      <Sheet open={open} onClose={() => setOpen(false)} title="Sim ahead">
+      <Sheet open={open} onClose={() => setOpen(false)} title="Sim options">
         <div className="sheet-list">
-          {rest.map((a) => (
-            <button key={a.key} className={`sheet-row${a.primary ? ' primary' : ''}`} disabled={s.disabled} onClick={() => { setOpen(false); a.run() }}>
+          {rest.map((a, idx) => (
+            <button
+              key={a.key}
+              className={`sheet-row${idx === 0 ? ' primary' : a.caution ? ' caution' : ''}`}
+              disabled={s.disabled}
+              onClick={() => { setOpen(false); a.run() }}
+            >
               <span className="sheet-row-main">{a.label}</span>
               <span className="sheet-row-sub">{a.short}</span>
             </button>

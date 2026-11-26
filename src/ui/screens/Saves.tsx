@@ -48,7 +48,7 @@ export function Saves() {
                 <td data-label="Season">{s.season}</td>
                 <td data-label="Played">{new Date(s.updatedAt).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}</td>
                 <td className="m-act">
-                  <div className="row" style={{ justifyContent: 'flex-end', gap: '0.4rem' }}>
+                  <div className="row" style={{ justifyContent: 'flex-end', gap: '0.4rem', flexWrap: 'wrap' }}>
                     <button className="btn" disabled={s.id === saveId || busy} onClick={async () => { await load(s.id); navigate('/') }}>{s.id === saveId ? 'Playing' : 'Load'}</button>
                     <button className="btn btn-danger" disabled={busy} onClick={async () => {
                       if (confirm(`Delete “${s.name}”? This can’t be undone.`)) { await remove(s.id); await refresh() }

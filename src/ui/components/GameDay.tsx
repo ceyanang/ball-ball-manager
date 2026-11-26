@@ -39,7 +39,6 @@ export function GameDayHero({ league, game, team, records }: {
 }) {
   const busy = useStore((s) => s.busy)
   const startWatch = useStore((s) => s.startWatch)
-  const sim = useStore((s) => s.sim)
   const blocked = busy || !!rosterProblem(league) || !!league.events.pending
   const home = game.homeId === team.id
   const opp = league.teams[home ? game.awayId : game.homeId]
@@ -70,30 +69,37 @@ export function GameDayHero({ league, game, team, records }: {
 
       <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
         <button className="btn btn-primary" disabled={blocked} onClick={() => void startWatch()}>▶ Watch game</button>
-        <button className="btn" disabled={blocked} onClick={() => sim({ type: 'simDays', days: 1 })}>Sim day</button>
       </div>
 
       <div className="gd-matchup">
-        <div className="gd-team">
+        <Link to={`/team/${team.id}`} className="gd-team" style={{ textDecoration: 'none' }}>
           <TeamBadge team={team} size={72} />
           <div><div className="gd-abbr">{team.abbrev}</div><div className="gd-rec">{rec(team)}</div></div>
-        </div>
+        </Link>
         <div className="gd-vs">{home ? 'VS' : '@'}</div>
-        <div className="gd-team right">
+        <Link to={`/team/${opp.id}`} className="gd-team right" style={{ textDecoration: 'none' }}>
           <div><div className="gd-abbr">{opp.abbrev}</div><div className="gd-rec">{rec(opp)}</div></div>
           <TeamBadge team={opp} size={72} />
-        </div>
+        </Link>
       </div>
 
       <div className="gd-head">
-        <h3>{teamFull(opp)} starting five</h3>
-        {them.star && <span className="gd-watch">👑 Main guy: <strong>{fullName(them.star)}</strong></span>}
+        <h3><Link className="link" to={`/team/${opp.id}`}>{teamFull(opp)}</Link> starting five</h3>
+        {them.star && <span className="gd-watch">👑 Main guy: <Link className="link" to={`/player/${them.star.id}`}><strong>{fullName(them.star)}</strong></Link></span>}
       </div>
       <div className="gd-five">
         {them.five.map((p, i) => <StarterCard key={p.id} league={league} team={opp} p={p} slot={SLOTS[i] ?? '—'} crowned={p.id === them.star?.id} />)}
       </div>
       {them.out.length > 0 && (
-        <div className="gd-out">🤕 Out for {opp.abbrev}: {them.out.slice(0, 3).map((p) => `${fullName(p)} (${ovrOf(p)})`).join(', ')}</div>
+        <div className="gd-out">
+          🤕 Out for {opp.abbrev}:{' '}
+          {them.out.slice(0, 3).map((p, i) => (
+            <span key={p.id}>
+              {i > 0 && ', '}
+              <Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> ({ovrOf(p)})
+            </span>
+          ))}
+        </div>
       )}
 
       <div className="gd-us">

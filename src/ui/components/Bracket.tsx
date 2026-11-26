@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import type { League, PlayoffBracket, Series } from '../../engine/types'
 import { TeamBadge } from './TeamBadge'
 
@@ -7,10 +8,10 @@ function SeriesBox({ league, s, champ, mine }: { league: League; s: Series | und
     const t = league.teams[id]
     const cls = s.winnerId ? (s.winnerId === id ? 'won' : 'out') : ''
     return (
-      <div className={`s-row ${cls}`}>
-        <span className="row" style={{ gap: '0.4rem', minWidth: 0 }}><span className="muted">{seed}</span><TeamBadge team={t} size={22} /><span className="s-name" title={t.name}>{t.name}</span></span>
+      <Link to={`/team/${id}`} className={`s-row link ${cls}`}>
+        <span className="row" style={{ gap: '0.3rem', minWidth: 0 }}><span className="muted">{seed}</span><TeamBadge team={t} size={20} /><span className="s-name" title={t.name}>{t.name}</span></span>
         <strong>{wins}</strong>
-      </div>
+      </Link>
     )
   }
   return (

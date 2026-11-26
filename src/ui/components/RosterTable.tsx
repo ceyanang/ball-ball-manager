@@ -7,6 +7,8 @@ import { DataTable, type Column } from './DataTable'
 import { OvrPill } from './OvrPill'
 import { PlayerCell } from './PlayerCell'
 
+const MOBILE_KEYS = new Set(['ovr', 'pts', 'reb', 'ast'])
+
 /**
  * A team's roster: Starters/Bench groups by default, every stat sortable, filterable by position, name or stat range.
  * `compact` is the peek-sheet mode: filters tucked away and names are plain text, so tapping one can't navigate away
@@ -15,8 +17,9 @@ import { PlayerCell } from './PlayerCell'
 export function RosterTable({ league, team, players, mode: initial = 'pg', compact }: { league: League; team: Team; players: Player[]; mode?: StatMode; compact?: boolean }) {
   const [mode, setMode] = useState<StatMode>(initial)
   const columns = useMemo<Column<Player>[]>(() => rosterColumns(league, mode).map((c) => {
-    if (c.key === 'player') return { ...c, cell: (p: Player) => <PlayerCell league={league} p={p} subtitle={archetypeFor(p)} plain={compact} /> }
-    if (c.key === 'ovr') return { ...c, cell: (p: Player) => <OvrPill value={ovrOf(p)} pot={p.pot} /> }
+    if (c.key === 'player') return { ...c, mobile: 'main', cell: (p: Player) => <PlayerCell league={league} p={p} subtitle={archetypeFor(p)} plain={compact} /> }
+    if (c.key === 'ovr') return { ...c, mobile: 'key', cell: (p: Player) => <OvrPill value={ovrOf(p)} /> }
+    if (MOBILE_KEYS.has(c.key)) return { ...c, mobile: 'key' }
     return c
   }), [league, mode, compact])
   const groups = useMemo(() => groupRoster(team, players), [team, players])
@@ -32,7 +35,8 @@ export function RosterTable({ league, team, players, mode: initial = 'pg', compa
         groups={groups.map((g) => ({ label: g.label, rows: g.rows, collapsed: g.label === 'Inactive' }))}
         rowKey={(p) => p.id}
         filters={{ pos: (p) => p.pos, name: fullName, range: true }}
-        collapseFilters={compact}
+        cards
+        collapseFilters={!!compact}
         ariaLabel={`${team.name} roster`}
       />
     </div>

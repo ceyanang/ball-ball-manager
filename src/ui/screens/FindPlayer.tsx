@@ -99,9 +99,11 @@ export function FindPlayer() {
                 const t = league.teams[d.teamId]
                 return (
                   <div key={key(d.target)} className="offer">
-                    <div className="row">
-                      <TeamBadge team={t} size={28} />
-                      <span style={{ fontWeight: 700 }}>{teamFull(t)}</span>
+                    <div className="row" style={{ flexWrap: 'wrap' }}>
+                      <Link className="row link" to={`/team/${t.id}`} style={{ gap: '0.5rem', minWidth: 0 }}>
+                        <TeamBadge team={t} size={28} />
+                        <span style={{ fontWeight: 700 }}>{teamFull(t)}</span>
+                      </Link>
                       <span className="muted" style={{ fontSize: '0.8rem' }}>{teamMode(league, t.id) === 'contend' ? 'contending' : 'rebuilding'}</span>
                     </div>
                     <span className="muted" style={{ fontSize: '0.8rem' }}>You get</span>

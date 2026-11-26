@@ -67,7 +67,7 @@ export function rosterColumns(league: League, mode: StatMode): StatCol<Player>[]
     pctCol('ft', 'FT%', 'Free throw %', (s) => [s.ftm, s.fta]),
     num('pm', '+/-', stat((s, g) => s.pm / g), 'Plus/minus', (v) => signed(v, digits)),
     { key: 'salary', label: 'Salary', defaultDir: 'desc', value: (p) => p.contract?.salary ?? null, text: (p) => (p.contract ? money(p.contract.salary) : '—') },
-    { key: 'through', label: 'Through', defaultDir: 'desc', value: (p) => p.contract?.expires ?? null, text: (p) => (p.contract ? `Season ${p.contract.expires}` : '—') },
+    { key: 'through', label: 'Through', defaultDir: 'desc', value: (p) => p.contract?.expires ?? null, text: (p) => (p.contract ? `S${p.contract.expires}` : '—') },
   ]
 }
 
