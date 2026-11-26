@@ -14,8 +14,8 @@ const STAR4 = (cx: number, cy: number, r: number) => {
   return `M${cx} ${cy - r} Q${cx + k} ${cy - k} ${cx + r} ${cy} Q${cx + k} ${cy + k} ${cx} ${cy + r} Q${cx - k} ${cy + k} ${cx - r} ${cy} Q${cx - k} ${cy - k} ${cx} ${cy - r}Z`
 }
 
-const is90Plus = (t: OvrTier | null): t is 'red' | 'prismatic' | 'blacksilver' | 'blackgold' =>
-  t === 'red' || t === 'prismatic' || t === 'blacksilver' || t === 'blackgold'
+const is90Plus = (t: OvrTier | null): t is 'red' | 'prismatic' | 'blacksilver' | 'blackrainbow' =>
+  t === 'red' || t === 'prismatic' || t === 'blacksilver' || t === 'blackrainbow'
 
 /** Special animated border effects around the portrait for 90+ OVR tiers. */
 function PortraitFx({ tier }: { tier: OvrTier }) {
@@ -97,33 +97,53 @@ function PortraitFx({ tier }: { tier: OvrTier }) {
       </svg>
     )
   }
-  if (tier === 'blackgold') {
+  if (tier === 'blackrainbow') {
     return (
-      <svg className="w-aura aura-gold" viewBox="-8 -10 62 66" aria-hidden="true">
+      <svg className="w-aura aura-blackrainbow" viewBox="-8 -10 62 66" aria-hidden="true">
+        {/* Forked chromatic lightning arcs snapping around the void-black frame */}
+        <g className="w-bolt b1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 0 L26 -4 L30 1 L38 -5 L43 1 L47 0 L46 9 L50 15" stroke="#2bb8ff" strokeWidth="3.4" opacity="0.7" />
+          <path d="M19 0 L26 -4 L30 1 L38 -5 L43 1 L47 0 L46 9 L50 15" stroke="#ffffff" strokeWidth="1.3" />
+          <path d="M38 -5 L42 -9" stroke="#7fe7ff" strokeWidth="1.05" />
+          <circle cx="50" cy="15" r="1.4" fill="#ffffff" stroke="none" />
+        </g>
+        <g className="w-bolt b2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1 18 L-5 24 L1 29 L-4 36 L1 42 L0 49 L9 51" stroke="#e04bff" strokeWidth="3.4" opacity="0.7" />
+          <path d="M1 18 L-5 24 L1 29 L-4 36 L1 42 L0 49 L9 51" stroke="#ffffff" strokeWidth="1.3" />
+          <path d="M-4 36 L-8 39" stroke="#ff9cf5" strokeWidth="1.05" />
+          <circle cx="0" cy="49" r="1.3" fill="#ffffff" stroke="none" />
+        </g>
+        <g className="w-bolt b3" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M46 25 L51 31 L45 36 L50 44 L44 50 L33 51 L26 55" stroke="#3ddc84" strokeWidth="3.2" opacity="0.65" />
+          <path d="M46 25 L51 31 L45 36 L50 44 L44 50 L33 51 L26 55" stroke="#ffffff" strokeWidth="1.25" />
+          <path d="M50 44 L53 47" stroke="#ffe14d" strokeWidth="1.0" />
+          <circle cx="26" cy="55" r="1.3" fill="#ffe14d" stroke="none" />
+        </g>
+        {/* Prismatic 4-point stars & rising stardust */}
         <g className="w-gold-star gs1" style={{ transformOrigin: '45px 2px' }}>
-          <path d={STAR4(45, 2, 6.2)} fill="#ffc83d" />
-          <path d={STAR4(45, 2, 2.8)} fill="#fffbe6" />
+          <path d={STAR4(45, 2, 6.2)} fill="#ffe14d" />
+          <path d={STAR4(45, 2, 2.7)} fill="#ffffff" />
         </g>
-        <g className="w-gold-star gs2" style={{ transformOrigin: '0px 34px' }}>
-          <path d={STAR4(0, 34, 5.2)} fill="#ffd859" />
-          <path d={STAR4(0, 34, 2.3)} fill="#fffbe6" />
+        <g className="w-gold-star gs2" style={{ transformOrigin: '0px 33px' }}>
+          <path d={STAR4(0, 33, 5.2)} fill="#2bb8ff" />
+          <path d={STAR4(0, 33, 2.3)} fill="#ffffff" />
         </g>
-        <g className="w-gold-star gs3" style={{ transformOrigin: '26px -2px' }}>
-          <path d={STAR4(26, -2, 4.8)} fill="#ffe270" />
-          <path d={STAR4(26, -2, 2.1)} fill="#ffffff" />
+        <g className="w-gold-star gs3" style={{ transformOrigin: '27px -2px' }}>
+          <path d={STAR4(27, -2, 5.0)} fill="#ff4d6d" />
+          <path d={STAR4(27, -2, 2.2)} fill="#ffffff" />
         </g>
-        <g className="w-gold-star gs4" style={{ transformOrigin: '45px 44px' }}>
-          <path d={STAR4(45, 44, 5.4)} fill="#ffc83d" />
-          <path d={STAR4(45, 44, 2.4)} fill="#fffbe6" />
+        <g className="w-gold-star gs4" style={{ transformOrigin: '45px 45px' }}>
+          <path d={STAR4(45, 45, 5.6)} fill="#e04bff" />
+          <path d={STAR4(45, 45, 2.5)} fill="#ffffff" />
         </g>
         <g className="w-gold-star gs5" style={{ transformOrigin: '16px 50px' }}>
-          <path d={STAR4(16, 50, 4.2)} fill="#ffd859" />
-          <path d={STAR4(16, 50, 1.8)} fill="#ffffff" />
+          <path d={STAR4(16, 50, 4.4)} fill="#3ddc84" />
+          <path d={STAR4(16, 50, 1.9)} fill="#ffffff" />
         </g>
-        <circle className="w-ember e1" cx="34" cy="0" r="1.4" fill="#fff2a8" />
-        <circle className="w-ember e2" cx="48" cy="22" r="1.3" fill="#ffc83d" />
-        <circle className="w-ember e3" cx="-2" cy="19" r="1.2" fill="#ffe270" />
-        <circle className="w-ember e4" cx="35" cy="52" r="1.2" fill="#fff2a8" />
+        <circle className="w-ember e1" cx="34" cy="-1" r="1.4" fill="#ffe14d" />
+        <circle className="w-ember e2" cx="48" cy="21" r="1.3" fill="#e04bff" />
+        <circle className="w-ember e3" cx="-2" cy="17" r="1.3" fill="#2bb8ff" />
+        <circle className="w-ember e4" cx="36" cy="52" r="1.2" fill="#3ddc84" />
       </svg>
     )
   }

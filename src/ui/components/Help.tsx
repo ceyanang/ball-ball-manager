@@ -7,7 +7,7 @@ const TIERS: [string, string][] = [
   ['#a45bff', 'purple 80–84'], ['#7fe7ff', 'diamond 85–89'], ['#ff3b3b', 'red 90–92'],
   ['linear-gradient(135deg,#ff3b3b,#ffe14d,#3ddc84,#2bb8ff,#e04bff)', 'prismatic 93–94'],
   ['linear-gradient(135deg,#000,#dce3ee)', 'black & silver 95–96'],
-  ['linear-gradient(135deg,#000,#ffc83d)', 'black & gold 97+'],
+  ['linear-gradient(135deg,#000 32%,#ff3b3b 52%,#ffe14d 68%,#3ddc84 82%,#2bb8ff 92%,#e04bff)', 'black & rainbow 97+'],
 ]
 
 const TEXT: Record<HelpTopic, React.ReactNode> = {

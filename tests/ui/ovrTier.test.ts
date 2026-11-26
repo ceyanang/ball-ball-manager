@@ -11,7 +11,7 @@ describe('ovrTier', () => {
     [90, 'red'], [92, 'red'],
     [93, 'prismatic'], [94, 'prismatic'],
     [95, 'blacksilver'], [96, 'blacksilver'],
-    [97, 'blackgold'], [99, 'blackgold'],
+    [97, 'blackrainbow'], [99, 'blackrainbow'],
   ] as const)('%i is %s', (v, tier) => {
     expect(ovrTier(v)).toBe(tier)
   })

@@ -122,7 +122,7 @@
 .w-qbar div.todo span { color: var(--ink); }
 .w-pace { background: var(--surface-2); border-radius: 10px; padding: 10px; font-size: 0.9rem; }
 
-/* OVR tiers: portrait border + badge top-left, plus juiced portrait border effects for 90+. 97+ black & gold, 95-96 black & silver, 93-94 prismatic (rainbow), 90-92 red, 85-89 diamond, 80-84 purple, 75-79 gold, 70-74 silver, else bronze. */
+/* OVR tiers: portrait border + badge top-left, plus juiced portrait border effects for 90+. 97+ black & rainbow, 95-96 black & silver, 93-94 prismatic (rainbow), 90-92 red, 85-89 diamond, 80-84 purple, 75-79 gold, 70-74 silver, else bronze. */
 :root { --rainbow: linear-gradient(135deg, #ff3b3b, #ff9f1a, #ffe14d, #3ddc84, #2bb8ff, #7a5cff, #e04bff); }
 .w-face { position: relative; z-index: 1; box-sizing: border-box; border: 2px solid transparent; }
 .w-face.tier-bronze { border-color: #b0733a; }
@@ -133,7 +133,7 @@
 .w-face.tier-red { background: radial-gradient(circle at 50% 60%, #5a1510, #160608); background-clip: padding-box; box-shadow: 0 0 10px rgba(255, 59, 59, 0.9), 0 0 20px rgba(255, 110, 25, 0.55); animation: w-face-fire 1.5s ease-in-out infinite; }
 .w-face.tier-prismatic { background: linear-gradient(160deg, #1b2742, #26183f); background-clip: padding-box; box-shadow: 0 0 11px rgba(43, 184, 255, 0.75), 0 0 18px rgba(224, 75, 255, 0.5); animation: w-face-prism 3.2s linear infinite; }
 .w-face.tier-blacksilver { background: radial-gradient(circle at 50% 35%, #1c222e, #050608); background-clip: padding-box; box-shadow: 0 0 10px rgba(210, 232, 255, 0.85), 0 0 20px rgba(102, 179, 255, 0.55); animation: w-face-silver 1.6s steps(2, end) infinite; }
-.w-face.tier-blackgold { background: radial-gradient(circle at 50% 35%, #2b1e05, #060503); background-clip: padding-box; box-shadow: 0 0 12px rgba(255, 208, 64, 0.95), 0 0 24px rgba(255, 170, 0, 0.58); animation: w-face-gold 2.2s ease-in-out infinite; }
+.w-face.tier-blackrainbow { background: radial-gradient(circle at 50% 35%, #1b0f2a, #040406 72%); background-clip: padding-box; box-shadow: -2px -2px 13px rgba(43, 184, 255, 0.9), 2px 2px 13px rgba(224, 75, 255, 0.9), 0 0 24px rgba(255, 225, 77, 0.5); animation: w-face-blackrainbow 2.4s linear infinite; }
 
 /* Flowing conic-gradient border ring sitting right under the 2px transparent border of .w-face. */
 .w-ring { position: absolute; inset: 0; border-radius: 10px; overflow: hidden; z-index: 0; pointer-events: none; }
@@ -141,12 +141,12 @@
 .w-ring.tier-red::before { background: conic-gradient(#8a1208, #ff3b1f, #ffb703, #ff4526, #7a0e08, #ff5e1a, #ffd166, #8a1208); animation-duration: 2.2s; }
 .w-ring.tier-prismatic::before { background: conic-gradient(#ff3b3b, #ff9f1a, #ffe14d, #3ddc84, #2bb8ff, #7a5cff, #e04bff, #ff3b3b); animation-duration: 2.4s; }
 .w-ring.tier-blacksilver::before { background: conic-gradient(#12161f 0deg, #5d7ea8 22deg, #ffffff 36deg, #8ec5ff 50deg, #12161f 85deg, #12161f 180deg, #5d7ea8 202deg, #ffffff 216deg, #8ec5ff 230deg, #12161f 265deg, #12161f 360deg); animation-duration: 1.5s; }
-.w-ring.tier-blackgold::before { background: conic-gradient(#1a1200 0deg, #c98a12 28deg, #fff4b8 46deg, #ffc83d 64deg, #1a1200 100deg, #1a1200 180deg, #c98a12 208deg, #fff4b8 226deg, #ffc83d 244deg, #1a1200 280deg, #1a1200 360deg); animation-duration: 3s; }
+.w-ring.tier-blackrainbow::before { background: conic-gradient(#040406 0deg, #ff3b3b 22deg, #ffe14d 50deg, #3ddc84 78deg, #2bb8ff 106deg, #e04bff 134deg, #040406 165deg, #040406 180deg, #ff3b3b 202deg, #ffe14d 230deg, #3ddc84 258deg, #2bb8ff 286deg, #e04bff 314deg, #040406 345deg, #040406 360deg); animation-duration: 2s; }
 
 .w-face.tier-red::after,
 .w-face.tier-prismatic::after,
 .w-face.tier-blacksilver::after,
-.w-face.tier-blackgold::after {
+.w-face.tier-blackrainbow::after {
   content: ''; position: absolute; inset: -25%; z-index: 1; pointer-events: none;
   transform: translateX(-140%) rotate(22deg);
   animation: w-sheen 2.8s ease-in-out infinite;
@@ -154,7 +154,7 @@
 .w-face.tier-red::after { background: linear-gradient(90deg, transparent, rgba(255, 145, 70, 0.34), transparent); }
 .w-face.tier-prismatic::after { background: linear-gradient(90deg, transparent, rgba(127, 231, 255, 0.25), rgba(255, 255, 255, 0.42), rgba(224, 75, 255, 0.25), transparent); animation-duration: 2.5s; }
 .w-face.tier-blacksilver::after { background: linear-gradient(90deg, transparent, rgba(210, 235, 255, 0.5), transparent); animation-duration: 2.2s; }
-.w-face.tier-blackgold::after { background: linear-gradient(90deg, transparent, rgba(255, 230, 118, 0.52), transparent); animation-duration: 2.1s; }
+.w-face.tier-blackrainbow::after { background: linear-gradient(90deg, transparent, rgba(43, 184, 255, 0.32), rgba(255, 255, 255, 0.56), rgba(224, 75, 255, 0.32), transparent); animation-duration: 1.9s; }
 
 /* Animated border particles & arcs around 90+ portraits (fire, prism glints, lightning, stars). */
 .w-aura { position: absolute; inset: -8px -8px -6px; width: calc(100% + 16px); height: calc(100% + 16px); z-index: 3; pointer-events: none; overflow: visible; }
@@ -200,9 +200,10 @@
   0%, 100% { box-shadow: 0 0 9px rgba(205, 230, 255, 0.75), 0 0 18px rgba(102, 179, 255, 0.45); }
   50% { box-shadow: 0 0 14px rgba(245, 250, 255, 0.98), 0 0 24px rgba(130, 195, 255, 0.8); }
 }
-@keyframes w-face-gold {
-  0%, 100% { box-shadow: 0 0 10px rgba(255, 200, 61, 0.85), 0 0 19px rgba(255, 170, 0, 0.45); }
-  50% { box-shadow: 0 0 15px rgba(255, 222, 92, 1), 0 0 26px rgba(255, 184, 28, 0.75); }
+@keyframes w-face-blackrainbow {
+  0%, 100% { box-shadow: -2px -2px 13px rgba(255, 61, 102, 0.9), 2px 2px 13px rgba(43, 184, 255, 0.9), 0 0 24px rgba(224, 75, 255, 0.6); }
+  33% { box-shadow: -2px -2px 13px rgba(255, 225, 77, 0.9), 2px 2px 13px rgba(61, 220, 132, 0.9), 0 0 24px rgba(43, 184, 255, 0.65); }
+  66% { box-shadow: -2px -2px 13px rgba(61, 220, 132, 0.9), 2px 2px 13px rgba(224, 75, 255, 0.9), 0 0 24px rgba(255, 159, 26, 0.6); }
 }
 @keyframes w-flame-sway {
   0%, 100% { opacity: 0.92; transform: translateY(0) scaleY(1) skewX(-3deg); }
@@ -251,7 +252,7 @@
 .w-ovr.tier-red { background: linear-gradient(135deg, #ff5454, #cc1616); color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
 .w-ovr.tier-prismatic { background: var(--rainbow); color: #fff; text-shadow: 0 0 3px #000, 0 0 2px #000; }
 .w-ovr.tier-blacksilver { background: linear-gradient(135deg, #050608 35%, #5b667a); color: #f2f6ff; text-shadow: 0 0 4px rgba(220, 235, 255, 0.65); box-shadow: inset 0 0 0 1px #dce5f4; }
-.w-ovr.tier-blackgold { background: linear-gradient(135deg, #000 35%, #9c7512); color: #ffe066; text-shadow: 0 0 4px rgba(255, 200, 61, 0.75); box-shadow: inset 0 0 0 1px #ffc83d; }
+.w-ovr.tier-blackrainbow { background: linear-gradient(#060609, #060609) padding-box, var(--rainbow) border-box; border-right: 1.5px solid transparent; border-bottom: 1.5px solid transparent; color: #fff; text-shadow: 0 0 4px rgba(43, 184, 255, 0.85), 0 0 6px rgba(224, 75, 255, 0.75); }
 
 /* A swap: the new player drops into his slot with a gold flash. */
 .w-card.swap { animation: w-swap 0.8s ease-out; }
@@ -263,8 +264,8 @@
 @media (prefers-reduced-motion: reduce) {
   .w-card.swap,
   .w-ring::before,
-  .w-face.tier-red, .w-face.tier-prismatic, .w-face.tier-blacksilver, .w-face.tier-blackgold,
-  .w-face.tier-red::after, .w-face.tier-prismatic::after, .w-face.tier-blacksilver::after, .w-face.tier-blackgold::after,
+  .w-face.tier-red, .w-face.tier-prismatic, .w-face.tier-blacksilver, .w-face.tier-blackrainbow,
+  .w-face.tier-red::after, .w-face.tier-prismatic::after, .w-face.tier-blacksilver::after, .w-face.tier-blackrainbow::after,
   .aura-red .w-flame-1, .aura-red .w-flame-2, .w-ember, .w-prism-spark, .w-bolt, .w-gold-star { animation: none; }
 }
 .w-sub { background: rgba(255,255,255,0.05); border-radius: 6px; padding-left: 14px; }
