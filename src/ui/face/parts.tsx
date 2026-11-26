@@ -40,6 +40,24 @@ export function Eyes({ v, color }: { v: number; color: string }) {
     case 4: return pair((x) => <g>{white(x, 5, 4)}{iris(x, 2.8)}{pupil(x, 1.3)}<circle cx={x + 1} cy={50} r={0.7} fill="#fff" /></g>)
     case 5: return pair((x) => <g><path d={`M${x - 5},51 Q${x},46.5 ${x + 5},51 Q${x},54 ${x - 5},51 Z`} fill="#fff" stroke={OUTLINE} strokeWidth={1} />{iris(x, 2.1)}{pupil(x, 1)}</g>)
     case 6: return pair((x) => <path d={`M${x - 4.5},52 Q${x},47.5 ${x + 4.5},52`} fill="none" stroke={OUTLINE} strokeWidth={1.8} strokeLinecap="round" />)
+    case 8: case 9: case 10: {
+      // Soft almond shapes. 8: slightly narrower, gently upturned outer corner. 9: narrower still with a calm lid. 10: softly downturned.
+      const up = v === 10 ? -1 : 1
+      const hgt = v === 9 ? 0.9 : 1.2
+      return pair((x) => {
+        const s = x < 50 ? -1 : 1 // outward direction
+        const ox = x + 5.2 * s, ix = x - 5.2 * s
+        const oy = 51 - 1.1 * up, iy = 51 + 0.7 * up
+        const top = 51 - 3.1 * hgt, bot = 51 + 2.7 * hgt
+        return (
+          <g>
+            <path d={`M${ix},${iy} Q${x},${top} ${ox},${oy} Q${x},${bot} ${ix},${iy} Z`} fill="#fff" stroke={OUTLINE} strokeWidth={1} strokeLinejoin="round" />
+            {iris(x, 1.75, -0.2)}{pupil(x, 0.85, -0.2)}
+            <path d={`M${ix - 0.4 * s},${iy - 0.4} Q${x},${top - 1.2} ${ox + 0.7 * s},${oy - 0.5}`} fill="none" stroke={OUTLINE} strokeWidth={1.1} strokeLinecap="round" />
+          </g>
+        )
+      })
+    }
     default: return (
       <g>
         <path d="M34,49.5 L44,51 Q39,55 34,52 Z" fill="#fff" stroke={OUTLINE} strokeWidth={1} />
@@ -76,6 +94,8 @@ export function Nose({ v, skin }: { v: number; skin: string }) {
     case 5: return <ellipse cx={50} cy={62} rx={4} ry={2.6} fill="none" stroke={OUTLINE} strokeWidth={1.2} />
     case 6: return <g {...s}><path d="M48,54 L46,62" /><path d="M43,62 Q50,68 57,62" /></g>
     case 7: return <path {...s} d="M45,64 Q50,60 55,64" />
+    case 9: return <g {...s}><path d="M47,63.5 Q50,66 53,63.5" /><circle cx={50} cy={61.5} r={3} fill="none" opacity={0.7} /></g>
+    case 10: return <g {...s}><path d="M44.5,63 Q47,60 50,62 Q53,60 55.5,63" /><path d="M46,64.5 Q50,66.5 54,64.5" /></g>
     default: return <g {...s}><path d="M50,54 L50,62" /><path d="M46,64 Q50,67 54,64" /></g>
   }
 }
@@ -92,6 +112,8 @@ export function Mouth({ v }: { v: number }) {
     case 6: return <g><path d="M40,70 Q50,81 60,70 Q50,73 40,70 Z" fill="#7a2e2e" stroke={OUTLINE} strokeWidth={1.3} /><path d="M42,71 Q50,73.5 58,71 L57,73 Q50,75 43,73 Z" fill="#fff" /></g>
     case 7: return <path {...s} d="M44,73 Q50,75.5 56,73" />
     case 8: return <g><path {...s} d="M42,72 Q50,78 58,72" /><path {...s} d="M58,72 L60,70" /></g>
+    case 10: return <path d="M41,71.5 Q50,68.5 59,71.5 Q50,79.5 41,71.5 Z" fill="#8e4a45" fillOpacity={0.55} stroke={OUTLINE} strokeWidth={1.3} strokeLinejoin="round" />
+    case 11: return <path {...s} d="M43,73 Q50,75 57,72.5" strokeWidth={1.4} />
     default: return <g><path d="M42,71 Q50,79 58,71 Z" fill="#fff" stroke={OUTLINE} strokeWidth={1.3} strokeLinejoin="round" /><path d="M46,75 L54,75" stroke={OUTLINE} strokeWidth={0.8} /></g>
   }
 }
@@ -130,6 +152,20 @@ export function Hair({ v, color, recede }: { v: number; color: string; recede: n
     19: <g><path d={`M20,86 Q12,24 50,13 Q88,24 80,86 L72,86 Q74,${34 + top} 50,${30 + top} Q26,${34 + top} 28,86 Z`} /></g>,
     20: <g><path d={`M23,44 Q20,14 50,13 Q80,14 77,44 Q72,${30 + top} 50,${29 + top} Q28,${30 + top} 23,44 Z`} />{[26, 36, 46, 56, 66, 74].map((x, i) => <path key={x} d={`M${x},${22 + (i % 2) * 2} Q${x + 3},34 ${x - 1},${42 + (i % 3) * 3}`} fill="none" stroke={OUTLINE} strokeWidth={1.2} />)}</g>,
     21: <g><path d={`M24,42 Q22,18 50,16 Q78,18 76,42 Q70,${30 + top} 50,${29 + top} Q30,${30 + top} 24,42 Z`} /><path d={`M30,27 Q55,22 74,32`} fill="none" stroke={OUTLINE} strokeWidth={1} /><path d={`M24,42 L24,52 L28,48 Z M76,42 L76,52 L72,48 Z`} /></g>,
+    22: <path d={`M22,52 Q16,16 50,13 Q84,16 78,52 L73,46 L73,37 Q50,${33 + top} 27,37 L27,46 Z`} />,
+    23: <g><path d={`M23,50 Q19,14 50,13 Q81,14 77,50 Q73,34 57,${28 + top} L50,${34 + top} L43,${28 + top} Q27,34 23,50 Z`} /><path d={`M50,14 L50,${33 + top}`} stroke={OUTLINE} strokeWidth={0.8} opacity={0.5} /></g>,
+    24: <g><path d={`M29,40 Q27,10 50,8 Q73,10 71,40 Q64,${26 + top} 50,${25 + top} Q36,${26 + top} 29,40 Z`} /><path d={`M23,44 Q22,32 26,28 L28,42 Z M77,44 Q78,32 74,28 L72,42 Z`} opacity={0.65} /></g>,
+    25: <path d={`M24,42 Q22,16 50,14 Q78,16 76,42 Q74,${34 + top} 68,${35 + top} L64,${29 + top} L58,${36 + top} L52,${29 + top} L46,${36 + top} L40,${29 + top} L34,${36 + top} L30,${31 + top} Q26,${35 + top} 24,42 Z`} />,
+    26: <g><path d={`M24,44 Q21,15 50,13 Q79,15 76,44 Q72,32 50,${27 + top} Q28,32 24,44 Z`} /><path d="M34,21 Q50,16 66,22 M30,27 Q50,21 70,28" fill="none" stroke={OUTLINE} strokeWidth={0.8} opacity={0.5} /></g>,
+    27: <path d={`M25,44 L22,13 L33,4 L67,4 L78,13 L75,44 Q70,${28 + top} 50,${28 + top} Q30,${28 + top} 25,44 Z`} />,
+    28: <g><path d={`M24,42 Q22,18 50,16 Q78,18 76,42 Q70,${30 + top} 50,${29 + top} Q30,${30 + top} 24,42 Z`} />{[26, 31, 36].map((y, i) => <path key={y} d={`M${29 - i},${y} Q50,${y - 8} ${71 + i},${y}`} fill="none" stroke={OUTLINE} strokeWidth={0.8} opacity={0.5} />)}</g>,
+    29: <g><path d={`M24,42 Q22,18 50,16 Q78,18 76,42 Q70,${30 + top} 50,${29 + top} Q30,${30 + top} 24,42 Z`} />{[30, 38, 46, 54, 62, 70].map((x, i) => <rect key={x} x={x - 2.4} y={9 + (i % 2) * 3} width={4.8} height={13} rx={2.4} />)}</g>,
+    30: <g><path d={`M28,38 Q27,26 32,22 L68,22 Q73,26 72,38 Q64,${28 + top} 50,${28 + top} Q36,${28 + top} 28,38 Z`} />{[34, 42, 50, 58, 66].map((x, i) => <circle key={x} cx={x} cy={17 + (i % 2) * 2} r={5.5} />)}</g>,
+    31: <path d={`M24,44 Q19,17 40,8 Q60,-2 80,16 Q83,30 76,44 Q70,${30 + top} 56,${28 + top} Q40,${26 + top} 24,44 Z`} />,
+    32: <g><path d={`M24,44 Q22,16 50,14 Q80,16 76,44 Q72,30 58,${27 + top} Q46,${26 + top} 40,${30 + top} L34,${36 + top} Q28,36 24,44 Z`} /><path d={`M38,17 L41,${29 + top}`} stroke={OUTLINE} strokeWidth={0.9} opacity={0.6} /></g>,
+    33: <g><path d={`M22,70 Q16,20 50,14 Q84,20 78,70 L72,70 Q74,34 50,${30 + top} Q26,34 28,70 Z`} /><circle cx={50} cy={8} r={7} /></g>,
+    34: <g><path d={`M26,40 Q24,22 50,19 Q76,22 74,40 Q66,${29 + top} 50,${28 + top} Q34,${29 + top} 26,40 Z`} />{[28, 35, 42, 50, 58, 65, 72].map((x, i) => <circle key={x} cx={x} cy={20 + (i % 2) * 2 - (i === 3 ? 3 : 0)} r={5} />)}</g>,
+    35: <path d={`M20,88 Q10,24 50,13 Q90,24 80,88 Q74,78 76,66 L72,58 Q74,34 50,${30 + top} Q26,34 28,58 L24,66 Q26,78 20,88 Z`} />,
     17: <g><path d={`M27,40 Q26,30 30,26 L30,${33 + top} Z`} opacity={0.8} /><path d={`M73,40 Q74,30 70,26 L70,${33 + top} Z`} opacity={0.8} /><path d={`M38,${31 + top} Q38,6 50,4 Q62,6 62,${31 + top} Z`} /></g>,
   }
   return <g {...f}>{P[v]}</g>

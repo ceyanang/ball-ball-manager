@@ -87,7 +87,7 @@ describe('heritage-driven faces', () => {
     expect(Math.max(...sample('european').map((f) => f.skin))).toBeLessThanOrEqual(5)
   })
   it('african hair is mostly textured; dark-skinned american leans textured too', () => {
-    const TEXT = [4, 5, 6, 12, 13, 20, 16, 1, 2, 8]
+    const TEXT = [4, 5, 6, 12, 13, 20, 16, 1, 2, 8, 27, 28, 29, 30]
     expect(share(sample('african').filter((f) => f.hair > 0), (f) => TEXT.includes(f.hair))).toBeGreaterThan(0.8)
     const dark = sample('american').filter((f) => f.skin >= 8 && f.hair > 0)
     expect(share(dark, (f) => [12, 13, 20].includes(f.hair))).toBeGreaterThan(0.1)

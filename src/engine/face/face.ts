@@ -12,8 +12,8 @@ export interface FaceSpec {
 type VariantKey = Exclude<keyof FaceSpec, 'grey' | 'recede'>
 
 export const FACE_VARIANTS: { [K in VariantKey]: number } = {
-  head: 8, skin: 12, ears: 3, eyes: 8, eyeColor: 8, brows: 8, nose: 9, mouth: 10,
-  hair: 22, hairColor: 12, facialHair: 14, accessory: 14,
+  head: 8, skin: 12, ears: 3, eyes: 11, eyeColor: 8, brows: 8, nose: 11, mouth: 12,
+  hair: 36, hairColor: 12, facialHair: 14, accessory: 14,
 }
 
 /** Uses its own RNG seeded from `seed`; never touches the league RNG. Heritage is read from the seed's low bits. */
