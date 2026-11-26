@@ -1,4 +1,6 @@
 import { Rng } from '../rng'
+import { decodeHeritage } from './heritage'
+import { eyeColorWeights, eyeWeights, facialHairWeights, hairColorWeights, hairWeights, skinWeights, type W } from './tables'
 
 export interface FaceSpec {
   head: number; skin: number; ears: number; eyes: number; eyeColor: number; brows: number
@@ -9,51 +11,47 @@ export interface FaceSpec {
 
 type VariantKey = Exclude<keyof FaceSpec, 'grey' | 'recede'>
 
-/** The original variant counts. Their draws stay first and unchanged, so existing players keep their look. */
-const BASE_VARIANTS: { [K in VariantKey]: number } = {
-  head: 6, skin: 12, ears: 3, eyes: 8, eyeColor: 5, brows: 6, nose: 8, mouth: 8,
-  hair: 18, hairColor: 8, facialHair: 11, accessory: 11,
-}
-
 export const FACE_VARIANTS: { [K in VariantKey]: number } = {
   head: 8, skin: 12, ears: 3, eyes: 8, eyeColor: 8, brows: 8, nose: 9, mouth: 10,
   hair: 22, hairColor: 12, facialHair: 14, accessory: 14,
 }
 
-/** Uses its own RNG seeded from `seed`; never touches the league RNG. */
+/** Uses its own RNG seeded from `seed`; never touches the league RNG. Heritage is read from the seed's low bits. */
 export function generateFace(seed: number): FaceSpec {
   const rng = Rng.fromSeed(seed)
-  const any = (k: VariantKey) => rng.int(0, BASE_VARIANTS[k] - 1)
-  const nonZero = (k: VariantKey) => rng.int(1, BASE_VARIANTS[k] - 1)
-  const base: FaceSpec = {
-    head: any('head'),
-    skin: any('skin'),
-    ears: any('ears'),
-    eyes: any('eyes'),
-    eyeColor: rng.chance(0.7) ? rng.int(0, 1) : any('eyeColor'),
-    brows: any('brows'),
-    nose: any('nose'),
-    mouth: any('mouth'),
-    hair: rng.chance(0.08) ? 0 : nonZero('hair'),
-    hairColor: rng.chance(0.6) ? 0 : any('hairColor'),
-    facialHair: rng.chance(0.5) ? 0 : nonZero('facialHair'),
-    accessory: rng.chance(0.7) ? 0 : nonZero('accessory'),
+  const h = decodeHeritage(seed)
+  const n = (k: VariantKey) => FACE_VARIANTS[k]
+  const any = (k: VariantKey) => rng.int(0, n(k) - 1)
+  const pick = (k: VariantKey, t: W): number => {
+    const items = Array.from({ length: n(k) }, (_, i) => i)
+    const wt = (i: number) => t.map[i] ?? t.rest ?? 0
+    if (items.every((i) => wt(i) <= 0)) return any(k)
+    return rng.weighted(items, wt)
+  }
+  const head = any('head')
+  const skin = pick('skin', skinWeights(h))
+  const ears = any('ears')
+  const eyes = pick('eyes', eyeWeights(h))
+  const eyeColor = pick('eyeColor', eyeColorWeights(h, skin))
+  const brows = any('brows')
+  const nose = any('nose')
+  const mouth = any('mouth')
+  const bald = rng.chance(0.06)
+  const hair = pick('hair', hairWeights(h, skin))
+  const hairColor = pick('hairColor', hairColorWeights(h, skin))
+  const noFacial = rng.chance(0.5)
+  const facialHair = pick('facialHair', facialHairWeights(h))
+  const noAcc = rng.chance(0.7)
+  const accessory = rng.int(1, n('accessory') - 1)
+  return {
+    head, skin, ears, eyes, eyeColor, brows, nose, mouth,
+    hair: bald ? 0 : hair,
+    hairColor,
+    facialHair: noFacial ? 0 : facialHair,
+    accessory: noAcc ? 0 : accessory,
     grey: 0,
     recede: 0,
   }
-  // The newer parts come from a separate stream so they never shift the draws above.
-  const extra = Rng.fromSeed((seed ^ 0x5bd1e995) >>> 0)
-  const out = { ...base }
-  for (const k of Object.keys(BASE_VARIANTS) as VariantKey[]) {
-    if (FACE_VARIANTS[k] === BASE_VARIANTS[k]) continue
-    const roll = extra.chance(k === 'hairColor' ? 0.12 : k === 'accessory' || k === 'facialHair' ? 0.2 : 0.3)
-    const pick = extra.int(BASE_VARIANTS[k], FACE_VARIANTS[k] - 1)
-    if (!roll) continue
-    // Don't turn "none" into something for hair/facial hair/accessory; only swap an existing choice.
-    if ((k === 'hair' || k === 'facialHair' || k === 'accessory') && base[k] === 0) continue
-    out[k] = pick
-  }
-  return out
 }
 
 /** Deterministic aging: greying after 30, receding (for ~half of players) after a per-seed onset. */

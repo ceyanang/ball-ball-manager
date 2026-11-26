@@ -67,3 +67,46 @@ describe('faces', () => {
     expect(rng.state).toEqual(before)
   })
 })
+
+import { HERITAGES, encodeHeritage, type Heritage } from '../../src/engine/face/heritage'
+
+describe('heritage-driven faces', () => {
+  const sample = (h: Heritage, n = 4000) => Array.from({ length: n }, (_, i) => generateFace(encodeHeritage(i + 1, h)))
+  const share = (fs: ReturnType<typeof generateFace>[], pred: (f: ReturnType<typeof generateFace>) => boolean) => fs.filter(pred).length / fs.length
+
+  it('asian and european never get cornrows/braids/locs', () => {
+    for (const h of ['asian', 'european'] as const) for (const f of sample(h)) expect([13, 20]).not.toContain(f.hair)
+  })
+  it('skin ranges follow heritage', () => {
+    const a = sample('asian')
+    expect(Math.max(...a.map((f) => f.skin))).toBeLessThanOrEqual(6)
+    expect(share(a, (f) => f.skin <= 4)).toBeGreaterThan(0.9)
+    const af = sample('african')
+    expect(Math.min(...af.map((f) => f.skin))).toBeGreaterThanOrEqual(5)
+    expect(share(af, (f) => f.skin >= 7)).toBeGreaterThan(0.85)
+    expect(Math.max(...sample('european').map((f) => f.skin))).toBeLessThanOrEqual(5)
+  })
+  it('african hair is mostly textured; dark-skinned american leans textured too', () => {
+    const TEXT = [4, 5, 6, 12, 13, 20, 16, 1, 2, 8]
+    expect(share(sample('african').filter((f) => f.hair > 0), (f) => TEXT.includes(f.hair))).toBeGreaterThan(0.8)
+    const dark = sample('american').filter((f) => f.skin >= 8 && f.hair > 0)
+    expect(share(dark, (f) => [12, 13, 20].includes(f.hair))).toBeGreaterThan(0.1)
+    const light = sample('american').filter((f) => f.skin <= 3 && f.hair > 0)
+    expect(share(light, (f) => [12, 13, 20].includes(f.hair))).toBeLessThan(0.03)
+  })
+  it('dark natural hair and dark eyes for asian/african/latino; light eyes only european/american/rare latino', () => {
+    for (const h of ['asian', 'african', 'latino'] as const) expect(share(sample(h), (f) => f.hairColor <= 1)).toBeGreaterThan(0.95)
+    for (const h of ['asian', 'african'] as const) expect(share(sample(h), (f) => [3, 4, 5, 7].includes(f.eyeColor))).toBe(0)
+    expect(share(sample('latino'), (f) => [3, 4, 5, 7].includes(f.eyeColor))).toBeLessThan(0.05)
+    expect(share(sample('european'), (f) => [3, 4, 5, 7].includes(f.eyeColor))).toBeGreaterThan(0.4)
+  })
+  it('asian eyes never use the closed-line style', () => {
+    for (const f of sample('asian')) expect(f.eyes).not.toBe(6)
+  })
+  it('deterministic and in range for every heritage', () => {
+    for (const h of HERITAGES) for (const f of sample(h, 500)) {
+      for (const [k, n] of Object.entries(FACE_VARIANTS)) expect(f[k as keyof typeof FACE_VARIANTS]).toBeLessThan(n)
+    }
+    expect(generateFace(encodeHeritage(99, 'asian'))).toEqual(generateFace(encodeHeritage(99, 'asian')))
+  })
+})
