@@ -21,13 +21,14 @@ export const WatchCard = memo(function WatchCard({ cardId, player, team, benchCo
 }) {
   const ref = useCallback((el: HTMLDivElement | null) => register(cardId, el), [register, cardId])
   const ovr = player ? ovrOf(player) : 0
-  const cls = `w-card${player ? '' : ' bench'}${hot ? ' hot' : ''}${fav ? ' fav' : ''}`
+  const tier = player ? ovrTier(ovr) : null
+  const cls = `w-card${tier ? ` tier-${tier}` : ''}${player ? '' : ' bench'}${hot ? ' hot' : ''}${fav ? ' fav' : ''}`
   return (
     <div className={cls} ref={ref} aria-label={player ? `${fullName(player)}: ${pts} points, ${reb} rebounds, ${ast} assists` : `${team.name} bench: ${pts} points`}>
       {fav && <span className="w-mark star" aria-hidden="true">⭐</span>}
       {hot && <span className="w-mark fire" aria-hidden="true">🔥</span>}
-      <div className={`w-face${player ? ` tier-${ovrTier(ovr)}` : ''}`}>
-        {player && <span className={`w-ovr tier-${ovrTier(ovr)}`} title={`Overall ${ovr}`}>{ovr}</span>}
+      <div className={`w-face${tier ? ` tier-${tier}` : ''}`}>
+        {player && <span className={`w-ovr tier-${tier}`} title={`Overall ${ovr}`}>{ovr}</span>}
         {player
           ? <Face seed={player.faceSeed} age={player.age} colors={team.colors} size={42} jersey={player.jersey} title={fullName(player)} />
           : <span className="w-bench-tag">BENCH</span>}
