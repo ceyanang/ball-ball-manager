@@ -31,7 +31,7 @@ export function generateFace(seed: number): FaceSpec {
   const head = any('head')
   const skin = pick('skin', skinWeights(h))
   const ears = any('ears')
-  const eyes = pick('eyes', eyeWeights(h))
+  const eyes = pick('eyes', eyeWeights(h, skin))
   const eyeColor = pick('eyeColor', eyeColorWeights(h, skin))
   const brows = any('brows')
   const nose = any('nose')

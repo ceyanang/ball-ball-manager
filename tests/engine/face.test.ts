@@ -100,6 +100,11 @@ describe('heritage-driven faces', () => {
     expect(share(sample('latino'), (f) => [3, 4, 5, 7].includes(f.eyeColor))).toBeLessThan(0.05)
     expect(share(sample('european'), (f) => [3, 4, 5, 7].includes(f.eyeColor))).toBeGreaterThan(0.4)
   })
+  it('darkest skin tones never get eyes that vanish into the skin', () => {
+    const dark = [...sample('african'), ...sample('american')].filter((f) => f.skin >= 9)
+    expect(dark.length).toBeGreaterThan(500)
+    for (const f of dark) expect([1, 6]).not.toContain(f.eyes)
+  })
   it('asian eyes never use the closed-line style', () => {
     for (const f of sample('asian')) expect(f.eyes).not.toBe(6)
   })
