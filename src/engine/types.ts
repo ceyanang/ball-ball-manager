@@ -200,7 +200,7 @@ export interface AllStarEvent {
 export interface TrainingSlot { playerId: string; season: number; day: number }
 
 export interface League {
-  version: 11; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 12; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]

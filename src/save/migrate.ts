@@ -9,8 +9,9 @@ import { emptyStories } from '../engine/stories/state'
 import { backfillJerseys } from '../engine/stories/jerseys'
 import { recomputeFanBase } from '../engine/stories/sentiment'
 import { emptyEvents } from '../engine/events/state'
+import { backfillHeritage } from '../engine/face/backfill'
 
-export const CURRENT_VERSION = 11
+export const CURRENT_VERSION = 12
 
 const clampRating = (v: number) => Math.max(RATING_MIN, Math.min(RATING_MAX, Math.round(v)))
 const numOr = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
@@ -180,6 +181,13 @@ export function migrateLeague(raw: any): League {
       }
       raw = { ...raw, players }
     }
+  }
+  if (raw?.version === 11) {
+    // Deep-copy the people so tagging their seeds never mutates the caller's object.
+    raw = { ...raw, version: 12 }
+    if (raw.players && typeof raw.players === 'object') raw.players = Object.fromEntries(Object.entries(raw.players).map(([id, p]) => [id, p && typeof p === 'object' ? { ...(p as object) } : p]))
+    if (raw.coaches && typeof raw.coaches === 'object') raw.coaches = Object.fromEntries(Object.entries(raw.coaches).map(([id, c]) => [id, c && typeof c === 'object' ? { ...(c as object) } : c]))
+    backfillHeritage(raw)
   }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)
