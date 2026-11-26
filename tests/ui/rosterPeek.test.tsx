@@ -14,13 +14,14 @@ describe('RosterPeekView', () => {
   const render = (teamId: string) =>
     renderToStaticMarkup(<MemoryRouter><RosterPeekView league={league} open onClose={() => {}} teamId={teamId} /></MemoryRouter>)
 
-  it('shows my team in a dialog titled with the team name, grouped into starters', () => {
+  it('shows my team in a dialog titled with the team name, grouped into starters with clean key stats', () => {
     const team = league.teams[league.userTeamId]
     const html = render(team.id)
     expect(html).toContain('<dialog')
     expect(html).toContain(`aria-label="${teamFull(team)}"`)
     expect(html).toContain('Starters')
-    expect(html).toContain('STL')
+    expect(html).toContain('PPG')
+    expect(html).toContain('All stats')
     expect(html).toContain('<details')
   })
   it('shows another team when given their id', () => {

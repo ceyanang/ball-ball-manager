@@ -10,10 +10,20 @@ const team = league.teams[league.userTeamId]
 const html = renderToStaticMarkup(
   <MemoryRouter><RosterTable league={league} team={team} players={rosterOf(league, team.id)} /></MemoryRouter>,
 )
+const allHtml = renderToStaticMarkup(
+  <MemoryRouter><RosterTable league={league} team={team} players={rosterOf(league, team.id)} view="all" /></MemoryRouter>,
+)
 
 describe('RosterTable', () => {
-  it('shows the full stat line headers', () => {
+  it('defaults to the clean MPG, PPG, RPG, APG overview with a dropdown for all stats', () => {
     const heads = [...html.matchAll(/<button class="th-btn">([^<]*)</g)].map((m) => m[1])
+    for (const h of ['Player', 'OVR', 'MPG', 'PPG', 'RPG', 'APG']) expect(heads).toContain(h)
+    expect(heads).not.toContain('STL')
+    expect(html).toContain('All stats')
+    expect(html).toContain('aria-label="Stat columns"')
+  })
+  it('shows the full stat line headers when switched to all stats', () => {
+    const heads = [...allHtml.matchAll(/<button class="th-btn">([^<]*)</g)].map((m) => m[1])
     for (const h of ['MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK', 'TOV', 'PF', 'FG%', '3P%', 'FT%', '+/-', 'Salary', 'Through']) expect(heads).toContain(h)
   })
   it('groups into Starters and Bench with five starters', () => {

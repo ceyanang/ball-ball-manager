@@ -189,6 +189,11 @@ table.stats tr.last-starter td { border-bottom: 2px solid var(--ink-2); }
   table.compact-box .pcell .pname { max-width: 112px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
 @media (min-width: 961px) { .m-pulse-tab { display: none; } }
+.rt-more-btn { padding: 0.25rem 0.65rem; font-size: 0.8rem; white-space: nowrap; }
+.rt-pop { padding: 0.55rem 0.65rem; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
+.rt-pop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 0.45rem 0.65rem; }
+.rt-pop-cell { display: flex; flex-direction: column; gap: 0.05rem; text-align: left; font-size: 0.84rem; }
+.rt-pop-cell .muted { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .delta-up { color: var(--win); font-weight: 700; }
 .delta-down { color: var(--loss); font-weight: 700; }
 .progress-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
