@@ -45,7 +45,7 @@ describe('development slots', () => {
       const ratings = { ...p.ratings }, pot = p.pot, tid = p.teamId
       l.training = invest ? [{ playerId: p.id, season: 1, day: 1 }] : []
       let gain = 0, breakouts = 0, potGain = 0
-      for (let i = 0; i < 400; i++) {
+      for (let i = 0; i < 600; i++) {
         p.ratings = { ...ratings }
         p.pot = ovr(p) + 6
         const before = ovr(p), potBefore = p.pot
@@ -55,7 +55,7 @@ describe('development slots', () => {
         expect(p.pot).toBeGreaterThanOrEqual(potBefore)
       }
       p.ratings = ratings; p.pot = pot; p.teamId = tid
-      return { gain: gain / 400, breakouts, potGain }
+      return { gain: gain / 600, breakouts, potGain }
     }
     const control = run(false), invested = run(true)
     expect(control.breakouts).toBe(0)

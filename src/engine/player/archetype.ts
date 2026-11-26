@@ -1,33 +1,17 @@
-import type { Player, Position, Ratings } from '../types'
-import { computeOvr } from './ratings'
+import type { Player } from '../types'
+import {
+  PILLAR_KEYS,
+  PILLAR_LABELS,
+  calculatePlayerOVR,
+  computePillars,
+  detectSfWingRole,
+  type PillarKey,
+  type PillarScores,
+  type SfWingRole,
+} from './ratings'
 
-export type PillarKey =
-  | 'shooting'
-  | 'finishing'
-  | 'playmaking'
-  | 'perimeterDefense'
-  | 'interiorDefense'
-  | 'rebounding'
-
-export type PillarScores = Record<PillarKey, number>
-
-export const PILLAR_KEYS: readonly PillarKey[] = [
-  'shooting',
-  'finishing',
-  'playmaking',
-  'perimeterDefense',
-  'interiorDefense',
-  'rebounding',
-]
-
-export const PILLAR_LABELS: Record<PillarKey, string> = {
-  shooting: 'Shooting',
-  finishing: 'Finishing / Post',
-  playmaking: 'Playmaking',
-  perimeterDefense: 'Perimeter D',
-  interiorDefense: 'Interior D',
-  rebounding: 'Rebounding',
-}
+export { PILLAR_KEYS, PILLAR_LABELS, computePillars, detectSfWingRole }
+export type { PillarKey, PillarScores, SfWingRole }
 
 export type BaseRole =
   | '2-Way Superstar'
@@ -120,87 +104,6 @@ export interface PlayerArchetype {
   tendencies: ArchetypeTendencies
 }
 
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
-const roundRating = (v: number) => clamp(Math.round(v), 0, 99)
-
-const isBigPos = (pos: Position) => pos === 'PF' || pos === 'C'
-
-/** Computes the 6 NBA 2K pillar scores (0–99 weighted averages) directly from the 36 attributes. */
-export function computePillars(r: Ratings, pos: Position): PillarScores {
-  const big = isBigPos(pos)
-
-  const shooting = roundRating(
-    r.threePointShot * 0.42 +
-      r.midRangeShot * 0.28 +
-      r.shotIQ * 0.18 +
-      r.freeThrow * 0.12,
-  )
-
-  const finishing = big
-    ? roundRating(
-        r.closeShot * 0.22 +
-          r.standingDunk * 0.20 +
-          r.postControl * 0.13 +
-          r.layup * 0.11 +
-          r.drivingDunk * 0.11 +
-          r.postHook * 0.10 +
-          r.drawFoul * 0.08 +
-          r.postFade * 0.05,
-      )
-    : roundRating(
-        r.layup * 0.30 +
-          r.drivingDunk * 0.24 +
-          r.closeShot * 0.22 +
-          r.drawFoul * 0.14 +
-          r.postFade * 0.04 +
-          r.postControl * 0.03 +
-          r.standingDunk * 0.02 +
-          r.postHook * 0.01,
-      )
-
-  const playmaking = big
-    ? roundRating(
-        r.passAccuracy * 0.30 +
-          r.passVision * 0.30 +
-          r.passIQ * 0.22 +
-          r.ballHandle * 0.10 +
-          r.speedWithBall * 0.08,
-      )
-    : roundRating(
-        r.ballHandle * 0.22 +
-          r.passAccuracy * 0.22 +
-          r.passVision * 0.22 +
-          r.speedWithBall * 0.18 +
-          r.passIQ * 0.16,
-      )
-
-  const perimeterDefense = roundRating(
-    r.perimeterDefense * 0.36 +
-      r.steal * 0.20 +
-      r.agility * 0.16 +
-      r.passPerception * 0.16 +
-      r.defensiveConsistency * 0.12,
-  )
-
-  const interiorDefense = roundRating(
-    r.interiorDefense * 0.34 +
-      r.block * 0.26 +
-      r.helpDefenseIQ * 0.18 +
-      r.strength * 0.12 +
-      r.vertical * 0.10,
-  )
-
-  const rebounding = roundRating(
-    r.defensiveRebound * 0.38 +
-      r.offensiveRebound * 0.28 +
-      r.hustle * 0.14 +
-      r.strength * 0.10 +
-      r.vertical * 0.10,
-  )
-
-  return { shooting, finishing, playmaking, perimeterDefense, interiorDefense, rebounding }
-}
-
 const DEFENSIVE_ROLES = new Set<BaseRole>([
   '2-Way Superstar',
   'Perimeter Lockdown',
@@ -281,20 +184,22 @@ function pickBaseRole(p: Player, pillars: PillarScores, top: PillarKey, ovr: num
   }
 
   if (p.pos === 'SF') {
-    if (pillars.shooting >= 80 && pillars.finishing >= 80 && r.midRangeShot >= 74) return '3-Level Threat'
-    if (
-      top === 'playmaking' ||
-      (pillars.playmaking >= 78 && pillars.playmaking >= pillars.shooting - 2 && pillars.playmaking >= pillars.finishing - 2 && r.passVision >= 76)
-    ) {
-      return pillars.finishing > pillars.shooting + 4 ? 'Slashing Playmaker' : 'Point Forward'
+    const wingRole = detectSfWingRole(r, pillars)
+    if (wingRole === 'pointForward') {
+      return pillars.finishing > pillars.shooting + 6 && pillars.shooting < 76 ? 'Slashing Playmaker' : 'Point Forward'
     }
-    if (top === 'perimeterDefense' || top === 'interiorDefense') {
-      return pillars.shooting >= 75 ? '3&D Wing' : 'Wing Stopper'
+    if (wingRole === 'threeAndD') {
+      return pillars.shooting >= 75 || r.threePointShot >= 78 ? '3&D Wing' : 'Wing Stopper'
     }
-    if (top === 'shooting') {
-      return pillars.perimeterDefense >= 78 && pillars.finishing < 78 ? '3&D Wing' : 'Sharpshooter'
+    if (wingRole === 'slashingWing') {
+      return pillars.playmaking >= 76 && r.passVision >= 74 ? 'Slashing Playmaker' : 'Slasher'
     }
-    return pillars.playmaking >= 70 ? 'Slashing Playmaker' : '3-Level Threat'
+    if (pillars.shooting >= 79 && pillars.finishing >= 79 && r.midRangeShot >= 74) {
+      return r.midRangeShot >= 82 ? '3-Level Scorer' : '3-Level Threat'
+    }
+    return r.midRangeShot >= r.threePointShot - 2 || (r.ballHandle >= 76 && r.midRangeShot >= 75)
+      ? 'Shot Creator'
+      : 'Sharpshooter'
   }
 
   // Bigs (PF / C)
@@ -609,7 +514,7 @@ function buildTendencies(baseRole: BaseRole, modifiers: ArchetypeModifier[]): Ar
  */
 export function generatePlayerArchetype(p: Player): PlayerArchetype {
   const pillars = computePillars(p.ratings, p.pos)
-  const ovr = computeOvr(p.ratings, p.pos)
+  const ovr = calculatePlayerOVR(p.ratings, p.pos)
   let topPillar: PillarKey = 'shooting'
   let topVal = pillars.shooting
   if (pillars.finishing > topVal) { topVal = pillars.finishing; topPillar = 'finishing' }

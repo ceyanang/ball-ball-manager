@@ -5,7 +5,7 @@ import { salaryForPlayer } from '../contracts'
 import { PARODY_TEAMS } from '../data/teams'
 import { generatePlayer, RATING_MIN } from '../player/generate'
 import { pickJersey } from '../player/jerseyNumber'
-import { computeOvr } from '../player/ratings'
+import { calculatePlayerOVR, heightMaxFor } from '../player/ratings'
 import { Rng } from '../rng'
 import { generateSchedule, tradeDeadline } from '../schedule/schedule'
 import { createPicks } from '../gm/draft'
@@ -26,7 +26,7 @@ const QUALITY_MAX = 5
 const isG = (p: Player) => p.pos === 'PG' || p.pos === 'SG'
 const isF = (p: Player) => p.pos === 'SF' || p.pos === 'PF'
 const isB = (p: Player) => p.pos === 'PF' || p.pos === 'C'
-const ovr = (p: Player) => computeOvr(p.ratings, p.pos)
+const ovr = (p: Player) => calculatePlayerOVR(p.ratings, p.pos)
 
 function unmetNeeds(roster: Player[]) {
   const g = roster.filter(isG).length, f = roster.filter(isF).length, b = roster.filter(isB).length
@@ -70,8 +70,8 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
       ...make(teams.length - 23, () => clampT(rng.normal(87.5, 1.1), 86, 89)),
     ],
     [
-      ...make(20, () => clampT(rng.normal(85.5, 1.5), 83, 88)),
-      ...make(55, () => clampT(rng.normal(81.5, 1.5), 79, 84)),
+      ...make(20, () => clampT(rng.normal(84.8, 1.3), 82, 87)),
+      ...make(55, () => clampT(rng.normal(81.2, 1.4), 79, 84)),
       ...make(teams.length * 4 - 75, () => clampT(rng.normal(77.5, 1.5), 75, 80)),
     ],
     make(teams.length * 7, () => clampT(rng.normal(73.5, 2.4), 68, 79)),
@@ -85,7 +85,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
   const pull = teams.map(() => rng.normal(0, 1))
   const rosters: Player[][] = teams.map(() => [])
   for (const tier of tiers) {
-    const pool = tier.sort((a, b) => ovr(b) - ovr(a))
+    const pool = [...tier].sort((a, b) => ovr(b) - ovr(a))
     while (pool.length) {
       const key = teams.map((_, i) => pull[i] * PULL_WEIGHT + rng.normal(0, 1))
       const order = teams.map((_, i) => i).sort((a, b) => key[b] - key[a])
@@ -120,7 +120,10 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     if (q === 0) return
     for (const p of rosters[ti]) {
       if (stars.has(p.id)) continue
-      for (const k of Object.keys(p.ratings) as (keyof Player['ratings'])[]) p.ratings[k] = Math.max(RATING_MIN, Math.min(99, p.ratings[k] + q))
+      for (const k of Object.keys(p.ratings) as (keyof Player['ratings'])[]) {
+        const cap = q > 0 ? Math.min(99, Math.max(p.ratings[k], heightMaxFor(p.heightIn, k))) : 99
+        p.ratings[k] = Math.max(RATING_MIN, Math.min(cap, p.ratings[k] + q))
+      }
       p.pot = Math.max(ovr(p), Math.min(99, p.pot + q)) // the ceiling moves with the ratings, or the shift just snaps back
       // The shift is where he starts, not a change: restart the rating history from it.
       p.ratingHistory = [{ season, ovr: ovr(p) }]

@@ -1,7 +1,7 @@
 import type { Rng } from '../rng'
 import type { League, Player, ProgressEvent, Ratings, StatLine } from '../types'
 import { aiDevIds, breakoutBump, breakoutChance, coachFactor } from '../gm/training'
-import { POSITION_WEIGHTS, RATING_KEYS, RATING_MAX, RATING_MIN, computeOvr } from './ratings'
+import { RATING_KEYS, RATING_MAX, RATING_MIN, computeOvr, heightMaxFor, weightsForRatings } from './ratings'
 
 const MIN_MINUTES = 50
 
@@ -51,11 +51,13 @@ export function performance(league: League): Record<string, number> {
 function shift(p: Player, delta: number, rng: Rng): void {
   const dir = Math.sign(delta)
   const start = ovr(p)
-  const w = POSITION_WEIGHTS[p.pos]
-  for (let i = 0; i < 60 && (ovr(p) - start) * dir < Math.abs(delta); i++) {
-    const options = RATING_KEYS.filter((k) => (dir > 0 ? p.ratings[k] < RATING_MAX : p.ratings[k] > RATING_MIN))
+  const w = weightsForRatings(p.ratings, p.pos)
+  for (let i = 0; i < 90 && (ovr(p) - start) * dir < Math.abs(delta); i++) {
+    const options = RATING_KEYS.filter((k) =>
+      dir > 0 ? p.ratings[k] < Math.min(RATING_MAX, heightMaxFor(p.heightIn, k)) : p.ratings[k] > RATING_MIN,
+    )
     if (!options.length) return
-    const k: keyof Ratings = rng.weighted(options, (key) => w[key])
+    const k: keyof Ratings = rng.weighted(options, (key) => Math.max(0.2, w[key]))
     const before = { ...p.ratings }
     p.ratings[k] += dir
     if (dir > 0 && ovr(p) > Math.max(start, p.pot)) {
@@ -90,7 +92,7 @@ export function progressTick(league: League, rng: Rng): ProgressEvent[] {
     let up = riseChance(p.age) * (1 + 1.5 * tilt)
     let down = fallChance(p.age, p.ratings.overallDurability) * (1 - 1.5 * tilt)
     if (inv) {
-      up = Math.min(0.8, up * 1.3 * cf)
+      up = Math.min(0.8, up * (1 + 0.3 * cf))
       down *= 0.6
     }
     const r = rng.next()

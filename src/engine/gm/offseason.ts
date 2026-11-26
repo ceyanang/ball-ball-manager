@@ -1,7 +1,7 @@
 import { allStarDayFor } from '../allstar/allstar'
 import { ROSTER_MAX, ROSTER_MIN, SALARY_CAP } from '../constants'
 import { generateCoach } from '../coach/generate'
-import { POSITION_WEIGHTS, RATING_KEYS, RATING_MAX, RATING_MIN } from '../player/ratings'
+import { RATING_KEYS, RATING_MAX, RATING_MIN, heightMaxFor, weightsForRatings } from '../player/ratings'
 import type { Rng } from '../rng'
 import { generateSchedule, tradeDeadline } from '../schedule/schedule'
 import { computeStandings } from '../standings'
@@ -42,14 +42,16 @@ function progressPlayer(
   if (delta > 0 && o >= 88) delta *= o >= 91 ? 0.35 : 0.6
   if (delta > 0) delta = Math.min(delta, gap + (userSlot ? 1 : 0))
   const target = Math.round(o + delta)
-  const w = POSITION_WEIGHTS[p.pos]
+  const w = weightsForRatings(p.ratings, p.pos)
   const dir = Math.sign(target - o)
   const athDecay = new Set<keyof Ratings>(['speed', 'agility', 'vertical', 'stamina'])
-  for (let i = 0; i < 160 && dir !== 0 && Math.sign(target - ovr(p)) === dir; i++) {
-    const options = RATING_KEYS.filter((k) => (dir > 0 ? p.ratings[k] < RATING_MAX : p.ratings[k] > RATING_MIN))
+  for (let i = 0; i < 180 && dir !== 0 && Math.sign(target - ovr(p)) === dir; i++) {
+    const options = RATING_KEYS.filter((k) =>
+      dir > 0 ? p.ratings[k] < Math.min(RATING_MAX, heightMaxFor(p.heightIn, k)) : p.ratings[k] > RATING_MIN,
+    )
     if (!options.length) break
-    // Older players lose athleticism first; young ones grow where their position needs it.
-    const k: keyof Ratings = rng.weighted(options, (key) => w[key] * (dir < 0 && p.age >= 31 && athDecay.has(key) ? 3 : 1))
+    // Older players lose athleticism first; young ones grow where their position & role need it.
+    const k: keyof Ratings = rng.weighted(options, (key) => Math.max(0.2, w[key]) * (dir < 0 && p.age >= 31 && athDecay.has(key) ? 3 : 1))
     p.ratings[k] += dir
   }
   // Through 29 a dip leaves potential in place (a small one is still recoverable); 30+ the ceiling is today.
