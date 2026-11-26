@@ -8,7 +8,7 @@ Randomized players mix names and looks at random: an Asian-sounding name with a 
 - Faces fit the heritage: skin tone range, hair style (e.g. cornrows/braids/locs are common on African and some American players, rare elsewhere), hair colour, eye shape, facial hair tendencies.
 - **New art for every bucket** (hair, eyes, a few noses/mouths/heads where useful), not just Asian.
 - Existing saves get fixed too: heritage is inferred from the existing name, so old players are re-skinned by the new rules.
-- **Heritage is rolled first**, then name and face are both drawn from it. Starting weights (tunable constants): american 45%, african 22%, latino 13%, asian 10%, european 10%.
+- **Heritage is rolled first**, then name and face are both drawn from it. Starting weights (tunable constants): american 50%, and african, latino, asian and european 12.5% each.
 - ~12% of players are "mixed": the face follows the rolled heritage, but one name part comes from another bucket (usually american, e.g. "Hiro Williams", "Jamal Kim"), as happens in real life.
 
 ## Non-goals / anti-goals
