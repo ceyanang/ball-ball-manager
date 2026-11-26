@@ -118,6 +118,10 @@ export function Mouth({ v }: { v: number }) {
   }
 }
 
+/** Squared-off cap that follows a flat-topped head: corners reach out past the head outline so no skin shows at the temples. */
+const sqCap = (top: number, lift = 0) =>
+  `M22,46 L21,${31 - lift} Q21,${16 - lift} 34,${16 - lift} L66,${16 - lift} Q79,${16 - lift} 79,${31 - lift} L78,46 Q72,${30 + top} 50,${29 + top} Q28,${30 + top} 22,46 Z`
+
 /** Hair path set; index 0 = bald. Fill with hair color. */
 export function Hair({ v, color, recede }: { v: number; color: string; recede: number }) {
   if (v === 0) return null
@@ -166,6 +170,17 @@ export function Hair({ v, color, recede }: { v: number; color: string; recede: n
     33: <g><path d={`M22,70 Q16,20 50,14 Q84,20 78,70 L72,70 Q74,34 50,${30 + top} Q26,34 28,70 Z`} /><circle cx={50} cy={8} r={7} /></g>,
     34: <g><path d={`M26,40 Q24,22 50,19 Q76,22 74,40 Q66,${29 + top} 50,${28 + top} Q34,${29 + top} 26,40 Z`} />{[28, 35, 42, 50, 58, 65, 72].map((x, i) => <circle key={x} cx={x} cy={20 + (i % 2) * 2 - (i === 3 ? 3 : 0)} r={5} />)}</g>,
     35: <path d={`M20,88 Q10,24 50,13 Q90,24 80,88 Q74,78 76,66 L72,58 Q74,34 50,${30 + top} Q26,34 28,58 L24,66 Q26,78 20,88 Z`} />,
+    // 36-45: styles drawn to hug the flat-topped square heads (HEADS[2], HEADS[6]); corners are filled so no skin shows at the temples.
+    36: <path d={sqCap(top)} />,
+    37: <g><path d={`M23,46 L21,22 Q21,7 34,6 L66,6 Q79,7 79,22 L77,46 Q71,${28 + top} 50,${27 + top} Q29,${28 + top} 23,46 Z`} /><path d="M23,46 L22,32 L27,32 L27,46 Z M77,46 L78,32 L73,32 L73,46 Z" fill={OUTLINE} opacity={0.3} stroke="none" /></g>,
+    38: <path d={sqCap(top)} opacity={0.82} />,
+    39: <g><path d={sqCap(top)} /><path d={`M36,16 Q38,${24 + top} 42,${29 + top}`} fill="none" stroke={OUTLINE} strokeWidth={0.9} opacity={0.6} /><path d={`M42,${29 + top} Q58,${22 + top} 78,${33 + top}`} fill="none" stroke={OUTLINE} strokeWidth={0.8} opacity={0.4} /></g>,
+    40: <path d={`M21,46 L21,31 Q21,15 34,15 L66,15 Q79,15 79,31 L79,46 Q77,${34 + top} 71,${35 + top} L67,${29 + top} L60,${36 + top} L54,${29 + top} L47,${36 + top} L41,${29 + top} L34,${36 + top} L29,${31 + top} Q23,${35 + top} 21,46 Z`} />,
+    41: <g><path d={sqCap(top, 3)} />{[27, 35, 43, 51, 59, 67, 74].map((x, i) => <circle key={x} cx={x} cy={14 + (i % 2) * 2} r={5.5} />)}{[[22, 26], [78, 26]].map(([x, y]) => <circle key={x} cx={x} cy={y} r={5} />)}</g>,
+    42: <g><path d={sqCap(top)} />{[24, 29, 34].map((y, i) => <path key={y} d={`M${24 - i},${y} Q50,${y - 9} ${76 + i},${y}`} fill="none" stroke={OUTLINE} strokeWidth={0.8} opacity={0.5} />)}</g>,
+    43: <g><path d={sqCap(top)} /><path d="M32,20 Q50,15 68,21 M27,26 Q50,19 73,27" fill="none" stroke={OUTLINE} strokeWidth={0.8} opacity={0.5} /></g>,
+    44: <g><path d={sqCap(top)} />{[28, 36, 44, 52, 60, 68, 76].map((x, i) => <rect key={x} x={x - 2.4} y={7 + (i % 2) * 3} width={4.8} height={14} rx={2.4} />)}</g>,
+    45: <path d={`M21,52 L21,31 Q21,15 34,15 L66,15 Q79,15 79,31 L79,52 L74,46 L74,37 Q50,${34 + top} 26,37 L26,46 Z`} />,
     17: <g><path d={`M27,40 Q26,30 30,26 L30,${33 + top} Z`} opacity={0.8} /><path d={`M73,40 Q74,30 70,26 L70,${33 + top} Z`} opacity={0.8} /><path d={`M38,${31 + top} Q38,6 50,4 Q62,6 62,${31 + top} Z`} /></g>,
   }
   return <g {...f}>{P[v]}</g>

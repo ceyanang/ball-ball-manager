@@ -31,8 +31,55 @@ const blend = (a: W, b: W, t: number): W => {
   return { map, rest: 0 }
 }
 
+/** Heads with flat tops and boxy corners (HEADS[2], HEADS[6]): round-topped caps leave skin showing at the temples. */
+export const SQUARE_HEADS = [2, 6]
+/** Hair styles drawn to hug a square head: 36 crop, 37 fade box, 38 buzz, 39 side part, 40 jagged fringe, 41 curly box, 42 waves, 43 slick-back, 44 twists, 45 straight-fringe bowl. */
+export const SQUARE_HAIR = [36, 37, 38, 39, 40, 41, 42, 43, 44, 45]
+/** Round-topped cap styles that look like a receding hairline on a square head, so they are rare there. */
+export const CAP_LIKE_HAIR = [1, 2, 6, 7, 8, 10, 12, 14, 18, 20, 21, 22, 23, 24, 25, 26, 28, 29, 30, 31, 32, 33, 34]
+
+const SQ_AFRICAN = w({ 37: 5, 38: 3, 41: 3, 42: 4, 44: 3, 36: 1 })
+const SQ_ASIAN = w({ 36: 4, 38: 2, 40: 4, 43: 3, 45: 4, 39: 1 })
+const SQ_LATINO = w({ 36: 3, 37: 2, 38: 3, 39: 3, 41: 1, 42: 1, 43: 3 })
+const SQ_EUROPEAN = w({ 36: 3, 38: 2, 39: 5, 40: 2, 41: 2, 43: 3, 45: 1 })
+
+function squareFamily(h: Heritage, skin: number): W {
+  switch (h) {
+    case 'african': return SQ_AFRICAN
+    case 'asian': return SQ_ASIAN
+    case 'latino': return SQ_LATINO
+    case 'european': return SQ_EUROPEAN
+    default:
+      if (skin >= 8) return SQ_AFRICAN
+      if (skin >= 6) return blend(SQ_AFRICAN, SQ_LATINO, 0.4)
+      if (skin >= 4) return blend(SQ_LATINO, SQ_EUROPEAN, 0.5)
+      return SQ_EUROPEAN
+  }
+}
+
+/** Square heads swap round caps for boxy styles of their own heritage; round heads never get the boxy styles. */
+function forHead(base: W, h: Heritage, skin: number, head: number): W {
+  const square = SQUARE_HEADS.includes(head)
+  const map: Record<number, number> = {}
+  for (const [k, v] of Object.entries(base.map)) {
+    const i = Number(k)
+    if (SQUARE_HAIR.includes(i)) continue
+    map[i] = square && CAP_LIKE_HAIR.includes(i) ? v * 0.03 : v
+  }
+  if (square) {
+    const fam = squareFamily(h, skin)
+    const scale = 2 * Object.values(map).reduce((a, b) => a + b, 0) / Object.values(fam.map).reduce((a, b) => a + b, 0)
+    for (const [k, v] of Object.entries(fam.map)) map[Number(k)] = v * scale
+  }
+  return { map, rest: 0 }
+}
+
 /** Hair depends on heritage and (for american) on skin tone: darker skin leans toward textured styles. */
-export function hairWeights(h: Heritage, skin: number): W {
+export function hairWeights(h: Heritage, skin: number, head = 0): W {
+  return forHead(baseHairWeights(h, skin), h, skin, head)
+}
+
+function baseHairWeights(h: Heritage, skin: number): W {
   switch (h) {
     case 'african': return HAIR_TEXTURED
     case 'asian': return HAIR_STRAIGHT_ASIAN

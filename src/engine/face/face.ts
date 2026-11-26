@@ -13,7 +13,7 @@ type VariantKey = Exclude<keyof FaceSpec, 'grey' | 'recede'>
 
 export const FACE_VARIANTS: { [K in VariantKey]: number } = {
   head: 8, skin: 12, ears: 3, eyes: 11, eyeColor: 8, brows: 8, nose: 11, mouth: 12,
-  hair: 36, hairColor: 12, facialHair: 14, accessory: 14,
+  hair: 46, hairColor: 12, facialHair: 14, accessory: 14,
 }
 
 /** Uses its own RNG seeded from `seed`; never touches the league RNG. Heritage is read from the seed's low bits. */
@@ -37,7 +37,7 @@ export function generateFace(seed: number): FaceSpec {
   const nose = any('nose')
   const mouth = any('mouth')
   const bald = rng.chance(0.06)
-  const hair = pick('hair', hairWeights(h, skin))
+  const hair = pick('hair', hairWeights(h, skin, head))
   const hairColor = pick('hairColor', hairColorWeights(h, skin))
   const noFacial = rng.chance(0.5)
   const facialHair = pick('facialHair', facialHairWeights(h))

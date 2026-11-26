@@ -87,10 +87,10 @@ describe('heritage-driven faces', () => {
     expect(Math.max(...sample('european').map((f) => f.skin))).toBeLessThanOrEqual(5)
   })
   it('african hair is mostly textured; dark-skinned american leans textured too', () => {
-    const TEXT = [4, 5, 6, 12, 13, 20, 16, 1, 2, 8, 27, 28, 29, 30]
+    const TEXT = [4, 5, 6, 12, 13, 20, 16, 1, 2, 8, 27, 28, 29, 30, 36, 37, 38, 41, 42, 44]
     expect(share(sample('african').filter((f) => f.hair > 0), (f) => TEXT.includes(f.hair))).toBeGreaterThan(0.8)
     const dark = sample('american').filter((f) => f.skin >= 8 && f.hair > 0)
-    expect(share(dark, (f) => [12, 13, 20].includes(f.hair))).toBeGreaterThan(0.1)
+    expect(share(dark, (f) => [12, 13, 20, 44].includes(f.hair))).toBeGreaterThan(0.1)
     const light = sample('american').filter((f) => f.skin <= 3 && f.hair > 0)
     expect(share(light, (f) => [12, 13, 20].includes(f.hair))).toBeLessThan(0.03)
   })
@@ -125,5 +125,26 @@ describe('no stereotyped facial hair', () => {
     }
     expect(Math.abs(rate('asian') - rate('american'))).toBeLessThan(0.06)
     expect(Math.abs(rate('asian') - rate('european'))).toBeLessThan(0.06)
+  })
+})
+
+import { CAP_LIKE_HAIR, SQUARE_HAIR, SQUARE_HEADS } from '../../src/engine/face/tables'
+
+describe('square heads get hair that fits them', () => {
+  const faces = (h: Heritage, n = 8000) => Array.from({ length: n }, (_, i) => generateFace(encodeHeritage(i + 1, h)))
+  it('square heads mostly get the boxy styles and almost never round caps; round heads never get boxy styles', () => {
+    for (const h of HERITAGES) {
+      const all = faces(h).filter((f) => f.hair > 0)
+      const sq = all.filter((f) => SQUARE_HEADS.includes(f.head))
+      const round = all.filter((f) => !SQUARE_HEADS.includes(f.head))
+      expect(sq.length).toBeGreaterThan(500)
+      expect(sq.filter((f) => SQUARE_HAIR.includes(f.hair)).length / sq.length).toBeGreaterThan(0.55)
+      expect(sq.filter((f) => CAP_LIKE_HAIR.includes(f.hair)).length / sq.length).toBeLessThan(0.1)
+      expect(round.some((f) => SQUARE_HAIR.includes(f.hair))).toBe(false)
+    }
+  })
+  it('there are at least 8 boxy styles, and asian/european still never get cornrows or locs', () => {
+    expect(SQUARE_HAIR.length).toBeGreaterThanOrEqual(8)
+    for (const h of ['asian', 'european'] as const) for (const f of faces(h, 3000)) expect([13, 20]).not.toContain(f.hair)
   })
 })
