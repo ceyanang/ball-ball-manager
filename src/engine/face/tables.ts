@@ -4,7 +4,6 @@ import type { Heritage } from './heritage'
 export interface W { map: Record<number, number>; rest?: number }
 
 const w = (map: Record<number, number>, rest = 0): W => ({ map, rest })
-export const UNIFORM: W = { map: {}, rest: 1 }
 
 /** Skin tone indices run 0 (lightest) .. 11 (darkest). */
 export function skinWeights(h: Heritage): W {
@@ -17,7 +16,8 @@ export function skinWeights(h: Heritage): W {
   }
 }
 
-// Hair index guide (current art): 1-2 short, 3 flat-top, 4-5 afro, 6 curls, 7 waves, 8 lined fade, 9 mohawk, 10 top-knot,
+// Hair index guide: 22 bowl, 23 curtains, 24 undercut, 25 textured crop, 26 slick-back, 27 high-top, 28 waves, 29 short twists,
+// 30 taper + curly top, 31 pompadour, 32 side part, 33 half-up bun, 34 curly top, 35 long wavy. Older art: 1-2 short, 3 flat-top, 4-5 afro, 6 curls, 7 waves, 8 lined fade, 9 mohawk, 10 top-knot,
 // 11 long, 12 twists, 13 cornrows/braids, 14 side-swept, 15 spiky, 16 tall box, 17 receded sides, 18 bun, 19 long straight, 20 locs, 21 swoop.
 const HAIR_TEXTURED = w({ 24: 1.5, 25: 0.5, 26: 1, 27: 4, 28: 5, 29: 3, 30: 4, 34: 1, 1: 5, 2: 4, 3: 2, 4: 3, 5: 2, 6: 3, 7: 3, 8: 5, 9: 0.5, 11: 0.4, 12: 4, 13: 5, 14: 0.5, 16: 4, 20: 4, 21: 1 })
 const HAIR_STRAIGHT_ASIAN = w({ 22: 3, 23: 4, 24: 4, 25: 4, 26: 3, 1: 6, 2: 6, 3: 2, 7: 1, 8: 3, 9: 0.5, 10: 2, 11: 1, 14: 5, 15: 2, 16: 1, 17: 1, 18: 1, 19: 1, 21: 4 })
@@ -71,8 +71,7 @@ export function eyeWeights(h: Heritage, skin = 0): W {
   return w({ 8: 0.3, 9: 0.15, ...dark }, 1)
 }
 
-/** Facial hair styles: same overall rate everywhere (handled in generateFace); heavy full beards a bit less common for asian. */
-export function facialHairWeights(h: Heritage): W {
-  if (h === 'asian') return w({ 1: 1, 2: 2, 3: 2, 4: 0.4, 5: 0.3, 6: 0.2, 7: 1, 8: 1, 9: 2, 10: 2, 11: 2, 12: 0.4, 13: 0.5 })
+/** Facial hair style weights: identical for every heritage (none is skewed toward moustache/goatee looks). Index 0 = none, handled in generateFace. */
+export function facialHairWeights(_h: Heritage): W {
   return w({ 0: 0 }, 1)
 }

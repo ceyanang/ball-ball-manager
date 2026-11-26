@@ -115,3 +115,15 @@ describe('heritage-driven faces', () => {
     expect(generateFace(encodeHeritage(99, 'asian'))).toEqual(generateFace(encodeHeritage(99, 'asian')))
   })
 })
+
+describe('no stereotyped facial hair', () => {
+  it('asian facial-hair styles are distributed like everyone else’s (no moustache/goatee skew)', () => {
+    const skewed = [2, 3, 9, 10, 11]
+    const rate = (h: Heritage) => {
+      const hair = Array.from({ length: 6000 }, (_, i) => generateFace(encodeHeritage(i + 1, h))).filter((f) => f.facialHair > 0)
+      return hair.filter((f) => skewed.includes(f.facialHair)).length / hair.length
+    }
+    expect(Math.abs(rate('asian') - rate('american'))).toBeLessThan(0.06)
+    expect(Math.abs(rate('asian') - rate('european'))).toBeLessThan(0.06)
+  })
+})
