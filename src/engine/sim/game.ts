@@ -1,5 +1,4 @@
 import { OT_MIN, QUARTER_MIN, STARTERS } from '../constants'
-import { computeOvr } from '../player/ratings'
 import type { Rng } from '../rng'
 import type { BoxLine, Coach, CoachStyle, GameResult, Player, Team } from '../types'
 import type { PlayEvent, Side } from './playlog'
@@ -14,27 +13,30 @@ export const K = {
   basePace: 97,
   paceStyle: 4,
   defenseStylePace: -2,
-  tovBase: 0.13,
-  stealShare: 0.55,
+  tovBase: 0.132,
+  stealShare: 0.56,
   commonFoul: 0.07,
-  rimBase: 0.6,
-  midBase: 0.39,
-  threeBase: 0.325,
-  shooterK: 0.004,
-  defK: 0.003,
+  rimBase: 0.585,
+  closeBase: 0.495,
+  postBase: 0.47,
+  midBase: 0.382,
+  threeBase: 0.32,
+  shooterK: 0.0038,
+  defK: 0.0028,
   defenseStyle: 0.015,
   home: 0.014,
-  blockRim: 0.125,
-  blockMid: 0.035,
-  foulRim: 0.22,
+  blockRim: 0.12,
+  blockMid: 0.032,
+  foulRim: 0.225,
+  foulPost: 0.18,
   foulMid: 0.08,
-  foulThree: 0.03,
-  andOne: 0.45,
+  foulThree: 0.032,
+  andOne: 0.44,
   orebBase: 0.24,
   usageExp: 3.1,
   threeStyle: 1.25,
-  /** Make-probability lost per OVR point of out-of-position cost (C at PG ≈ −6.5%). */
-  oopShot: 0.0025,
+  /** Make-probability lost per OVR point of out-of-position cost (C at PG ≈ −7.8%). */
+  oopShot: 0.003,
   /** Share of defenders' out-of-position cost taken off their perimeter/interior D. */
   oopDef: 0.5,
   /** Make-probability per morale point away from 60 (≈ ±1.6% at the extremes). */
@@ -51,7 +53,7 @@ export const K = {
 /**
  * In-game energy (0–100). Everyone tips off fresh; minutes on the floor drain it (slower with a high stamina
  * rating, and slower again while a player is hot), the bench and the breaks refill it. Below `line` a tired
- * player shoots, handles and defends worse, so riding the starters 44 minutes costs you late.
+ * player shoots, handles, moves (`agility`/`speed`) and defends worse, so riding the starters 44 minutes costs you late.
  */
 export const FATIGUE = {
   /** Energy lost per minute on the floor at 0 stamina; a 99-stamina player loses `drain·(1 − stamRelief)`. */
@@ -71,7 +73,7 @@ export const FATIGUE = {
   shot: 0.0022,
   /** Points under the line at which the shooting/turnover cost has doubled. */
   ramp: 30,
-  /** Defensive rating lost per point under the line. */
+  /** Defensive/mobility rating lost per point under the line. */
   def: 1.3,
   /** Turnover probability added per point under the line. */
   tov: 0.0012,
@@ -82,7 +84,36 @@ export const fatigueCost = (under: number): number => under * (1 + under / FATIG
 
 /** Energy lost by `p` over one minute on the floor. */
 export function drainPerMinute(p: Player, hot: boolean): number {
-  return FATIGUE.drain * (1 - FATIGUE.stamRelief * (p.ratings.stam / 99)) * (hot ? FATIGUE.hotDrain : 1)
+  return FATIGUE.drain * (1 - FATIGUE.stamRelief * (p.ratings.stamina / 99)) * (hot ? FATIGUE.hotDrain : 1)
+}
+
+type ShotZone = 'layup' | 'driveDunk' | 'standDunk' | 'close' | 'post' | 'mid' | 'three'
+
+interface PlayerSim {
+  usage: number
+  handlerW: number
+  rebOffW: number
+  rebDefW: number
+  stealW: number
+  blockW: number
+  passerW: number
+  shotZoneW: [number, number, number, number, number, number, number]
+  offSpread: number
+  defSpread: number
+  paceSkill: number
+}
+
+interface LineupSynergy {
+  spacing: number
+  playmaking: number
+  rollerHands: number
+  helpAnchor: number
+  stealThreat: number
+  passDisrupt: number
+  rimBlock: number
+  orebPower: number
+  drebPower: number
+  hustleMean: number
 }
 
 interface Ctx {
@@ -100,10 +131,13 @@ interface Ctx {
   target: Record<string, number>
   /** The GM's minutes plan, if the depth chart has one. */
   plan?: Record<string, number>
+  dnp?: string[]
   quarters: number[]
+  syn: LineupSynergy
 }
 
-const mean = (ids: string[], f: (id: string) => number) => ids.reduce((s, id) => s + f(id), 0) / ids.length
+const SIDES: readonly Side[] = ['home', 'away']
+const ZONES: ShotZone[] = ['layup', 'driveDunk', 'standDunk', 'close', 'post', 'mid', 'three']
 
 export function simGame(
   home: Team,
@@ -121,13 +155,57 @@ export function simGame(
     if (n < STARTERS) throw new Error(`${t.name} has fewer than ${STARTERS} players and cannot play a game (has ${n}).`)
   }
   const R = (id: string) => players[id].ratings
-  const usage: Record<string, number> = {}
+  const prof: Record<string, PlayerSim> = {}
   const box: Record<string, BoxLine> = {}
   /** Energy 0–100 and the hot streak (made minus missed shots, 0..5) per player. */
   const energy: Record<string, number> = {}
   const heat: Record<string, number> = {}
+  /** Quarter-by-quarter consistency variance (refreshed each period from offensiveConsistency / defensiveConsistency). */
+  const qOffMod: Record<string, number> = {}
+  const qDefMod: Record<string, number> = {}
   const tired = (id: string) => Math.max(0, FATIGUE.line - (energy[id] ?? 100))
   const shotHeat = (id: string, made: boolean) => { heat[id] = Math.max(0, Math.min(5, (heat[id] ?? 0) + (made ? 1 : -1))) }
+
+  const computeSynergy = (onCourt: string[]): LineupSynergy => {
+    const n = Math.max(1, onCourt.length)
+    let three = 0, playSum = 0, playMax = 0, hands = 0, dunks = 0
+    let help = 0, intD = 0, blk = 0, stl = 0, passPerc = 0, vert = 0
+    let oreb = 0, dreb = 0, str = 0, hus = 0
+    for (const id of onCourt) {
+      const r = R(id)
+      three += r.threePointShot
+      const pm = r.passVision * 0.55 + r.passIQ * 0.45
+      playSum += pm
+      if (pm > playMax) playMax = pm
+      hands += r.hands
+      dunks += r.standingDunk * 0.6 + r.drivingDunk * 0.4
+      help += r.helpDefenseIQ
+      intD += r.interiorDefense
+      blk += r.block
+      stl += r.steal
+      passPerc += r.passPerception
+      vert += r.vertical
+      oreb += r.offensiveRebound
+      dreb += r.defensiveRebound
+      str += r.strength
+      hus += r.hustle
+    }
+    const avgThree = three / n
+    const avgPlay = playSum / n
+    const avgHandsDunk = (hands * 0.5 + dunks * 0.5) / n
+    return {
+      spacing: (avgThree - K.pivot) * 0.00048,
+      playmaking: (playMax * 0.48 + avgPlay * 0.52 - K.pivot) * 0.0005,
+      rollerHands: (avgHandsDunk - K.pivot) * 0.00032,
+      helpAnchor: (help * 0.5 + intD * 0.25 + blk * 0.25) / n - K.pivot,
+      stealThreat: (stl * 0.58 + passPerc * 0.28 + help * 0.14) / n,
+      passDisrupt: ((passPerc * 0.6 + help * 0.4) / n - K.pivot) * 0.0007,
+      rimBlock: (blk * 0.78 + vert * 0.22) / n,
+      orebPower: (oreb * 0.64 + vert * 0.14 + str * 0.12 + hus * 0.10) / n,
+      drebPower: (dreb * 0.64 + vert * 0.14 + str * 0.12 + hus * 0.10) / n,
+      hustleMean: hus / n,
+    }
+  }
 
   const makeSide = (team: Team): Ctx => {
     const lu = gameLineup(team, players)
@@ -135,10 +213,42 @@ export function simGame(
     for (const id of ids) {
       const p = players[id]
       const r = p.ratings
-      const scoring = Math.max(r.ins, r.mid, r.three) * 0.5 + ((r.ins + r.mid + r.three) / 3) * 0.2 + r.handle * 0.1 + computeOvr(r, p.pos) * 0.2
-      usage[id] = Math.pow(scoring / K.pivot, K.usageExp)
+      const rimThreat = Math.max(r.layup, r.drivingDunk, r.standingDunk, r.closeShot)
+      const postThreat = r.postControl * 0.45 + Math.max(r.postHook, r.postFade) * 0.55
+      const bestScore = Math.max(rimThreat, r.midRangeShot, r.threePointShot, postThreat)
+      const avgScore = (rimThreat + r.midRangeShot + r.threePointShot) / 3
+      const creator = (r.ballHandle + r.speedWithBall) * 0.5
+      // Intangibles is intentionally excluded from raw sim usage/shot formulas (affects OVR only).
+      const scoring = bestScore * 0.56 + avgScore * 0.22 + creator * 0.14 + r.shotIQ * 0.08
+      const iqTilt = (r.shotIQ - K.pivot) * 0.004
+
+      // Shot-zone weights: 3PT, mid, layup, drivingDunk, standingDunk, closeShot, post
+      const wLayup = Math.max(1, r.layup * 0.65 + r.speedWithBall * 0.2 + r.agility * 0.15 - 24) * 0.52
+      const wDriveDunk = Math.max(0.5, r.drivingDunk * 0.72 + r.vertical * 0.18 + r.speedWithBall * 0.1 - 36) * 0.34
+      const wStandDunk = Math.max(0.5, r.standingDunk * 0.75 + r.strength * 0.15 + r.hands * 0.1 - 40) * 0.3
+      const wClose = Math.max(1, r.closeShot * 0.8 + r.hands * 0.2 - 26) * 0.4
+      const wPost = Math.max(0.4, r.postControl * 0.48 + r.strength * 0.22 + Math.max(r.postHook, r.postFade) * 0.3 - 44) * 0.32
+      // Higher shotIQ curbs forced mid-range jumpers and low-skill 3PA chucking
+      const wMid = Math.max(1, r.midRangeShot - 30) * 0.5 * Math.max(0.6, 1 - iqTilt * (r.midRangeShot < 72 ? 1.2 : 0.4))
+      const wThree = Math.max(1, r.threePointShot - 32) * 1.48 * Math.max(0.5, 1 + (r.threePointShot >= 74 ? iqTilt * 0.6 : -iqTilt))
+
+      prof[id] = {
+        usage: Math.pow(scoring / K.pivot, K.usageExp),
+        handlerW: Math.pow(scoring / K.pivot, K.usageExp) * (0.45 * r.ballHandle + 0.35 * r.speedWithBall + 0.2 * r.passVision),
+        rebOffW: (0.62 * r.offensiveRebound + 0.15 * r.vertical + 0.13 * r.strength + 0.1 * r.hustle) ** 2,
+        rebDefW: (0.62 * r.defensiveRebound + 0.15 * r.vertical + 0.13 * r.strength + 0.1 * r.hustle) ** 2,
+        stealW: (0.64 * r.steal + 0.22 * r.passPerception + 0.14 * r.helpDefenseIQ) ** 2,
+        blockW: (0.76 * r.block + 0.24 * r.vertical) ** 3,
+        passerW: (0.5 * r.passVision + 0.3 * r.passIQ + 0.2 * r.passAccuracy) ** 5.5,
+        shotZoneW: [wLayup, wDriveDunk, wStandDunk, wClose, wPost, wMid, wThree],
+        offSpread: 0.11 * (1 - (r.offensiveConsistency - 25) / 80),
+        defSpread: 6.5 * (1 - (r.defensiveConsistency - 25) / 80),
+        paceSkill: r.speed * 0.5 + r.agility * 0.3 + r.speedWithBall * 0.1 + r.hustle * 0.1,
+      }
       energy[id] = Math.max(0, 100 + Math.min(0, mods?.energy[id] ?? 0))
       heat[id] = 0
+      qOffMod[id] = 0
+      qDefMod[id] = 0
       box[id] = {
         playerId: id, teamId: team.id, gs: lu.starters.includes(id), min: 0, pts: 0, oreb: 0, dreb: 0, ast: 0, stl: 0,
         blk: 0, tov: 0, pf: 0, fgm: 0, fga: 0, tpm: 0, tpa: 0, ftm: 0, fta: 0, pm: 0,
@@ -146,17 +256,26 @@ export function simGame(
     }
     return {
       team, style: coaches[team.coachId]?.style ?? 'balanced', ids, starters: lu.starters, onCourt: [], pen: {},
-      played: Object.fromEntries(ids.map((id) => [id, 0])), stint: Object.fromEntries(ids.map((id) => [id, 0])), blowoutSeen: false, plan: team.rotation.minutes, target: minutesTargets(lu, players, 0, team.rotation.minutes), quarters: [],
+      played: Object.fromEntries(ids.map((id) => [id, 0])), stint: Object.fromEntries(ids.map((id) => [id, 0])),
+      blowoutSeen: false, plan: team.rotation.minutes,
+      dnp: team.rotation.minutes ? ids.filter((id) => team.rotation.minutes![id] === 0 && !lu.starters.includes(id)) : undefined,
+      target: minutesTargets(lu, players, 0, team.rotation.minutes),
+      quarters: [], syn: computeSynergy(lu.starters),
     }
   }
   const sides: Record<Side, Ctx> = { home: makeSide(home), away: makeSide(away) }
   const sideOf: Record<string, Side> = {}
-  for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) sideOf[id] = s
+  for (const s of SIDES) for (const id of sides[s].ids) sideOf[id] = s
   const score: Record<Side, number> = { home: 0, away: 0 }
   const other = (s: Side): Side => (s === 'home' ? 'away' : 'home')
 
-  const paceOf = (s: CoachStyle) => K.basePace + (s === 'pace' ? K.paceStyle : s === 'defense' ? K.defenseStylePace : 0)
-  const poss48 = (paceOf(sides.home.style) + paceOf(sides.away.style)) / 2 + rng.normal(0, 3)
+  const rotPace = (c: Ctx) => {
+    let s = 0
+    for (let i = 0; i < Math.min(8, c.ids.length); i++) s += prof[c.ids[i]].paceSkill
+    return (s / Math.max(1, Math.min(8, c.ids.length)) - K.pivot) * 0.1
+  }
+  const paceOf = (c: Ctx) => K.basePace + (c.style === 'pace' ? K.paceStyle : c.style === 'defense' ? K.defenseStylePace : 0) + rotPace(c)
+  const poss48 = (paceOf(sides.home) + paceOf(sides.away)) / 2 + rng.normal(0, 3)
 
   // Story tracking only (no RNG): the last lead change and each side's biggest deficit.
   let possNo = 0, periodNo = 0, lastStint = false
@@ -177,8 +296,11 @@ export function simGame(
     if (e.k === 'fg') shotHeat(e.player, e.made)
     emit({ ...e, home: score.home, away: score.away })
   }
-  const refreshPen = (c: Ctx) => { c.pen = lineupPenalties(c.onCourt, c.starters, players) }
-  /** Apply swaps (logging each one) and refresh the out-of-position costs. */
+  const refreshPen = (c: Ctx) => {
+    c.pen = lineupPenalties(c.onCourt, c.starters, players)
+    c.syn = computeSynergy(c.onCourt)
+  }
+  /** Apply swaps (logging each one) and refresh the out-of-position costs + lineup synergy. */
   const applySwaps = (side: Side, swaps: { slot: number; out: string; in: string }[]) => {
     if (!swaps.length) return
     const c = sides[side]
@@ -214,14 +336,18 @@ export function simGame(
     if (c.onCourt.length !== STARTERS) return
     const margin = score[side] - score[other(side)]
     if (isBlowout(periodNo, Math.abs(margin))) c.blowoutSeen = true
-    applySwaps(side, foulOutSwaps(c))
     const out = fouledOut(c)
-    const starters = c.starters.filter((id) => !out.includes(id))
+    if (out.length) applySwaps(side, foulOutSwaps(c))
+    const starters = out.length ? c.starters.filter((id) => !out.includes(id)) : c.starters
+    const sitting: string[] = []
+    for (let i = 0; i < c.ids.length; i++) {
+      const id = c.ids[i]
+      if (!c.onCourt.includes(id) && (!out.length || !out.includes(id))) sitting.push(id)
+    }
     applySwaps(side, chooseSubs({
       period: periodNo, minuteInPeriod, periodMinutes, elapsed, gameMinutes: 48 + OT_MIN * ot, margin, onCourt: c.onCourt,
-      sitting: c.ids.filter((id) => !c.onCourt.includes(id) && !out.includes(id)), stint: c.stint, played: c.played, target: c.target,
-      starters, players, blowoutSeen: c.blowoutSeen, energy,
-      dnp: c.plan ? c.ids.filter((id) => c.plan![id] === 0 && !c.starters.includes(id)) : undefined,
+      sitting, stint: c.stint, played: c.played, target: c.target,
+      starters, players, blowoutSeen: c.blowoutSeen, energy, dnp: c.dnp,
     }))
     if (c.blowoutSeen && Math.abs(margin) < SUB.blowoutReturn && starters.every((id) => c.onCourt.includes(id))) c.blowoutSeen = false
   }
@@ -239,22 +365,23 @@ export function simGame(
   }
 
   const rebound = (off: Side): boolean => {
-    const o = sides[off].onCourt, d = sides[other(off)].onCourt
-    const p = K.orebBase + (mean(o, (id) => R(id).oreb) - mean(d, (id) => R(id).dreb)) * 0.003
+    const oc = sides[off], dc = sides[other(off)]
+    const o = oc.onCourt, d = dc.onCourt
+    const p = K.orebBase + (oc.syn.orebPower - dc.syn.drebPower) * 0.0028 + (oc.syn.hustleMean - dc.syn.hustleMean) * 0.0006
     if (rng.chance(p)) {
-      const id = rng.weighted(o, (id) => R(id).oreb ** 2)
+      const id = rng.weighted(o, (id) => prof[id].rebOffW)
       box[id].oreb++
       emit({ k: 'reb', side: off, player: id, off: true })
       return true
     }
-    const id = rng.weighted(d, (id) => R(id).dreb ** 2)
+    const id = rng.weighted(d, (id) => prof[id].rebDefW)
     box[id].dreb++
     emit({ k: 'reb', side: other(off), player: id, off: false })
     return false
   }
 
   const freeThrows = (off: Side, shooter: string, n: number): boolean => {
-    const pct = 0.43 + R(shooter).ft * 0.0045
+    const pct = 0.43 + R(shooter).freeThrow * 0.0045
     let lastMade = true
     for (let i = 0; i < n; i++) {
       box[shooter].fta++
@@ -268,73 +395,157 @@ export function simGame(
     return lastMade
   }
 
-  /** A defender picks up a foul: the one guarding the play is likelier (bigs at the rim, wings on the perimeter). */
-  const foul = (d: string[], guard: 'perD' | 'intD') => {
+  /** A defender picks up a foul: perimeter or interior defenders weighted by play zone. */
+  const foul = (d: string[], guard: 'perimeterDefense' | 'interiorDefense') => {
     const id = rng.weighted(d, (id) => 40 + R(id)[guard])
     box[id].pf++
   }
 
+  const maybeAssist = (off: Side, o: string[], shooter: string, zone: ShotZone) => {
+    const oc = sides[off], dc = sides[other(off)]
+    const base = zone === 'standDunk' ? 0.68 : zone === 'three' ? 0.78 : zone === 'mid' ? 0.56 : zone === 'post' ? 0.34 : 0.48
+    const p = base + oc.syn.playmaking * 8 - dc.syn.passDisrupt * 5
+    if (!rng.chance(p)) return
+    const mates = o.filter((id) => id !== shooter)
+    const passer = rng.weighted(mates, (id) => prof[id].passerW)
+    box[passer].ast++
+    emit({ k: 'ast', side: sideOf[passer], player: passer })
+  }
+
   const possession = (off: Side) => {
-    const o = sides[off].onCourt, d = sides[other(off)].onCourt
-    const oStyle = sides[off].style, dStyle = sides[other(off)].style
-    if (rng.chance(K.commonFoul)) foul(d, 'perD')
-    // Turnover
-    const handler = rng.weighted(o, (id) => usage[id] * R(id).handle)
+    const oc = sides[off], dc = sides[other(off)]
+    const o = oc.onCourt, d = dc.onCourt
+    const oStyle = oc.style, dStyle = dc.style
+    if (rng.chance(K.commonFoul)) foul(d, 'perimeterDefense')
+
+    // Turnover (live-ball handle/speedWithBall/hands + bad-pass passAccuracy/passIQ vs steal/passPerception/helpDefenseIQ)
+    const handler = rng.weighted(o, (id) => prof[id].handlerW)
     const hr = R(handler)
-    const oPen = sides[off].pen, dPen = sides[other(off)].pen
-    const tovP = K.tovBase + (mean(d, (id) => R(id).stl) - K.pivot) * 0.0015 - ((hr.handle + hr.iq) / 2 - K.pivot) * 0.0015 + (oPen[handler] ?? 0) * 0.001 + fatigueCost(tired(handler)) * FATIGUE.tov
+    const oPen = oc.pen, dPen = dc.pen
+    const ballCare = hr.ballHandle * 0.32 + hr.passAccuracy * 0.32 + hr.hands * 0.2 + hr.passIQ * 0.16
+    const tovP =
+      K.tovBase
+      + (dc.syn.stealThreat - K.pivot) * 0.0014
+      - (ballCare - K.pivot) * 0.0015
+      + (oPen[handler] ?? 0) * 0.001
+      + fatigueCost(tired(handler)) * FATIGUE.tov
     if (rng.chance(tovP)) {
       box[handler].tov++
       emit({ k: 'tov', side: off, player: handler })
-      if (rng.chance(K.stealShare)) {
-        const stealer = rng.weighted(d, (id) => R(id).stl ** 2)
+      const stealP = K.stealShare + (dc.syn.stealThreat - (hr.passAccuracy + hr.hands) / 2) * 0.0015
+      if (rng.chance(stealP)) {
+        const stealer = rng.weighted(d, (id) => prof[id].stealW)
         box[stealer].stl++
         emit({ k: 'stl', side: other(off), player: stealer })
       }
       return
     }
+
+    const clutch = (periodNo === 4 && lastStint && Math.abs(score.home - score.away) <= 8) || periodNo > 4
+
     for (let attempt = 0; attempt < 6; attempt++) {
-      const shooter = rng.weighted(o, (id) => usage[id])
+      const shooter = rng.weighted(o, (id) => prof[id].usage)
       const r = R(shooter)
-      const wRim = Math.max(1, r.ins - 20), wMid = Math.max(1, r.mid - 30) * 0.6
-      const wThree = Math.max(1, r.three - 35) * 1.4 * (oStyle === 'three' ? K.threeStyle : 1)
-      const type = rng.weighted(['rim', 'mid', 'three'] as const, (t) => (t === 'rim' ? wRim : t === 'mid' ? wMid : wThree))
-      const dCost = (id: string) => (dPen[id] ?? 0) * K.oopDef + tired(id) * FATIGUE.def - (mods?.defense[id] ?? 0)
-      const perD = mean(d, (id) => R(id).perD - dCost(id)), intD = mean(d, (id) => R(id).intD - dCost(id))
-      let p =
-        type === 'rim' ? K.rimBase + (r.ins - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK
-        : type === 'mid' ? K.midBase + (r.mid - K.pivot) * K.shooterK - (perD - K.pivot) * K.defK
-        : K.threeBase + (r.three - K.pivot) * K.shooterK - (perD - K.pivot) * K.defK * 0.67
-      p += ((r.iq + r.ath) / 2 - K.pivot) * 0.001
+      const zw = prof[shooter].shotZoneW
+      const w6 = oStyle === 'three' ? zw[6] * K.threeStyle : zw[6]
+      const zTot = zw[0] + zw[1] + zw[2] + zw[3] + zw[4] + zw[5] + w6
+      let zr = rng.next() * zTot
+      let zIdx = 6
+      for (let k = 0; k < 6; k++) {
+        zr -= zw[k]
+        if (zr < 0) { zIdx = k; break }
+      }
+      const zone = ZONES[zIdx]
+
+      // Live defensive ratings (accounting for OOP cost, progressive fatigue hurting agility/speed/defense, and quarter consistency)
+      let perSum = 0, intSum = 0
+      const clutchDefBoost = clutch ? 1 : 0
+      for (let di = 0; di < d.length; di++) {
+        const id = d[di]
+        const dr = players[id].ratings
+        const t = energy[id] < FATIGUE.line ? FATIGUE.line - energy[id] : 0
+        const modD = mods?.defense[id] ?? 0
+        const cost = (dPen[id] ?? 0) * K.oopDef + t * FATIGUE.def - modD - qDefMod[id] - clutchDefBoost * ((dr.defensiveConsistency - 70) * 0.1)
+        perSum += dr.perimeterDefense * 0.72 + dr.agility * 0.28 - cost
+        intSum += dr.interiorDefense * 0.68 + dr.strength * 0.18 + dr.vertical * 0.14 - cost
+      }
+      const perD = perSum / d.length
+      const intD = intSum / d.length
+      // Weak perimeter defenders are partially covered by high helpDefenseIQ / rim anchor teammates
+      const helpCover = Math.max(0, dc.syn.helpAnchor) * 0.25
+
+      let p: number
+      if (zone === 'three') {
+        const contest = (perD - K.pivot) * K.defK * 0.67 * (1 - (r.shotIQ - K.pivot) * 0.004)
+        p = K.threeBase + (r.threePointShot - K.pivot) * K.shooterK - contest + oc.syn.playmaking * 0.7
+      } else if (zone === 'mid') {
+        const contest = (perD - K.pivot) * K.defK * (1 - (r.shotIQ - K.pivot) * 0.004)
+        p = K.midBase + (r.midRangeShot - K.pivot) * K.shooterK - contest + oc.syn.playmaking * 0.4
+      } else if (zone === 'layup') {
+        const driveSkill = r.layup * 0.72 + r.speedWithBall * 0.14 + r.agility * 0.08 + r.hands * 0.06
+        const rimDef = intD * 0.68 + perD * 0.32 + helpCover
+        p = K.rimBase + (driveSkill - K.pivot) * K.shooterK - (rimDef - K.pivot) * K.defK + oc.syn.spacing + oc.syn.playmaking * 0.5
+      } else if (zone === 'driveDunk') {
+        const dunkSkill = r.drivingDunk * 0.72 + r.vertical * 0.18 + r.speedWithBall * 0.1
+        const rimDef = intD * 0.75 + perD * 0.25 + helpCover
+        p = K.rimBase + 0.03 + (dunkSkill - K.pivot) * K.shooterK - (rimDef - K.pivot) * K.defK + oc.syn.spacing + oc.syn.playmaking * 0.5
+      } else if (zone === 'standDunk') {
+        const finishSkill = r.standingDunk * 0.7 + r.hands * 0.18 + r.strength * 0.12
+        p = K.rimBase + 0.04 + (finishSkill - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK + oc.syn.playmaking * 0.7 + oc.syn.rollerHands
+      } else if (zone === 'close') {
+        const touchSkill = r.closeShot * 0.82 + r.hands * 0.18
+        p = K.closeBase + (touchSkill - K.pivot) * K.shooterK - (intD + helpCover * 0.6 - K.pivot) * K.defK + oc.syn.spacing * 0.7
+      } else {
+        const postSkill = r.postHook * 0.42 + r.postFade * 0.33 + r.postControl * 0.15 + r.strength * 0.1
+        p = K.postBase + (postSkill - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK + oc.syn.spacing * 0.8
+      }
+
+      // Shot IQ, athleticism/speed edge, quarter consistency, fatigue, OOP, morale, chemistry, HFA, rubberband
+      p += (r.shotIQ - K.pivot) * 0.0007
+      p += ((r.speed + r.agility) * 0.5 - K.pivot) * 0.0005
+      p += qOffMod[shooter]
+      if (clutch) p += (r.offensiveConsistency - 70) * 0.0005
       p -= (oPen[shooter] ?? 0) * K.oopShot
       p -= fatigueCost(tired(shooter)) * FATIGUE.shot
       p += ((players[shooter].morale ?? 60) - 60) * K.morale
-      p += (mods?.shooting[shooter] ?? 0) * 0.01 + ((mods?.chemistry[sides[off].team.id] ?? 50) - 50) * K.chemistry
+      p += (mods?.shooting[shooter] ?? 0) * 0.01 + ((mods?.chemistry[oc.team.id] ?? 50) - 50) * K.chemistry
       if (dStyle === 'defense') p -= K.defenseStyle
       if (off === 'home') p += K.home
       p += Math.min(K.rubberCap, Math.max(0, score[other(off)] - score[off])) * K.rubber
-      const pts = type === 'three' ? 3 : 2
-      const foulP = type === 'rim' ? K.foulRim : type === 'mid' ? K.foulMid : K.foulThree
+
+      const isRim = zone === 'layup' || zone === 'driveDunk' || zone === 'standDunk' || zone === 'close'
+      const pts = zone === 'three' ? 3 : 2
+      const baseFoul =
+        zone === 'three' ? K.foulThree
+        : zone === 'mid' ? K.foulMid
+        : zone === 'post' ? K.foulPost + (r.postControl - K.pivot) * 0.001
+        : K.foulRim + (zone === 'driveDunk' || zone === 'layup' ? (r.layup * 0.5 + r.drivingDunk * 0.5 - K.pivot) * 0.0007 : 0)
+      const foulP = Math.max(0.01, baseFoul * (1 + (r.drawFoul - K.pivot) * 0.0075))
+
       if (rng.chance(foulP)) {
-        foul(d, type === 'rim' ? 'intD' : 'perD')
+        foul(d, isRim || zone === 'post' ? 'interiorDefense' : 'perimeterDefense')
         if (rng.chance(p * K.andOne)) {
           box[shooter].fga++
           box[shooter].fgm++
           if (pts === 3) { box[shooter].tpa++; box[shooter].tpm++ }
           addPoints(off, pts, shooter)
           emitScore({ k: 'fg', side: off, player: shooter, made: true, three: pts === 3 })
-          maybeAssist(o, shooter, type)
+          maybeAssist(off, o, shooter, zone)
           if (freeThrows(off, shooter, 1) || !rebound(off)) return
           continue
         }
         if (freeThrows(off, shooter, pts) || !rebound(off)) return
         continue
       }
+
       box[shooter].fga++
       if (pts === 3) box[shooter].tpa++
-      const blockP = type === 'rim' ? K.blockRim + (mean(d, (id) => R(id).blk) - K.pivot) * 0.002 : type === 'mid' ? K.blockMid : 0
+      const blockP =
+        isRim ? Math.max(0.01, K.blockRim + (dc.syn.rimBlock - K.pivot) * 0.002 - (r.vertical - K.pivot) * 0.0005)
+        : zone === 'mid' || zone === 'post' ? Math.max(0.005, K.blockMid + (dc.syn.rimBlock - K.pivot) * 0.0005)
+        : 0
       if (blockP > 0 && rng.chance(blockP)) {
-        const blocker = rng.weighted(d, (id) => R(id).blk ** 3)
+        const blocker = rng.weighted(d, (id) => prof[id].blockW)
         box[blocker].blk++
         emitScore({ k: 'fg', side: off, player: shooter, made: false, three: pts === 3 })
         emit({ k: 'blk', side: other(off), player: blocker })
@@ -346,21 +557,12 @@ export function simGame(
         if (pts === 3) box[shooter].tpm++
         addPoints(off, pts, shooter)
         emitScore({ k: 'fg', side: off, player: shooter, made: true, three: pts === 3 })
-        maybeAssist(o, shooter, type)
+        maybeAssist(off, o, shooter, zone)
         return
       }
       emitScore({ k: 'fg', side: off, player: shooter, made: false, three: pts === 3 })
       if (!rebound(off)) return
     }
-  }
-
-  const maybeAssist = (o: string[], shooter: string, type: 'rim' | 'mid' | 'three') => {
-    const p = type === 'rim' ? 0.5 : type === 'mid' ? 0.6 : 0.8
-    if (!rng.chance(p)) return
-    const mates = o.filter((id) => id !== shooter)
-    const passer = rng.weighted(mates, (id) => R(id).pass ** 4)
-    box[passer].ast++
-    emit({ k: 'ast', side: sideOf[passer], player: passer })
   }
 
   let carry = 0, elapsed = 0, ot = 0
@@ -371,13 +573,20 @@ export function simGame(
     periodNo++
     possInPeriod = 0
     periodStart = pending.length
+    // Refresh quarter-by-quarter consistency variance once per period for every active player.
+    for (const s of SIDES) {
+      for (const id of sides[s].ids) {
+        qOffMod[id] = rng.normal(0, prof[id].offSpread)
+        qDefMod[id] = rng.normal(0, prof[id].defSpread)
+      }
+    }
     if (periodNo > 1) {
       const rest = periodNo === 3 ? FATIGUE.halftime : FATIGUE.quarterBreak
       for (const id of Object.keys(energy)) energy[id] = Math.min(100, energy[id] + rest)
     }
     stints.forEach((sl, i) => {
       lastStint = i === stints.length - 1
-      for (const s of ['home', 'away'] as Side[]) {
+      for (const s of SIDES) {
         const c = sides[s]
         if (periodNo === 1 && i === 0) {
           c.onCourt = [...c.starters]
@@ -389,12 +598,17 @@ export function simGame(
           else applySwaps(s, returnStarterSwaps(c.onCourt, c.starters.filter((id) => !fouledOut(c).includes(id)), players))
         } else subStep(s, i, stints.length)
       }
-      for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].onCourt) sides[s].played[id] += sl
-      for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) sides[s].stint[id] = sides[s].onCourt.includes(id) ? sides[s].stint[id] + sl : 0
-      for (const s of ['home', 'away'] as Side[]) for (const id of sides[s].ids) {
-        energy[id] = sides[s].onCourt.includes(id)
-          ? Math.max(0, energy[id] - drainPerMinute(players[id], heat[id] >= FATIGUE.hotHeat) * (1 - Math.max(0, mods?.energy[id] ?? 0) / 100) * sl)
-          : Math.min(100, energy[id] + FATIGUE.bench * sl)
+      for (const s of SIDES) for (const id of sides[s].onCourt) sides[s].played[id] += sl
+      for (const s of SIDES) {
+        const c = sides[s]
+        for (let idx = 0; idx < c.ids.length; idx++) {
+          const id = c.ids[idx]
+          const on = c.onCourt.includes(id)
+          c.stint[id] = on ? c.stint[id] + sl : 0
+          energy[id] = on
+            ? Math.max(0, energy[id] - drainPerMinute(players[id], heat[id] >= FATIGUE.hotHeat) * (1 - Math.max(0, mods?.energy[id] ?? 0) / 100) * sl)
+            : Math.min(100, energy[id] + FATIGUE.bench * sl)
+        }
       }
       elapsed += sl
       carry += (2 * poss48 * sl) / 48

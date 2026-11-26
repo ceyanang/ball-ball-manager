@@ -25,7 +25,7 @@ function candidates(l: League, season: number): Cand[] {
 }
 
 const mvpScore = (c: Cand) => c.gsPg * c.avail + c.pct * 8
-const dpoyScore = (c: Cand) => (c.s.stl * 2.6 + c.s.blk * 3 + c.s.dreb * 0.25) / c.s.gp + (c.p.ratings.perD + c.p.ratings.intD) * 0.07 + c.pct * 3 + (c.s.min / c.s.gp) * 0.04
+const dpoyScore = (c: Cand) => (c.s.stl * 2.6 + c.s.blk * 3 + c.s.dreb * 0.25) / c.s.gp + (c.p.ratings.perimeterDefense + c.p.ratings.interiorDefense + c.p.ratings.helpDefenseIQ * 0.3) * 0.06 + c.pct * 3 + (c.s.min / c.s.gp) * 0.04
 const best = <T>(xs: T[], f: (x: T) => number): T | null => (xs.length ? xs.reduce((a, b) => (f(b) > f(a) ? b : a)) : null)
 
 const GROUP: Record<Position, 'G' | 'F' | 'C'> = { PG: 'G', SG: 'G', SF: 'F', PF: 'F', C: 'C' }

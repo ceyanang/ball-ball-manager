@@ -37,7 +37,7 @@ describe('sim pauses for events', () => {
   it('pops up on days off and after games too', () => {
     for (const when of ['day', 'postGame'] as const) {
       setCatalogForTests([def(when)])
-      const l = simUntil(fresh(), 'event', OPTS)
+      const l = simUntil(fresh(), 'event', { pauseForEvents: true })
       expect(l.events.pending?.eventId).toBe('sim1')
     }
   })

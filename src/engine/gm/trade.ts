@@ -3,6 +3,8 @@ import type { Rng } from '../rng'
 import type { League, Player, Position, TradeAsset } from '../types'
 import { STARTERS } from '../constants'
 import { GmError, capProblem, capSeason, committed, log, ovr, pname, refreshRotation, teamPlayers, tname, tradesOpen } from './cap'
+import { memo, rosterStamp } from './cache'
+import { rosterSynergy, synergyFitFrom } from './synergy'
 import { type Mode, pickValue, playerValue, teamMode } from './value'
 
 export type Asset = TradeAsset
@@ -50,18 +52,27 @@ export function tradeProblem(l: League, t: Trade): string | null {
   return capProblem(l, t.b, { addSalary: sa, addCount: na, removeSalary: sb, removeCount: nb }, `For ${tname(l, t.b)}, this`)
 }
 
-/** Value of a package to `teamId`, with a positional-need bonus and a stacked-position penalty. */
+/** Value of a package to `teamId`, with a positional-need bonus, synergy fit, and a stacked-position penalty. */
 export function packageValue(l: League, teamId: string, gets: Asset[], gives: Asset[], mode: Mode = teamMode(l, teamId)): number {
   const leaving = new Set(gives.filter((a) => a.kind === 'player').map((a) => a.id))
-  const after: Player[] = committed(l, teamId).filter((p) => !leaving.has(p.id))
-  for (const a of gets) if (a.kind === 'player') after.push(l.players[a.id])
+  const teamRoster = committed(l, teamId)
+  const baseRoster: Player[] = leaving.size ? teamRoster.filter((p) => !leaving.has(p.id)) : teamRoster
+  const after: Player[] = [...baseRoster]
+  let hasIncomingPlayer = false
+  for (const a of gets) if (a.kind === 'player') { after.push(l.players[a.id]); hasIncomingPlayer = true }
+  const syn = hasIncomingPlayer && baseRoster.length
+    ? leaving.size === 0
+      ? memo(l, `syn:${teamId}`, rosterStamp(l), () => rosterSynergy(teamRoster))
+      : rosterSynergy(baseRoster)
+    : null
   let v = 0
   for (const a of gets) {
     if (a.kind === 'pick') { v += pickValue(l, l.picks.find((p) => p.id === a.id)!, mode); continue }
     const p = l.players[a.id]
     const base = playerValue(l, p, mode)
     const atPos = after.filter((q) => q.pos === p.pos).length
-    v += base * (atPos <= 2 ? 1.1 : atPos >= 5 ? 0.6 : atPos >= 4 ? 0.8 : 1)
+    const posMult = atPos <= 2 ? 1.1 : atPos >= 5 ? 0.6 : atPos >= 4 ? 0.8 : 1
+    v += base * posMult * (syn ? synergyFitFrom(syn, p) : 1)
   }
   return v
 }

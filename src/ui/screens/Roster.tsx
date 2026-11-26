@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { capSeason, tradesOpen } from '../../engine/gm/cap'
 import { archetypeFor } from '../../engine/player/archetype'
+import { groupAverage } from '../../engine/player/ratings'
+import { gradeFor } from '../../engine/player/grades'
 import type { Player } from '../../engine/types'
 import { OvrPill } from '../components/OvrPill'
 import { Face } from '../face/Face'
@@ -40,18 +42,32 @@ export function Roster() {
           <span>{p.contract ? `${money(p.contract.salary)} through S${p.contract.expires}${p.contract.expires < capSeason(league) ? ' (expiring)' : ''}` : 'No contract'}</span>
           {line && <span>{one(line.pg.pts)} pts · {one(line.pg.reb)} reb · {one(line.pg.ast)} ast ({line.s.gp} gp)</span>}
         </div>
+        <div className="cat-pills">
+          {RATING_GROUPS.map(([g]) => {
+            const avg = groupAverage(p.ratings, g)
+            return (
+              <span key={g} className="cat-pill">
+                <span className="muted">{g}</span>
+                <strong style={{ color: ratingColor(avg) }}>{avg}</strong>
+              </span>
+            )
+          })}
+        </div>
         <div className="rq-groups">
-          {RATING_GROUPS.map(([g, keys]) => (
-            <div key={g}>
-              <h4>{g}</h4>
-              {keys.map(([k, label]) => (
-                <div key={k} className="rq-rating">
-                  <span>{label}</span>
-                  <strong style={{ color: ratingColor(p.ratings[k]) }}>{p.ratings[k]}</strong>
-                </div>
-              ))}
-            </div>
-          ))}
+          {RATING_GROUPS.map(([g, keys]) => {
+            const avg = groupAverage(p.ratings, g)
+            return (
+              <div key={g}>
+                <h4>{g} <span className="muted" style={{ fontWeight: 600 }}>({gradeFor(avg)} · {avg})</span></h4>
+                {keys.map(([k, label]) => (
+                  <div key={k} className="rq-rating">
+                    <span>{label}</span>
+                    <strong style={{ color: ratingColor(p.ratings[k]) }}>{p.ratings[k]}</strong>
+                  </div>
+                ))}
+              </div>
+            )
+          })}
         </div>
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <Link className="btn" to={`/player/${p.id}`}>Full profile →</Link>

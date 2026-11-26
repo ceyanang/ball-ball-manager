@@ -78,12 +78,12 @@ export function MinutesPanel({ rot, players, disabled, onChange }: {
                     {fullName(p)}{p.injury ? ' 🤕' : ''}
                     <span className="muted mins-role">
                       {i < rot.starters.length ? 'starter' : 'bench'}
-                      <span className="mins-narrow"> · {p.pos} · {ovrOf(p)} · STA {p.ratings.stam}</span>
+                      <span className="mins-narrow"> · {p.pos} · {ovrOf(p)} · STA {p.ratings.stamina}</span>
                     </span>
                   </td>
                   <td className="mins-wide">{p.pos}</td>
                   <td className="mins-wide">{ovrOf(p)}</td>
-                  <td className="mins-wide" title={`Comfortable up to ~${comfort} min`}>{p.ratings.stam}</td>
+                  <td className="mins-wide" title={`Comfortable up to ~${comfort} min`}>{p.ratings.stamina}</td>
                   <td>
                     <span className="mins-edit">
                       <button className="btn mins-step" disabled={disabled || m <= 0} aria-label={`Fewer minutes for ${fullName(p)}`} onClick={() => set(id, m - 1)}>−</button>

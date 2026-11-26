@@ -78,7 +78,7 @@ describe('minutes plans', () => {
 })
 
 describe('stamina', () => {
-  const p = (stam: number) => ({ ratings: { stam } }) as Player
+  const p = (stamina: number) => ({ ratings: { stamina } }) as Player
   it('high stamina and being hot both slow the drain', () => {
     expect(drainPerMinute(p(90), false)).toBeLessThan(drainPerMinute(p(50), false))
     expect(drainPerMinute(p(70), true)).toBeLessThan(drainPerMinute(p(70), false))

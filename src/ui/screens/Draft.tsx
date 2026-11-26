@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { autoPick, currentSlot, draftUntilUser, makePick, releaseRights, rookieSalary, rookieYears, signRights } from '../../engine/gm/draft'
+import { autoPick, currentSlot, draftUntilUser, makePick, releaseRights, rookieSalary, rookieYears, scoutProspect, signRights } from '../../engine/gm/draft'
+import { gradeFor } from '../../engine/player/grades'
+import { ratingColor } from '../ratingColor'
 import { needThresholds, teamNeeds, type NeedLevel } from '../../engine/gm/needs'
 import { archetypeFor } from '../../engine/player/archetype'
 import type { Player } from '../../engine/types'
@@ -23,6 +25,7 @@ export function Draft() {
   const d = league.draft
   const step = league.offseason?.step
   const [revealed, setRevealed] = useState(step === 'lottery' || step === 'recap' ? 0 : 14)
+  const [scoutOpen, setScoutOpen] = useState<string | null>(null)
   if (!d) return <div className="stack"><h1>Draft</h1><p className="notice">The draft lottery happens right after the Finals.</p></div>
 
   const me = league.userTeamId
@@ -57,6 +60,14 @@ export function Draft() {
     { key: 'ht', label: 'Ht', defaultDir: 'desc', value: (r) => r.p.heightIn, text: (r) => heightStr(r.p.heightIn) },
     { key: 'ovr', label: 'OVR est.', defaultDir: 'desc', value: (r) => (r.sc.ovrLo + r.sc.ovrHi) / 2, text: (r) => `${r.sc.ovrLo}–${r.sc.ovrHi}` },
     { key: 'pot', label: 'POT', defaultDir: 'desc', value: (r) => r.sc.pot, cell: (r) => <span className="grade-chip">{r.sc.pot}</span> },
+    {
+      key: 'scout', label: 'Report', defaultDir: 'asc', sortable: false, value: () => null,
+      cell: (r) => (
+        <button className="btn" aria-expanded={scoutOpen === r.p.id} onClick={() => setScoutOpen(scoutOpen === r.p.id ? null : r.p.id)}>
+          {scoutOpen === r.p.id ? 'Hide' : 'Scout'}
+        </button>
+      ),
+    },
     { key: 'draft', label: '', defaultDir: 'asc', sortable: false, value: () => null, cell: (r) => (onClock ? <button className="btn btn-primary" onClick={() => pick(r.p.id)}>Draft</button> : null) },
   ]
   const rights = Object.entries(league.draftRights).filter(([, t]) => t === me).map(([id]) => league.players[id])
@@ -137,6 +148,28 @@ export function Draft() {
             rowKey={(r) => r.p.id}
             columns={boardColumns}
             filters={{ pos: (r) => r.p.pos, name: (r) => fullName(r.p), range: true }}
+            expanded={(r) => {
+              if (scoutOpen !== r.p.id) return null
+              const rep = scoutProspect(r.p, r.sc)
+              return (
+                <div className="scout-panel stack" style={{ gap: '0.6rem' }}>
+                  <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <strong>{fullName(r.p)} · Scouting profile</strong>
+                    <span className="muted" style={{ fontSize: '0.85rem' }}>
+                      Top traits: {rep.strengths.map((s) => `${s.label} (~${s.est})`).join(' · ')}
+                    </span>
+                  </div>
+                  <div className="cat-pills">
+                    {rep.categories.map((c) => (
+                      <span key={c.group} className="cat-pill" title={`Estimated ${c.lo}–${c.hi}`}>
+                        <span className="muted">{c.group}</span>
+                        <strong style={{ color: ratingColor(c.est) }}>{gradeFor(c.est)} ({c.lo}–{c.hi})</strong>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )
+            }}
           />
         </section>
       )}

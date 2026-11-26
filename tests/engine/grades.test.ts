@@ -19,24 +19,24 @@ describe('gradeFor', () => {
 })
 
 describe('ratingColor', () => {
-  it('is dark red at 40 and dark green at 99', () => {
-    const lo = hsl(ratingColor(40)), hi = hsl(ratingColor(99))
+  it('is dark red at 25 and dark green at 99', () => {
+    const lo = hsl(ratingColor(25)), hi = hsl(ratingColor(99))
     expect(lo.h).toBe(0)
     expect(lo.l).toBeLessThanOrEqual(35)
     expect(hi.h).toBeGreaterThanOrEqual(120)
     expect(hi.l).toBeLessThanOrEqual(35)
   })
   it('is brighter in the middle and hue never decreases', () => {
-    expect(hsl(ratingColor(70)).l).toBeGreaterThan(hsl(ratingColor(40)).l)
+    expect(hsl(ratingColor(62)).l).toBeGreaterThan(hsl(ratingColor(25)).l)
     let prev = -1
-    for (let v = 40; v <= 99; v++) {
+    for (let v = 25; v <= 99; v++) {
       const h = hsl(ratingColor(v)).h
       expect(h).toBeGreaterThanOrEqual(prev)
       prev = h
     }
   })
   it('clamps out-of-range values (old leagues)', () => {
-    expect(ratingColor(10)).toBe(ratingColor(40))
+    expect(ratingColor(10)).toBe(ratingColor(25))
     expect(ratingColor(120)).toBe(ratingColor(99))
   })
 })

@@ -30,12 +30,12 @@ describe('in-season progress', () => {
     expect(mean(old)).toBeGreaterThanOrEqual(-4)
     expect(mean(old)).toBeLessThanOrEqual(-0.5)
   })
-  it('keeps ratings in 40..99 and rises below potential', () => {
+  it('keeps ratings in 25..99 and rises below potential', () => {
     for (const { start, end } of runs)
       for (const p of Object.values(end.players)) {
         for (const v of Object.values(p.ratings)) {
           expect(Number.isFinite(v)).toBe(true)
-          expect(v).toBeGreaterThanOrEqual(40)
+          expect(v).toBeGreaterThanOrEqual(25)
           expect(v).toBeLessThanOrEqual(99)
         }
         expect(ovrOf(end, p.id)).toBeLessThanOrEqual(Math.max(ovrOf(start, p.id), p.pot))

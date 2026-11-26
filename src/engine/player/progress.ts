@@ -1,9 +1,8 @@
 import type { Rng } from '../rng'
 import type { League, Player, ProgressEvent, Ratings, StatLine } from '../types'
 import { aiDevIds, breakoutBump, breakoutChance, coachFactor } from '../gm/training'
-import { POSITION_WEIGHTS, RATING_KEYS, computeOvr } from './ratings'
+import { POSITION_WEIGHTS, RATING_KEYS, RATING_MAX, RATING_MIN, computeOvr } from './ratings'
 
-const RATING_MIN = 40
 const MIN_MINUTES = 50
 
 const ovr = (p: Player) => computeOvr(p.ratings, p.pos)
@@ -11,8 +10,12 @@ const ovr = (p: Player) => computeOvr(p.ratings, p.pos)
 function riseChance(age: number) {
   return age <= 23 ? 0.4 : age <= 27 ? 0.2 : age <= 30 ? 0.08 : 0.05
 }
-function fallChance(age: number) {
-  return age <= 27 ? 0.04 : age <= 30 ? 0.14 : age <= 32 ? 0.28 : 0.42
+function fallChance(age: number, durability: number) {
+  const base = age <= 27 ? 0.04 : age <= 30 ? 0.14 : age <= 32 ? 0.28 : 0.42
+  if (age <= 27) return base
+  // High durability slows physical wear-and-tear decline; low durability accelerates it.
+  const durMult = Math.max(0.75, Math.min(1.25, 1 + (74 - durability) / 140))
+  return base * durMult
 }
 
 const gameScore = (s: StatLine) =>
@@ -50,7 +53,7 @@ function shift(p: Player, delta: number, rng: Rng): void {
   const start = ovr(p)
   const w = POSITION_WEIGHTS[p.pos]
   for (let i = 0; i < 60 && (ovr(p) - start) * dir < Math.abs(delta); i++) {
-    const options = RATING_KEYS.filter((k) => (dir > 0 ? p.ratings[k] < 99 : p.ratings[k] > RATING_MIN))
+    const options = RATING_KEYS.filter((k) => (dir > 0 ? p.ratings[k] < RATING_MAX : p.ratings[k] > RATING_MIN))
     if (!options.length) return
     const k: keyof Ratings = rng.weighted(options, (key) => w[key])
     const before = { ...p.ratings }
@@ -85,7 +88,7 @@ export function progressTick(league: League, rng: Rng): ProgressEvent[] {
     }
     const tilt = perf[p.id] ?? 0
     let up = riseChance(p.age) * (1 + 1.5 * tilt)
-    let down = fallChance(p.age) * (1 - 1.5 * tilt)
+    let down = fallChance(p.age, p.ratings.overallDurability) * (1 - 1.5 * tilt)
     if (inv) {
       up = Math.min(0.8, up * 1.3 * cf)
       down *= 0.6

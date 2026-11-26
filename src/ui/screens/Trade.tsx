@@ -2,7 +2,8 @@ import { needThresholds, teamNeeds } from '../../engine/gm/needs'
 import { NeedDot, NeedsStrip } from '../components/NeedDot'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { capSeason, payroll, tradesOpen } from '../../engine/gm/cap'
+import { capSeason, committed, payroll, tradesOpen } from '../../engine/gm/cap'
+import { rosterSynergy } from '../../engine/gm/synergy'
 import { proposeTrade, suggestPackage, tradeableAssets, tradeProblem, type Asset, type Trade as TradeT } from '../../engine/gm/trade'
 import { projectedSlot } from '../../engine/gm/value'
 import { archetypeFor } from '../../engine/player/archetype'
@@ -14,6 +15,7 @@ import { Face } from '../face/Face'
 import { useStore } from '../store'
 import { POSITIONS, filterPlayers, type PosFilter } from '../playerFilter'
 import { fullName, money, ovrOf, teamFull } from '../util'
+import { ratingColor } from '../ratingColor'
 import { rejectionText, tradeLabel } from '../tradeText'
 import { Help } from '../components/Help'
 import { RosterPeek } from '../components/RosterPeek'
@@ -100,6 +102,12 @@ export function Trade() {
   const myNeeds = useMemo(() => teamNeeds(league, me, {}, needThresholds(league)), [league, me])
   const parse = (s: Set<string>, pool: Asset[]) => pool.filter((a) => s.has(key(a)))
   const trade: TradeT = { a: me, b: partner, aGives: parse(give, myAssets), bGives: parse(get, theirAssets) }
+  const synBefore = useMemo(() => rosterSynergy(committed(league, me)), [league, me])
+  const synAfter = useMemo(() => {
+    const outIds = new Set(trade.aGives.filter((a) => a.kind === 'player').map((a) => a.id))
+    const inPlayers = trade.bGives.filter((a) => a.kind === 'player').map((a) => league.players[a.id])
+    return rosterSynergy(committed(league, me).filter((p) => !outIds.has(p.id)).concat(inPlayers))
+  }, [league, me, trade.aGives, trade.bGives])
   const problem = trade.aGives.length || trade.bGives.length ? tradeProblem(league, trade) : null
   const salary = (as: Asset[]) => as.reduce((t, a) => t + (a.kind === 'player' ? league.players[a.id].contract?.salary ?? 0 : 0), 0)
   const out = salary(trade.aGives), inn = salary(trade.bGives)
@@ -222,6 +230,21 @@ export function Trade() {
         {hint && <div className="notice">{hint}</div>}
         <CapBar league={league} teamId={me} />
         <NeedsStrip needs={myNeeds} />
+        <div className="cat-pills">
+          {synBefore.pillars.map((pil, idx) => {
+            const after = synAfter.pillars[idx]
+            const d = after.score - pil.score
+            return (
+              <span key={pil.key} className="cat-pill">
+                <span className="muted">{pil.label}</span>
+                <strong style={{ color: ratingColor(after.score) }}>
+                  {after.score}
+                  {d !== 0 && <span className={d > 0 ? 'delta-up' : 'delta-down'}> ({d > 0 ? `+${d}` : d})</span>}
+                </strong>
+              </span>
+            )
+          })}
+        </div>
       </section>
     </div>
   )

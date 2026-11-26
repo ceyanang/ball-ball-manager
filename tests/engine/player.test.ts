@@ -46,12 +46,14 @@ describe('generatePlayer', () => {
     expect(ovrs[1000]).toBeGreaterThanOrEqual(68)
     expect(ovrs[1000]).toBeLessThanOrEqual(72)
   })
-  it('keeps every rating within 40..99, even for low targets', () => {
+  it('keeps every rating within 25..99, even for low targets', () => {
     const rng = Rng.fromSeed(21)
     for (let i = 0; i < 2000; i++) {
       const p = generatePlayer(rng, { season: 1, targetOvr: i % 4 === 0 ? 45 : undefined })
-      for (const v of Object.values(p.ratings)) {
-        expect(v).toBeGreaterThanOrEqual(40)
+      const vals = Object.values(p.ratings)
+      expect(vals).toHaveLength(36)
+      for (const v of vals) {
+        expect(v).toBeGreaterThanOrEqual(25)
         expect(v).toBeLessThanOrEqual(99)
       }
     }
@@ -60,7 +62,7 @@ describe('generatePlayer', () => {
     const rng = Rng.fromSeed(14)
     const mean = (pos: 'C' | 'PG') => {
       let s = 0
-      for (let i = 0; i < 300; i++) s += generatePlayer(rng, { season: 1, pos }).ratings.dreb
+      for (let i = 0; i < 300; i++) s += generatePlayer(rng, { season: 1, pos }).ratings.defensiveRebound
       return s / 300
     }
     expect(mean('C') - mean('PG')).toBeGreaterThanOrEqual(15)

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as R
 import { STARTERS, ACTIVE_MAX } from '../../engine/constants'
 import { archetypeFor } from '../../engine/player/archetype'
 import { computeOvr } from '../../engine/player/ratings'
+import { rosterSynergy } from '../../engine/gm/synergy'
 import { SLOTS, autoRotation, coachRotation, validateRotation } from '../../engine/sim/rotation'
 import type { Player, Rotation } from '../../engine/types'
 import { Face } from '../face/Face'
@@ -14,6 +15,7 @@ import { MinutesPanel, cleanMinutes } from '../components/MinutesPanel'
 import { capSeason } from '../../engine/gm/cap'
 import { releasePlayer } from '../../engine/gm/roster'
 import { fullName, money, one, ordinal, ovrOf, rosterOf, seasonLine } from '../util'
+import { ratingColor } from '../ratingColor'
 import { useUnsavedGuard } from '../useUnsavedGuard'
 import { Help } from '../components/Help'
 import { DataTable, type Column } from '../components/DataTable'
@@ -147,7 +149,7 @@ export function MyTeam() {
         <span className="rinfo">
           <span className="rname">{fullName(p)}</span>
           <span className="rsub">
-            {p.pos} · {archetypeFor(p)} · STA {p.ratings.stam}
+            {p.pos} · {archetypeFor(p)} · STA {p.ratings.stamina}
             {line ? ` · ${one(line.pg.pts)}/${one(line.pg.reb)}/${one(line.pg.ast)}` : ''}
           </span>
           {offPos && <span className="rwarn">Natural {p.pos} · {computeOvr(p.ratings, slot)} as {slot}</span>}
@@ -260,6 +262,24 @@ export function MyTeam() {
         </div>
       )}
       {saved && <div className="toast" role="status">✓ Rotation saved</div>}
+
+      <section className="panel stack">
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+          <h3>Roster synergy</h3>
+          <span className="muted">Overall fit <strong style={{ color: ratingColor(rosterSynergy(roster).overall) }}>{rosterSynergy(roster).overall}</strong></span>
+        </div>
+        <div className="synergy-grid">
+          {rosterSynergy(roster).pillars.map((pil) => (
+            <div key={pil.key} className="synergy-card">
+              <div className="row" style={{ justifyContent: 'space-between' }}>
+                <strong>{pil.label}</strong>
+                <span className="grade" style={{ color: ratingColor(pil.score) }}>{pil.grade} · {pil.score}</span>
+              </div>
+              <span className="muted" style={{ fontSize: '0.8rem' }}>{pil.detail}</span>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="panel stack">
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>

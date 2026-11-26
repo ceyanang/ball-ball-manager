@@ -5,8 +5,49 @@ export type CoachStyle = 'pace' | 'three' | 'defense' | 'balanced'
 export type Phase = 'regular' | 'playoffs' | 'offseason'
 
 export interface Ratings {
-  ins: number; mid: number; three: number; ft: number; pass: number; handle: number; oreb: number
-  perD: number; intD: number; stl: number; blk: number; dreb: number; ath: number; stam: number; iq: number
+  // Outside Scoring
+  closeShot: number
+  midRangeShot: number
+  threePointShot: number
+  freeThrow: number
+  shotIQ: number
+  offensiveConsistency: number
+  // Inside Scoring
+  layup: number
+  standingDunk: number
+  drivingDunk: number
+  postHook: number
+  postFade: number
+  postControl: number
+  drawFoul: number
+  hands: number
+  // Playmaking
+  passAccuracy: number
+  ballHandle: number
+  speedWithBall: number
+  passIQ: number
+  passVision: number
+  // Defense
+  interiorDefense: number
+  perimeterDefense: number
+  steal: number
+  block: number
+  helpDefenseIQ: number
+  passPerception: number
+  defensiveConsistency: number
+  // Rebounding
+  offensiveRebound: number
+  defensiveRebound: number
+  // Athleticism
+  speed: number
+  agility: number
+  strength: number
+  vertical: number
+  stamina: number
+  hustle: number
+  overallDurability: number
+  // Mental / Misc
+  intangibles: number
 }
 export interface Contract { salary: number; expires: number }
 export interface Injury { type: string; gamesRemaining: number; severity: 'dtd' | 'short' | 'long' | 'season' }
@@ -159,7 +200,7 @@ export interface AllStarEvent {
 export interface TrainingSlot { playerId: string; season: number; day: number }
 
 export interface League {
-  version: 10; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 11; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]

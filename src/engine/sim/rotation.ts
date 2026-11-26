@@ -134,7 +134,7 @@ export function rescaleMinutes(rot: Rotation, players: Record<string, Player>, p
  * Comfortable minutes for a player before fatigue really bites, from his stamina rating
  * (≈ 30 for a 40-stamina big, ≈ 40 for a 90-stamina iron man).
  */
-export const comfortMinutes = (p: Player): number => Math.round(22 + 20 * (p.ratings.stam / 99))
+export const comfortMinutes = (p: Player): number => Math.round(22 + 20 * (p.ratings.stamina / 99))
 
 /**
  * The game-day 12. Injured players sit unless fewer than 5 are healthy; an injured starter's slot goes to the
@@ -183,7 +183,7 @@ export function minutesTargets(
   const total = TEAM_MINUTES + STARTERS * OT_MIN * otPeriods
   const cap = 48 + OT_MIN * otPeriods
   const raw: Record<string, number> = {}
-  const stamina = (id: string) => 0.9 + 0.2 * ((players[id]?.ratings.stam ?? 50) / 99)
+  const stamina = (id: string) => 0.9 + 0.2 * ((players[id]?.ratings.stamina ?? 50) / 99)
   lineup.starters.forEach((id, i) => (raw[id] = (STARTER_BASE[i] ?? 30) * stamina(id)))
   lineup.bench.forEach((id, i) => (raw[id] = (BENCH_BASE[i] ?? 0) * stamina(id)))
   const base = { ...raw }
@@ -208,20 +208,6 @@ export function minutesTargets(
   return out
 }
 
-const PERMS: number[][] = (() => {
-  const out: number[][] = []
-  const rec = (cur: number[], left: number[]) => {
-    if (!left.length) return void out.push(cur)
-    left.forEach((x, i) => rec([...cur, x], [...left.slice(0, i), ...left.slice(i + 1)]))
-  }
-  rec([], [0, 1, 2, 3, 4])
-  return out
-})()
-
-/**
- * Out-of-position cost (OVR points) for each player on the floor. `slotted` players are pinned to SLOTS order
- * (the starting five as the coach set it); otherwise the coach assigns positions to minimise the total cost.
- */
 export function courtPenalties(ids: string[], players: Record<string, Player>, slotted: boolean): Record<string, number> {
   const out: Record<string, number> = {}
   const nat = ids.map((id) => SLOT_IDX[players[id].pos])
@@ -230,13 +216,12 @@ export function courtPenalties(ids: string[], players: Record<string, Player>, s
     ids.forEach((id, i) => (out[id] = cost(i, Math.min(i, 4))))
     return out
   }
-  let best = PERMS[0], bestV = Infinity
-  for (const perm of PERMS) {
-    let v = 0
-    for (let i = 0; i < 5; i++) v += cost(i, perm[i])
-    if (v < bestV) { bestV = v; best = perm }
+  // OFF_POS_PENALTY[|nat - slot|] is convex in distance, so sorting players by natural position matches PERMS' minimum.
+  const order = [0, 1, 2, 3, 4].sort((a, b) => nat[a] - nat[b] || a - b)
+  for (let slot = 0; slot < 5; slot++) {
+    const i = order[slot]
+    out[ids[i]] = cost(i, slot)
   }
-  ids.forEach((id, i) => (out[id] = cost(i, best[i])))
   return out
 }
 

@@ -1,6 +1,7 @@
 import { renumberIfRetired } from '../stories/jerseys'
 import { MIN_SALARY, ROSTER_MAX } from '../constants'
 import { generatePlayer } from '../player/generate'
+import { RATING_GROUPS, RATING_KEYS, RATING_LABELS, RATING_MAX, RATING_MIN, groupAverage, type RatingGroupName } from '../player/ratings'
 import type { Rng } from '../rng'
 import { computeStandings } from '../standings'
 import type { DraftPick, DraftSlot, DraftState, League, LotteryEntry, Player, Team } from '../types'
@@ -105,6 +106,47 @@ export function setupDraft(l: League, rng: Rng): void {
 }
 
 export const currentSlot = (l: League) => l.draft?.order.find((s) => !s.playerId) ?? null
+
+function hashStr(s: string): number {
+  let h = 2166136261
+  for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619)
+  return h >>> 0
+}
+
+export interface ProspectScoutReport {
+  categories: { group: RatingGroupName; est: number; lo: number; hi: number }[]
+  strengths: { key: keyof Player['ratings']; label: string; est: number }[]
+}
+
+/** Deterministic scouting breakdown across all 7 attribute groups + top 3 standout skills (fuzzy like OVR/POT). */
+export function scoutProspect(p: Player, sc: { ovrLo: number; ovrHi: number; pot: number }): ProspectScoutReport {
+  const spread = Math.max(2, Math.round((sc.ovrHi - sc.ovrLo) / 2))
+  const bias = Math.round((sc.ovrLo + sc.ovrHi) / 2 - ovr(p))
+  const categories = RATING_GROUPS.map(([group], idx) => {
+    const h = hashStr(`${p.id}:${idx}`)
+    const jitter = ((h % 7) - 3)
+    const est = Math.max(RATING_MIN, Math.min(RATING_MAX, groupAverage(p.ratings, group) + bias + jitter))
+    return {
+      group,
+      est,
+      lo: Math.max(RATING_MIN, est - spread),
+      hi: Math.min(RATING_MAX, est + spread),
+    }
+  })
+  const strengths = [...RATING_KEYS]
+    .filter((k) => k !== 'intangibles' && k !== 'overallDurability')
+    .sort((a, b) => p.ratings[b] - p.ratings[a])
+    .slice(0, 3)
+    .map((key, idx) => {
+      const jitter = ((hashStr(`${p.id}:s:${idx}`) % 5) - 2)
+      return {
+        key,
+        label: RATING_LABELS[key],
+        est: Math.max(RATING_MIN, Math.min(RATING_MAX, p.ratings[key] + bias + jitter)),
+      }
+    })
+  return { categories, strengths }
+}
 
 /** Expected value of a prospect to a team using scouting estimates and team direction, plus a positional-need nudge. */
 function draftScore(l: League, teamId: string, have: number, p: Player): number {

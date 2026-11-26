@@ -10,7 +10,7 @@ const league = createLeague({ seed: 3, userTeamIndex: 1, name: 'M' })
 const me = league.teams[league.userTeamId]
 const opp = Object.values(league.teams).find((t) => t.id !== me.id)!
 const roster = committed(league, me.id)
-const star = [...roster].sort((a, b) => b.ratings.three - a.ratings.three)[0]
+const star = [...roster].sort((a, b) => b.ratings.threePointShot - a.ratings.threePointShot)[0]
 const empty = (): GameMods => ({ shooting: {}, defense: {}, energy: {}, sit: [], chemistry: {} })
 const run = (n: number, mods?: GameMods, home = me) => {
   const rng = Rng.fromSeed(11)

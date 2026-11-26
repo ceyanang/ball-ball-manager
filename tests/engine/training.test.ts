@@ -38,7 +38,7 @@ describe('development slots', () => {
   })
   it('an invested prospect grows faster, and sometimes breaks out past his ceiling', () => {
     const l = fresh()
-    const p = mine(l).sort((x, y) => x.age - y.age)[0]
+    const p = mine(l).filter((x) => ovr(x) < 82).sort((x, y) => x.age - y.age)[0] ?? mine(l).sort((x, y) => x.age - y.age)[0]
     p.age = 21
     p.draft = { season: 0, round: 2, pick: 55, teamId: p.teamId! }
     const run = (invest: boolean) => {

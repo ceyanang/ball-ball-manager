@@ -25,14 +25,14 @@ const trainSpec = (skill: keyof Ratings, label: string, line: string): Spec => (
 })
 
 const S: Spec[] = [
-  trainSpec('three', 'three-point shot', 'I want to work on my three.'),
-  trainSpec('handle', 'ball handling', 'Defenders are picking my pocket. Let me work on my handle.'),
-  trainSpec('pass', 'passing', 'I want to see the floor better. Passing drills?'),
-  trainSpec('ins', 'inside game', 'I want to develop real post moves.'),
-  trainSpec('perD', 'perimeter defense', 'I want to be the guy who locks up the best guard.'),
-  trainSpec('ft', 'free throws', 'I keep missing free throws. I want to fix it.'),
-  trainSpec('stam', 'conditioning', 'I get gassed. I need a conditioning program.'),
-  trainSpec('iq', 'basketball IQ', 'I want to watch more film with the coaches.'),
+  trainSpec('threePointShot', 'three-point shot', 'I want to work on my three.'),
+  trainSpec('ballHandle', 'ball handling', 'Defenders are picking my pocket. Let me work on my handle.'),
+  trainSpec('passAccuracy', 'passing', 'I want to see the floor better. Passing drills?'),
+  trainSpec('postControl', 'inside game', 'I want to develop real post moves.'),
+  trainSpec('perimeterDefense', 'perimeter defense', 'I want to be the guy who locks up the best guard.'),
+  trainSpec('freeThrow', 'free throws', 'I keep missing free throws. I want to fix it.'),
+  trainSpec('stamina', 'conditioning', 'I get gassed. I need a conditioning program.'),
+  trainSpec('shotIQ', 'basketball IQ', 'I want to watch more film with the coaches.'),
   {
     id: 'req-dayoff', when: 'preGame', request: true, emoji: '🛌', weight: 1.5, cooldownDays: 25, who: starter,
     title: (n) => `${n.last} wants a day off`,

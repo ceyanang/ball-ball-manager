@@ -99,7 +99,7 @@ export function chooseSubs(i: SubInput): Swap[] {
   const comeback = i.blowoutSeen && i.period >= 3 && lead < SUB.blowoutReturn
 
   const outScore = (id: string) => {
-    const stam = i.players[id]?.ratings.stam ?? 50
+    const stam = i.players[id]?.ratings.stamina ?? 50
     const allow = SUB.allowBase + SUB.allowStam * (stam / 99)
     const shoved = (rest && isStarter(id)) || (comeback && !isStarter(id))
     if ((i.stint[id] ?? 0) < SUB.minStint && !shoved) return -Infinity

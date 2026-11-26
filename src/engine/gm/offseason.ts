@@ -1,8 +1,7 @@
 import { allStarDayFor } from '../allstar/allstar'
 import { ROSTER_MAX, ROSTER_MIN, SALARY_CAP } from '../constants'
 import { generateCoach } from '../coach/generate'
-import { POSITION_WEIGHTS, RATING_KEYS } from '../player/ratings'
-import { RATING_MIN } from '../player/generate'
+import { POSITION_WEIGHTS, RATING_KEYS, RATING_MAX, RATING_MIN } from '../player/ratings'
 import type { Rng } from '../rng'
 import { generateSchedule, tradeDeadline } from '../schedule/schedule'
 import { computeStandings } from '../standings'
@@ -29,6 +28,8 @@ function progressPlayer(
   else if (p.age === 30) delta = -0.85
   else if (p.age <= 32) delta = -1.6 - (p.age - 31) * 0.7
   else delta = -3.0 - (p.age - 33) * 1.0
+  // Durable players sustain their primes longer and age more gracefully; fragile bodies wear down faster.
+  if (p.age >= 30) delta += (p.ratings.overallDurability - 74) * 0.015
   if (p.age <= 25) delta += (coachDev - 60) / 40
   if (minutes >= 800 && p.age <= 26) delta += 0.25
   // Development focus: extra growth for the young, a softer slide for everyone; user slots can nudge +1 past ceiling.
@@ -43,11 +44,12 @@ function progressPlayer(
   const target = Math.round(o + delta)
   const w = POSITION_WEIGHTS[p.pos]
   const dir = Math.sign(target - o)
-  for (let i = 0; i < 120 && dir !== 0 && Math.sign(target - ovr(p)) === dir; i++) {
-    const options = RATING_KEYS.filter((k) => (dir > 0 ? p.ratings[k] < 99 : p.ratings[k] > RATING_MIN))
+  const athDecay = new Set<keyof Ratings>(['speed', 'agility', 'vertical', 'stamina'])
+  for (let i = 0; i < 160 && dir !== 0 && Math.sign(target - ovr(p)) === dir; i++) {
+    const options = RATING_KEYS.filter((k) => (dir > 0 ? p.ratings[k] < RATING_MAX : p.ratings[k] > RATING_MIN))
     if (!options.length) break
     // Older players lose athleticism first; young ones grow where their position needs it.
-    const k: keyof Ratings = rng.weighted(options, (key) => w[key] * (dir < 0 && p.age >= 31 && (key === 'ath' || key === 'stam') ? 3 : 1))
+    const k: keyof Ratings = rng.weighted(options, (key) => w[key] * (dir < 0 && p.age >= 31 && athDecay.has(key) ? 3 : 1))
     p.ratings[k] += dir
   }
   // Through 29 a dip leaves potential in place (a small one is still recoverable); 30+ the ceiling is today.
@@ -73,10 +75,13 @@ function recoverFromInjury(p: Player, rng: Rng): void {
   if (r < full - old) return
   const major = r >= full + partial - old
   const before = ovr(p)
-  const lose = (k: 'ath' | 'stam' | 'handle' | 'perD', n: number) => { p.ratings[k] = Math.max(RATING_MIN, p.ratings[k] - n) }
-  lose('ath', major ? rng.int(9, 15) : rng.int(3, 7))
-  lose('stam', major ? rng.int(4, 8) : rng.int(1, 3))
-  if (major) { lose('handle', rng.int(1, 4)); lose('perD', rng.int(1, 4)) }
+  const lose = (k: keyof Ratings, n: number) => { p.ratings[k] = Math.max(RATING_MIN, p.ratings[k] - n) }
+  lose('speed', major ? rng.int(8, 14) : rng.int(3, 6))
+  lose('agility', major ? rng.int(8, 14) : rng.int(3, 7))
+  lose('vertical', major ? rng.int(7, 13) : rng.int(2, 6))
+  lose('stamina', major ? rng.int(4, 8) : rng.int(1, 3))
+  lose('overallDurability', major ? rng.int(6, 11) : rng.int(2, 5))
+  if (major) { lose('ballHandle', rng.int(1, 4)); lose('perimeterDefense', rng.int(1, 4)) }
   const drop = before - ovr(p)
   // The ceiling comes down with the athleticism, but only part of the way for the young.
   p.pot = Math.max(ovr(p), p.pot - Math.ceil(drop * (p.age <= 25 ? 0.5 : 1)))

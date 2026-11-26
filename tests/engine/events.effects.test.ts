@@ -55,12 +55,12 @@ describe('event effects', () => {
   it('train raises one rating, capped at 99, leaving the others alone', () => {
     const { l, p } = fresh()
     const before = { ...p.ratings }
-    applyEffects(l, [{ kind: 'train', player: p.id, skill: 'three', delta: 2 }])
-    expect(p.ratings.three).toBe(Math.min(99, before.three + 2))
-    expect(p.ratings.mid).toBe(before.mid)
-    p.ratings.three = 98
-    applyEffects(l, [{ kind: 'train', player: p.id, skill: 'three', delta: 5 }])
-    expect(p.ratings.three).toBe(99)
+    applyEffects(l, [{ kind: 'train', player: p.id, skill: 'threePointShot', delta: 2 }])
+    expect(p.ratings.threePointShot).toBe(Math.min(99, before.threePointShot + 2))
+    expect(p.ratings.midRangeShot).toBe(before.midRangeShot)
+    p.ratings.threePointShot = 98
+    applyEffects(l, [{ kind: 'train', player: p.id, skill: 'threePointShot', delta: 5 }])
+    expect(p.ratings.threePointShot).toBe(99)
   })
   it('ovrNudge raises OVR by at least 1 touching at most 5 ratings', () => {
     const { l } = fresh()

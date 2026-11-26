@@ -5,8 +5,15 @@ import { RATING_KEYS } from './ratings'
 type G = 'S3' | 'MID' | 'INS' | 'PASS' | 'HDL' | 'ATH' | 'REB' | 'PD' | 'ID'
 
 const GROUPS: Record<G, (keyof Ratings)[]> = {
-  S3: ['three'], MID: ['mid'], INS: ['ins'], PASS: ['pass', 'iq'], HDL: ['handle'], ATH: ['ath'],
-  REB: ['oreb', 'dreb'], PD: ['perD', 'stl'], ID: ['intD', 'blk'],
+  S3: ['threePointShot'],
+  MID: ['midRangeShot', 'postFade'],
+  INS: ['closeShot', 'layup', 'drivingDunk'],
+  PASS: ['passAccuracy', 'passIQ', 'passVision'],
+  HDL: ['ballHandle', 'speedWithBall'],
+  ATH: ['speed', 'agility', 'vertical', 'strength'],
+  REB: ['offensiveRebound', 'defensiveRebound'],
+  PD: ['perimeterDefense', 'steal', 'passPerception'],
+  ID: ['interiorDefense', 'block', 'helpDefenseIQ'],
 }
 const ALL = Object.keys(GROUPS) as G[]
 const OFF: G[] = ['S3', 'MID', 'INS', 'PASS', 'HDL', 'ATH', 'REB']
@@ -17,9 +24,15 @@ const DEF: G[] = ['PD', 'ID']
  * player is unusually good at, without single-rating groups or bigs' natural rebounding swamping every title.
  */
 const NORM: Record<G, { m: number; s: number }> = {
-  S3: { m: -1.3, s: 13.2 }, MID: { m: 2.4, s: 8.3 }, INS: { m: 2.8, s: 9.2 }, PASS: { m: 0.8, s: 6.8 },
-  HDL: { m: -1.4, s: 13.6 }, ATH: { m: 1.5, s: 7.8 }, REB: { m: -0.9, s: 12.5 }, PD: { m: -0.3, s: 7.2 },
-  ID: { m: -1.5, s: 11.4 },
+  S3: { m: -1.5, s: 14.0 },
+  MID: { m: 1.5, s: 9.0 },
+  INS: { m: 5.5, s: 8.5 },
+  PASS: { m: 1.0, s: 9.5 },
+  HDL: { m: -1.5, s: 14.5 },
+  ATH: { m: 2.0, s: 8.0 },
+  REB: { m: -1.0, s: 14.0 },
+  PD: { m: -0.5, s: 9.0 },
+  ID: { m: -1.5, s: 12.5 },
 }
 
 export const ARCHETYPES = [
@@ -124,22 +137,27 @@ export function archetypeFor(p: Player): string {
   const mean = RATING_KEYS.reduce((s, k) => s + r[k], 0) / RATING_KEYS.length
   const raw = {} as Record<G, number>
   for (const g of ALL) raw[g] = GROUPS[g].reduce((s, k) => s + r[k], 0) / GROUPS[g].length
+  // Bigs finish inside via post work & standing dunks as much as drives/layups.
+  if (frameOf(p) === 'big') {
+    const postFinish = (r.closeShot + r.standingDunk + r.postHook + r.postControl) / 4
+    raw.INS = Math.max(raw.INS, postFinish)
+  }
   const z = (g: G) => (raw[g] - mean - NORM[g].m) / NORM[g].s
   const ranked = [...ALL].sort((a, b) => z(b) - z(a))
   const f = frameOf(p)
-  const great = ALL.filter((g) => raw[g] >= 85).length
+  const great = ALL.filter((g) => raw[g] >= 84).length
 
   // Do-everything superstars.
   if (great >= 7 && f === 'big') return 'Anomaly'
-  if (great >= 7 && raw.ATH >= 90) return 'Prototype'
-  if (f === 'big' && raw.S3 >= 80 && raw.ID >= 82 && raw.HDL >= 75) return 'Anomaly'
+  if (great >= 7 && raw.ATH >= 88) return 'Prototype'
+  if (f === 'big' && raw.S3 >= 78 && raw.ID >= 80 && raw.HDL >= 72) return 'Anomaly'
 
   const bestOff = ranked.find((g) => OFF.includes(g))!
   const bestDef = ranked.find((g) => DEF.includes(g))!
-  if (raw.S3 >= 82 && raw.MID >= 82 && raw.INS >= 82 && raw.PASS >= 82 && raw[bestDef] >= 84) return '2-Way 3-Level Playmaker'
-  if (raw.PASS >= 84 && raw.REB >= 78 && Math.max(raw.S3, raw.MID, raw.INS) >= 82) return 'Triple-Double Threat'
-  if (raw.S3 >= 84 && raw.MID >= 84 && raw.INS >= 84) return 'Buckets'
-  if (raw[bestOff] >= 84 && raw[bestDef] >= 84 && Math.abs(z(bestOff) - z(bestDef)) <= 0.8) return twoWay(bestOff, f)
+  if (raw.S3 >= 80 && raw.MID >= 80 && raw.INS >= 80 && raw.PASS >= 80 && raw[bestDef] >= 82) return '2-Way 3-Level Playmaker'
+  if (raw.PASS >= 82 && raw.REB >= 76 && Math.max(raw.S3, raw.MID, raw.INS) >= 80) return 'Triple-Double Threat'
+  if (raw.S3 >= 83 && raw.MID >= 83 && raw.INS >= 83) return 'Buckets'
+  if (raw[bestOff] >= 82 && raw[bestDef] >= 82 && Math.abs(z(bestOff) - z(bestDef)) <= 0.8) return twoWay(bestOff, f)
 
   const [a, b, c] = ranked
   if (z(a) - z(b) >= 0.75) return single(a, f, raw[a])

@@ -719,3 +719,10 @@ table.dt-table tr.group-row th:first-child { background: var(--surface-2); }
 .dt-filter-details > summary { cursor: pointer; font-weight: 600; padding: 0.4rem 0; list-style: none; color: var(--ink-2); }
 .dt-filter-details > summary::-webkit-details-marker { display: none; }
 .dt-filter-details[open] > summary { margin-bottom: 0.4rem; }
+
+/* 36-attribute category pills, GM roster synergy & scouting drawer */
+.cat-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.cat-pill { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-size: 0.82rem; }
+.synergy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; }
+.synergy-card { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.6rem 0.75rem; border-radius: var(--r); background: var(--surface-2); border: 1px solid var(--line); }
+.scout-panel { padding: 0.65rem 0.75rem; background: var(--surface-2); border-radius: var(--r); border: 1px solid var(--line); }

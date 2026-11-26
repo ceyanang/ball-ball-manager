@@ -3,6 +3,7 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import { perGame, playerSeasonStats } from '../../engine/stats/stats'
 import type { League, StatLine } from '../../engine/types'
 import { RATING_GROUPS } from '../playerFilter'
+import { RATING_MAX, RATING_MIN, groupAverage } from '../../engine/player/ratings'
 import { archetypeFor } from '../../engine/player/archetype'
 import { gradeFor } from '../../engine/player/grades'
 import { OvrChart } from '../components/OvrChart'
@@ -129,20 +130,39 @@ export function PlayerPage() {
 
       <section className="panel stack">
         <h2>Ratings</h2>
+        <div className="cat-pills">
+          {GROUPS.map(([g]) => {
+            const avg = groupAverage(p.ratings, g)
+            return (
+              <span key={g} className="cat-pill">
+                <span className="muted">{g}</span>
+                <strong style={{ color: ratingColor(avg) }}>{avg}</strong>
+              </span>
+            )
+          })}
+        </div>
         <div className="ratings">
-          {GROUPS.map(([g, keys]) => (
-            <div key={g} className="stack" style={{ gap: '0.55rem' }}>
-              <h3>{g}</h3>
-              {keys.map(([k, label]) => (
-                <div key={k} className="rating-row">
-                  <span>{label}</span>
-                  <span className="grade">{gradeFor(p.ratings[k])}</span>
-                  <strong style={{ textAlign: 'right' }}>{p.ratings[k]}</strong>
-                  <div className="rating-bar" aria-hidden="true"><span style={{ width: `${Math.max(0, (p.ratings[k] - 40) / 59) * 100}%`, background: ratingColor(p.ratings[k]) }} /></div>
+          {GROUPS.map(([g, keys]) => {
+            const avg = groupAverage(p.ratings, g)
+            return (
+              <div key={g} className="stack" style={{ gap: '0.55rem' }}>
+                <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <h3>{g}</h3>
+                  <span className="grade" style={{ color: ratingColor(avg) }}>{gradeFor(avg)} · {avg}</span>
                 </div>
-              ))}
-            </div>
-          ))}
+                {keys.map(([k, label]) => (
+                  <div key={k} className="rating-row">
+                    <span>{label}</span>
+                    <span className="grade">{gradeFor(p.ratings[k])}</span>
+                    <strong style={{ textAlign: 'right' }}>{p.ratings[k]}</strong>
+                    <div className="rating-bar" aria-hidden="true">
+                      <span style={{ width: `${Math.max(0, ((p.ratings[k] - RATING_MIN) / (RATING_MAX - RATING_MIN)) * 100)}%`, background: ratingColor(p.ratings[k]) }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
+          })}
         </div>
       </section>
 

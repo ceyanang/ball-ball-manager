@@ -1,5 +1,5 @@
 import { ovr, pname } from '../gm/cap'
-import { RATING_KEYS } from '../player/ratings'
+import { RATING_KEYS, RATING_LABELS, RATING_MAX, RATING_MIN } from '../player/ratings'
 import { ping } from '../stories/inbox'
 import { clamp, nextId } from '../stories/state'
 import type { League, Player, Ratings } from '../types'
@@ -18,10 +18,9 @@ export type Effect =
 
 const sign = (n: number) => (n >= 0 ? `+${n}` : `${n}`)
 const STAT_LABEL = { shooting: 'shooting', defense: 'defense', energy: 'energy', all: 'everything' } as const
-const SKILL_LABEL: Record<keyof Ratings, string> = {
-  ins: 'inside scoring', mid: 'mid-range', three: 'three-point shooting', ft: 'free throws', pass: 'passing', handle: 'ball handling', oreb: 'offensive rebounding',
-  perD: 'perimeter D', intD: 'interior D', stl: 'steals', blk: 'blocks', dreb: 'defensive rebounding', ath: 'athleticism', stam: 'stamina', iq: 'basketball IQ',
-}
+const SKILL_LABEL: Record<keyof Ratings, string> = Object.fromEntries(
+  Object.entries(RATING_LABELS).map(([k, v]) => [k, v.toLowerCase()]),
+) as Record<keyof Ratings, string>
 
 /** Applies effects to the league (mutating it). Returns one readable line per change for the result card. */
 export function applyEffects(l: League, effects: Effect[]): string[] {
@@ -71,7 +70,7 @@ export function applyEffects(l: League, effects: Effect[]): string[] {
         const p = player(e.player)
         if (!p) break
         const before = p.ratings[e.skill]
-        p.ratings[e.skill] = clamp(before + e.delta, 1, 99)
+        p.ratings[e.skill] = clamp(before + e.delta, RATING_MIN, RATING_MAX)
         if (p.ratings[e.skill] !== before) lines.push(`${pname(p)} ${SKILL_LABEL[e.skill]} ${sign(p.ratings[e.skill] - before)}`)
         break
       }
@@ -81,9 +80,9 @@ export function applyEffects(l: League, effects: Effect[]): string[] {
         const before = ovr(p)
         const dir = e.delta >= 0 ? 1 : -1
         // The five strongest ratings that still have room to move (a star's 99s can't go up).
-        const top = RATING_KEYS.filter((k) => (dir > 0 ? p.ratings[k] < 99 : p.ratings[k] > 1)).sort((a, b) => p.ratings[b] - p.ratings[a]).slice(0, 5)
-        for (let i = 0; i < 4 && (ovr(p) - before) * dir < Math.abs(e.delta); i++)
-          for (const k of top) p.ratings[k] = clamp(p.ratings[k] + dir, 1, 99)
+        const top = RATING_KEYS.filter((k) => (dir > 0 ? p.ratings[k] < RATING_MAX : p.ratings[k] > RATING_MIN)).sort((a, b) => p.ratings[b] - p.ratings[a]).slice(0, 5)
+        for (let i = 0; i < 6 && (ovr(p) - before) * dir < Math.abs(e.delta); i++)
+          for (const k of top) p.ratings[k] = clamp(p.ratings[k] + dir, RATING_MIN, RATING_MAX)
         if (ovr(p) !== before) lines.push(`${pname(p)} OVR ${sign(ovr(p) - before)}`)
         break
       }

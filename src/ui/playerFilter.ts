@@ -1,4 +1,5 @@
-import type { Player, Position, Ratings } from '../engine/types'
+import { RATING_GROUPS } from '../engine/player/ratings'
+import type { Player, Position } from '../engine/types'
 import { fullName, ovrOf } from './util'
 
 export const POSITIONS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C']
@@ -26,8 +27,4 @@ export function filterPlayers(players: Iterable<Player>, f: PlayerFilter): Playe
   return out.sort((a, b) => ovrOf(b) - ovrOf(a))
 }
 
-export const RATING_GROUPS: [string, [keyof Ratings, string][]][] = [
-  ['Offense', [['ins', 'Inside scoring'], ['mid', 'Mid-range'], ['three', 'Three-point'], ['ft', 'Free throw'], ['pass', 'Passing'], ['handle', 'Ball handling'], ['oreb', 'Offensive rebounding']]],
-  ['Defense', [['perD', 'Perimeter defense'], ['intD', 'Interior defense'], ['stl', 'Steals'], ['blk', 'Blocks'], ['dreb', 'Defensive rebounding']]],
-  ['Physical', [['ath', 'Athleticism'], ['stam', 'Stamina'], ['iq', 'Basketball IQ']]],
-]
+export { RATING_GROUPS }

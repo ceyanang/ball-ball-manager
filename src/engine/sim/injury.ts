@@ -1,9 +1,10 @@
 import { INJURY_TYPES } from '../data/names'
 import type { Rng } from '../rng'
 import type { GameResult, Injury, Player } from '../types'
+import { comfortMinutes } from './rotation'
 
 /** Per-player-game base chance at 36 minutes; tuned so a season sees ~80–200 injuries league-wide. */
-const BASE_RATE = 0.016
+const BASE_RATE = 0.0155
 const SEVERITY: { sev: Injury['severity']; w: number; games: [number, number] }[] = [
   { sev: 'dtd', w: 70, games: [1, 3] },
   { sev: 'short', w: 22, games: [4, 10] },
@@ -21,7 +22,11 @@ export function rollInjuries(
     if (b.min <= 0) continue
     const p = players[b.playerId]
     if (!p || p.injury) continue
-    const chance = BASE_RATE * (b.min / 36) * (1 + 0.03 * Math.max(0, p.age - 30)) * (1 + (60 - p.ratings.ath) / 100)
+    const durability = Math.max(0.45, 1 + (74 - p.ratings.overallDurability) / 85)
+    const overwork = Math.max(0, b.min - comfortMinutes(p))
+    const fatigueRisk = 1 + overwork * 0.035
+    const ageRisk = 1 + 0.03 * Math.max(0, p.age - 30)
+    const chance = BASE_RATE * (b.min / 36) * ageRisk * durability * fatigueRisk
     if (!rng.chance(chance)) continue
     const s = rng.weighted(SEVERITY, (x) => x.w)
     const type = rng.pick(INJURY_TYPES.filter((t) => t.severity === s.sev)).type

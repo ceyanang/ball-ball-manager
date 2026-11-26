@@ -52,7 +52,10 @@ describe('watchDay', () => {
   })
 
   it('captures the game that ends the regular season', () => {
-    const l = dayBefore(fresh(), (a) => a.phase === 'playoffs')
+    const base = fresh()
+    const lastDay = Math.max(...base.games.filter((g) => !g.playoff).map((g) => g.day))
+    const lastGame = base.games.find((g) => !g.playoff && g.day === lastDay)!
+    const l = dayBefore({ ...base, userTeamId: lastGame.homeId }, (a) => a.phase === 'playoffs')
     const { league, watch } = watchDay(l)
     expect(league.phase).toBe('playoffs')
     expect(watch).not.toBeNull()

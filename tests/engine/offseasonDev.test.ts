@@ -22,10 +22,10 @@ describe('offseason development', () => {
     for (let s = 0; s < 40; s++) {
       const l = structuredClone(base)
       const star = Object.values(l.players).filter((p) => p.teamId && p.age <= 28).sort((a, b) => ovr(b) - ovr(a))[0]
-      const ath = star.ratings.ath
+      const spd = star.ratings.speed
       star.injury = { type: 'Ruptured Achilles', severity: 'season', gamesRemaining: 999 }
       startOffseason(l, Rng.fromSeed(100 + s))
-      if (star.ratings.ath >= ath - 2) whole++
+      if (star.ratings.speed >= spd - 2) whole++
       else worse++
     }
     expect(whole).toBeGreaterThan(5)

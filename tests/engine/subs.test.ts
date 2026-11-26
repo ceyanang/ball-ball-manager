@@ -9,7 +9,7 @@ const rng = Rng.fromSeed(7)
 function mk(id: string, pos: Position, ovr: number): Player {
   const p = generatePlayer(rng, { season: 1, targetOvr: ovr, pos, age: 27 })
   p.id = id
-  p.ratings.stam = 70
+  p.ratings.stamina = 70
   return p
 }
 const STARTERS: [string, Position][] = [['s0', 'PG'], ['s1', 'SG'], ['s2', 'SF'], ['s3', 'PF'], ['s4', 'C']]
