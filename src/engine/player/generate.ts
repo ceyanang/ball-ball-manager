@@ -1,5 +1,6 @@
-import { COLLEGES, FIRST_NAMES, HOMETOWNS, LAST_NAMES } from '../data/names'
-import type { Rng } from '../rng'
+import { COLLEGES, HOMETOWNS, pickName } from '../data/names'
+import { encodeHeritage, rollHeritage } from '../face/heritage'
+import { Rng } from '../rng'
 import type { Player, Position, Ratings } from '../types'
 import { RATING_KEYS, RATING_MAX, RATING_MIN, SKILL_KEYS, calculatePlayerOVR, heightMaxFor } from './ratings'
 import { pickJersey } from './jerseyNumber'
@@ -259,26 +260,30 @@ export function generatePlayer(
   const potNoise = rng.normal(0, 1)
 
   const id = rng.id('p_')
-  const firstName = rng.pick(FIRST_NAMES)
-  const lastName = rng.pick(LAST_NAMES)
+  rng.next(); rng.next() // legacy name draws, kept so the league RNG stream (and every seeded result) is unchanged
   const heightIn = clamp(Math.round(rng.normal(hMean, 1.5)), hMin, hMax)
   const jersey = pickJersey(rng)
   const hometown = rng.pick(HOMETOWNS)
   const college = rng.pick(COLLEGES)
-  const faceSeed = rng.int(1, 2 ** 31 - 1)
+  const rawSeed = rng.int(1, 2 ** 31 - 1)
+  // Heritage, names and the face come from rawSeed alone, never the league rng.
+  const idRng = Rng.fromSeed((rawSeed ^ 0x2545f491) >>> 0)
+  const heritage = rollHeritage(idRng)
+  const { firstName, lastName } = pickName(idRng, heritage)
+  const faceSeed = encodeHeritage(rawSeed, heritage)
 
-  const buildTpl = pickTemplate(pos, faceSeed)
+  const buildTpl = pickTemplate(pos, rawSeed)
   const coreSet = new Set<Key>(buildTpl.core)
   const secSet = new Set<Key>(buildTpl.sec)
 
   // Roll 1–3 genuine sim weaknesses from the template's flaw pool (non-core attributes that actually show up in games).
   const flawCandidates = buildTpl.flawPool.filter((k) => !coreSet.has(k))
   const maxFlaws = target >= 90 ? 2 : 3
-  const flawCount = Math.min(flawCandidates.length, 1 + (mixHash(faceSeed, 0x517cc1b7) % maxFlaws))
+  const flawCount = Math.min(flawCandidates.length, 1 + (mixHash(rawSeed, 0x517cc1b7) % maxFlaws))
   const poolCopy = [...flawCandidates]
   const flawSet = new Set<Key>()
   for (let i = 0; i < flawCount && poolCopy.length; i++) {
-    const idx = mixHash(faceSeed, 0x27d4eb2d + i * 31) % poolCopy.length
+    const idx = mixHash(rawSeed, 0x27d4eb2d + i * 31) % poolCopy.length
     flawSet.add(poolCopy.splice(idx, 1)[0])
   }
 

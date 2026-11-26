@@ -97,3 +97,40 @@ describe('salaryForPlayer', () => {
     expect(at(80, 35)).toBeLessThan(at(80, 27))
   })
 })
+
+describe('heritage in generation', () => {
+  it('player faceSeed heritage follows the weights and the name', async () => {
+    const { decodeHeritage, HERITAGE_WEIGHTS, HERITAGES } = await import('../../src/engine/face/heritage')
+    const { heritageOfName } = await import('../../src/engine/data/names')
+    const rng = Rng.fromSeed(11)
+    const n = 3000
+    const c: Record<string, number> = {}
+    let match = 0, nonAmerican = 0
+    for (let i = 0; i < n; i++) {
+      const p = generatePlayer(rng, { season: 1 })
+      const h = decodeHeritage(p.faceSeed)
+      c[h] = (c[h] ?? 0) + 1
+      expect(Number.isInteger(p.faceSeed) && p.faceSeed >= 8 && p.faceSeed <= 2 ** 31 - 1).toBe(true)
+      if (h !== 'american') { nonAmerican++; if (heritageOfName(p.firstName, p.lastName) === h) match++ }
+    }
+    for (const h of HERITAGES) expect(Math.abs((c[h] ?? 0) / n - HERITAGE_WEIGHTS[h] / 100)).toBeLessThan(0.03)
+    expect(match / nonAmerican).toBeGreaterThan(0.8)
+  })
+  it('coaches get a heritage-tagged faceSeed', async () => {
+    const { generateCoach } = await import('../../src/engine/coach/generate')
+    const { decodeHeritage, HERITAGES } = await import('../../src/engine/face/heritage')
+    const { heritageOfName } = await import('../../src/engine/data/names')
+    const seen = new Set<string>()
+    const rng = Rng.fromSeed(5)
+    let nonAmerican = 0, match = 0
+    for (let i = 0; i < 400; i++) {
+      const c = generateCoach(rng)
+      expect(c.faceSeed).toBeGreaterThanOrEqual(8)
+      const h = decodeHeritage(c.faceSeed)
+      seen.add(h)
+      if (h !== 'american') { nonAmerican++; if (heritageOfName(c.firstName, c.lastName) === h) match++ }
+    }
+    expect(seen.size).toBe(HERITAGES.length)
+    expect(match / nonAmerican).toBeGreaterThan(0.8)
+  })
+})

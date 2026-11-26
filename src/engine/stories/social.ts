@@ -1,5 +1,6 @@
+import { encodeHeritage, rollHeritage } from '../face/heritage'
 import { ovr, pname } from '../gm/cap'
-import type { Rng } from '../rng'
+import { Rng } from '../rng'
 import type { Game, League, NewsItem, PersonaId, Player, Post, PostAuthor, Transaction } from '../types'
 import { fanOf, popularity, teamFan } from './sentiment'
 import { nextId, storyRng } from './state'
@@ -17,13 +18,15 @@ const FIRST = ['hoop', 'bucket', 'swish', 'brick', 'glass', 'dunk', 'fastbreak',
 const LAST = ['guy', 'queen', 'king', 'dad', 'mom', 'head', 'fiend', 'merchant', 'enjoyer', 'truther', 'szn', 'stan', 'goblin', 'oracle']
 const NAMES = ['Dee', 'Marcus', 'Tasha', 'Lo', 'Jay', 'Priya', 'Benji', 'Kat', 'Ozzie', 'Remy', 'Nia', 'Gus', 'Yuki', 'Sal', 'Bree', 'Theo']
 
+const fanSeed = (raw: number) => encodeHeritage(raw, rollHeritage(Rng.fromSeed(raw)))
+
 function fan(rng: Rng, l: League, teamId: string | null): PostAuthor {
   const t = teamId ? l.teams[teamId] : null
   const style = rng.int(0, 2)
   const handle = style === 0 && t ? `${t.name.replace(/\s/g, '')}${rng.pick(LAST)}${rng.int(1, 99)}`
     : style === 1 ? `${rng.pick(FIRST)}${rng.pick(LAST)}${rng.int(1, 999)}`
     : `${rng.pick(NAMES).toLowerCase()}_${t ? t.abbrev.toLowerCase() : rng.pick(FIRST)}${rng.int(1, 99)}`
-  return { kind: 'fan', handle, name: rng.pick(NAMES), seed: rng.int(1, 2 ** 30), teamId }
+  return { kind: 'fan', handle, name: rng.pick(NAMES), seed: fanSeed(rng.int(1, 2 ** 30)), teamId }
 }
 
 interface PostOpts { playerIds?: string[]; teamIds?: string[]; gameId?: string; tone?: Post['tone']; size: number; pop?: number }
