@@ -1,3 +1,4 @@
+import { generatePlayerArchetype, type PlayerArchetype } from '../player/archetype'
 import { gradeFor } from '../player/grades'
 import { computeOvr } from '../player/ratings'
 import type { Player } from '../types'
@@ -13,6 +14,41 @@ export interface SynergyPillar {
 export interface RosterSynergy {
   overall: number
   pillars: SynergyPillar[]
+}
+
+export interface UnitSynergyItem {
+  id: 'spacing' | 'playmakerLink' | 'rimAnchor' | 'lockdownClamp' | 'paintClutter'
+  kind: 'bonus' | 'warning'
+  label: string
+  detail: string
+  active: boolean
+}
+
+export interface UnitSynergyEffects {
+  spacingRimBonus: number
+  linkThreeBonus: number
+  linkDunkBonus: number
+  linkAssistBonus: number
+  rimAnchorPaintPenalty: number
+  lockdownTovBoost: number
+  lockdownStealBoost: number
+  clutterPaintPenalty: number
+}
+
+export interface UnitSynergyAnalysis {
+  score: number
+  grade: string
+  items: UnitSynergyItem[]
+  effects: UnitSynergyEffects
+  summary: {
+    shooters80: number
+    nonShooters: number
+    stretchBigs: number
+    playmakers: number
+    lockdowns: number
+    rimProtectors: number
+    weakPerimeter: number
+  }
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
@@ -100,4 +136,251 @@ export function synergyFitFrom(syn: RosterSynergy, candidate: Player): number {
 export function synergyFitMultiplier(roster: Player[], candidate: Player): number {
   if (!roster.length) return 1
   return synergyFitFrom(rosterSynergy(roster), candidate)
+}
+
+export interface UnitSynergyCore {
+  effects: UnitSynergyEffects
+  summary: UnitSynergyAnalysis['summary']
+  archs: PlayerArchetype[]
+  flags: {
+    spacingActive: boolean
+    playmakerLinkActive: boolean
+    hasShooterPair: boolean
+    hasFinisherPair: boolean
+    rimAnchorActive: boolean
+    lockdownClampActive: boolean
+    paintClutterActive: boolean
+  }
+}
+
+const EMPTY_EFFECTS: UnitSynergyEffects = {
+  spacingRimBonus: 0,
+  linkThreeBonus: 0,
+  linkDunkBonus: 0,
+  linkAssistBonus: 0,
+  rimAnchorPaintPenalty: 0,
+  lockdownTovBoost: 0,
+  lockdownStealBoost: 0,
+  clutterPaintPenalty: 0,
+}
+
+/** Fast, allocation-light unit synergy computation for `simGame` (no UI strings or grades). */
+export function computeUnitSynergyEffects(players: Player[], archMap?: Record<string, PlayerArchetype>): UnitSynergyCore {
+  const n = players.length
+  if (!n) {
+    return {
+      effects: EMPTY_EFFECTS,
+      summary: { shooters80: 0, nonShooters: 0, stretchBigs: 0, playmakers: 0, lockdowns: 0, rimProtectors: 0, weakPerimeter: 0 },
+      archs: [],
+      flags: { spacingActive: false, playmakerLinkActive: false, hasShooterPair: false, hasFinisherPair: false, rimAnchorActive: false, lockdownClampActive: false, paintClutterActive: false },
+    }
+  }
+
+  const archs: PlayerArchetype[] = new Array(n)
+  for (let i = 0; i < n; i++) {
+    const p = players[i]
+    archs[i] = archMap?.[p.id] ?? generatePlayerArchetype(p)
+  }
+
+  let shooters80 = 0
+  let nonShooters = 0
+  let stretchBigs = 0
+  let playmakers = 0
+  let lockdowns = 0
+  let rimProtectors = 0
+  let weakPerimeter = 0
+  let hasShooterPair = false
+  let hasFinisherPair = false
+
+  for (let i = 0; i < n; i++) {
+    const p = players[i]
+    const a = archs[i]
+    const r = p.ratings
+
+    if (a.pillars.shooting >= 80) shooters80++
+    if (r.threePointShot < 70) nonShooters++
+    if (
+      (p.pos === 'PF' || p.pos === 'C') &&
+      (a.baseRole === 'Stretch Four' ||
+        a.baseRole === 'Stretch Five' ||
+        a.modifiers.includes('Floor-Spacing') ||
+        a.modifiers.includes('Inside-Out'))
+    ) {
+      stretchBigs++
+    }
+
+    const isPlaymaker =
+      (a.baseRole === 'Floor General' ||
+        a.baseRole === 'Point Forward' ||
+        a.baseRole === 'Playmaking Big' ||
+        a.modifiers.includes('Diming')) &&
+      r.passVision >= 78
+
+    if (isPlaymaker) {
+      playmakers++
+      for (let j = 0; j < n; j++) {
+        if (i === j) continue
+        const aj = archs[j]
+        const rj = players[j].ratings
+        if (
+          aj.baseRole === 'Sharpshooter' ||
+          aj.baseRole === '3&D Wing' ||
+          aj.baseRole === 'Stretch Four' ||
+          aj.baseRole === 'Stretch Five' ||
+          aj.pillars.shooting >= 82
+        ) {
+          hasShooterPair = true
+        }
+        if (
+          rj.hands >= 78 &&
+          (aj.baseRole === 'Paint Beast' ||
+            aj.baseRole === 'Glass-Cleaning Finisher' ||
+            aj.baseRole === 'Interior Force' ||
+            aj.baseRole === 'Slasher' ||
+            Math.max(rj.standingDunk, rj.drivingDunk) >= 82)
+        ) {
+          hasFinisherPair = true
+        }
+      }
+    }
+
+    const rimAnchorAvg = (r.block + r.helpDefenseIQ) / 2
+    if ((a.baseRole === 'Rim Protector' && rimAnchorAvg >= 80) || rimAnchorAvg >= 84) rimProtectors++
+    if (r.perimeterDefense < 72 || a.pillars.perimeterDefense < 72) weakPerimeter++
+    if (
+      a.baseRole === 'Perimeter Lockdown' ||
+      a.baseRole === '3&D Wing' ||
+      a.baseRole === 'Wing Stopper' ||
+      (a.modifiers.includes('2-Way') && a.pillars.perimeterDefense >= 82)
+    ) {
+      lockdowns++
+    }
+  }
+
+  const spacingActive = shooters80 >= 3 || stretchBigs >= 1
+  const playmakerLinkActive = playmakers >= 1 && (hasShooterPair || hasFinisherPair)
+  const rimAnchorActive = rimProtectors >= 1 && weakPerimeter >= 1
+  const lockdownClampActive = lockdowns >= 2
+  const paintClutterActive = nonShooters >= 3
+
+  const effects: UnitSynergyEffects = {
+    spacingRimBonus: spacingActive ? 0.026 : 0,
+    linkThreeBonus: hasShooterPair ? 0.014 : 0,
+    linkDunkBonus: hasFinisherPair ? 0.025 : 0,
+    linkAssistBonus: playmakerLinkActive ? 0.022 : 0,
+    rimAnchorPaintPenalty: rimAnchorActive ? 0.020 : 0,
+    lockdownTovBoost: lockdownClampActive ? 0.015 : 0,
+    lockdownStealBoost: lockdownClampActive ? 0.030 : 0,
+    clutterPaintPenalty: paintClutterActive ? 0.026 : 0,
+  }
+
+  return {
+    effects,
+    summary: { shooters80, nonShooters, stretchBigs, playmakers, lockdowns, rimProtectors, weakPerimeter },
+    archs,
+    flags: { spacingActive, playmakerLinkActive, hasShooterPair, hasFinisherPair, rimAnchorActive, lockdownClampActive, paintClutterActive },
+  }
+}
+
+/**
+ * Evaluates a 5-man on-court unit's archetype & rating synergy (used by `simGame` and the rotation UI).
+ */
+export function analyzeUnitSynergy(unit: Player[], archMap?: Record<string, PlayerArchetype>): UnitSynergyAnalysis {
+  const players = unit.filter(Boolean)
+  if (!players.length) {
+    return {
+      score: 50,
+      grade: 'F',
+      items: [],
+      effects: EMPTY_EFFECTS,
+      summary: {
+        shooters80: 0,
+        nonShooters: 0,
+        stretchBigs: 0,
+        playmakers: 0,
+        lockdowns: 0,
+        rimProtectors: 0,
+        weakPerimeter: 0,
+      },
+    }
+  }
+
+  const { effects, summary, archs, flags } = computeUnitSynergyEffects(players, archMap)
+  const { shooters80, nonShooters, stretchBigs, lockdowns, rimProtectors } = summary
+  const { spacingActive, playmakerLinkActive, hasShooterPair, hasFinisherPair, rimAnchorActive, lockdownClampActive, paintClutterActive } = flags
+
+  const items: UnitSynergyItem[] = [
+    {
+      id: 'spacing',
+      kind: 'bonus',
+      label: 'Spacing Bonus',
+      detail: spacingActive
+        ? `${shooters80} shooter${shooters80 === 1 ? '' : 's'} (80+)${stretchBigs ? ` · ${stretchBigs} stretch big` : ''} — opens rim lanes for Slashers & Interior Forces`
+        : 'Need 3+ shooters (Shooting 80+) or a Stretch Big to open driving & post lanes',
+      active: spacingActive,
+    },
+    {
+      id: 'playmakerLink',
+      kind: 'bonus',
+      label: 'Playmaker Link',
+      detail: playmakerLinkActive
+        ? `High-vision creator paired with ${hasShooterPair && hasFinisherPair ? 'shooters & lob finishers' : hasShooterPair ? 'catch-and-shoot threats' : 'high-hands finishers'} (+open 3PT% / lob efficiency)`
+        : 'Pair a high-vision Floor General / Point Forward with Sharpshooters or high-hands Paint Beasts',
+      active: playmakerLinkActive,
+    },
+    {
+      id: 'rimAnchor',
+      kind: 'bonus',
+      label: 'Rim Anchor Coverage',
+      detail: rimAnchorActive
+        ? 'Elite Rim Protector backstopping weak perimeter defenders (lowers opponent paint FG%)'
+        : rimProtectors >= 1
+          ? 'Elite Rim Protector on floor with solid perimeter coverage'
+          : 'No elite Rim Protector (84+ block/help IQ) covering perimeter gaps',
+      active: rimAnchorActive,
+    },
+    {
+      id: 'lockdownClamp',
+      kind: 'bonus',
+      label: 'Perimeter Clamp',
+      detail: lockdownClampActive
+        ? `${lockdowns} lockdown / 3&D wing defenders spiking opponent turnovers & steals`
+        : 'Pair 2+ Perimeter Lockdowns / 3&D Wings to spike opponent turnover rate',
+      active: lockdownClampActive,
+    },
+    {
+      id: 'paintClutter',
+      kind: 'warning',
+      label: 'Paint Clutter Warning',
+      detail: paintClutterActive
+        ? `${nonShooters} non-shooters (<70 3PT) crowding the lane (-paint FG% penalty)`
+        : 'Clean floor spacing — fewer than 3 non-shooters on the court',
+      active: paintClutterActive,
+    },
+  ]
+
+  const n = players.length
+  const meanPillar = (fn: (a: PlayerArchetype) => number) => archs.reduce((s, a) => s + fn(a), 0) / n
+  const base =
+    meanPillar((a) => a.pillars.shooting) * 0.3 +
+    meanPillar((a) => a.pillars.finishing) * 0.22 +
+    meanPillar((a) => a.pillars.playmaking) * 0.22 +
+    meanPillar((a) => (a.pillars.perimeterDefense + a.pillars.interiorDefense) * 0.5) * 0.26
+
+  const rawScore =
+    base +
+    (spacingActive ? 7 : 0) +
+    (playmakerLinkActive ? 6 : 0) +
+    (rimAnchorActive ? 4 : 0) +
+    (lockdownClampActive ? 5 : 0) -
+    (paintClutterActive ? 9 : 0)
+
+  const score = clamp(Math.round(rawScore), 25, 99)
+  return {
+    score,
+    grade: gradeFor(score),
+    items,
+    effects,
+    summary,
+  }
 }

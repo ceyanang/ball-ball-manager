@@ -4,7 +4,7 @@ import { perGame, playerSeasonStats } from '../../engine/stats/stats'
 import type { League, StatLine } from '../../engine/types'
 import { RATING_GROUPS } from '../playerFilter'
 import { RATING_MAX, RATING_MIN, groupAverage } from '../../engine/player/ratings'
-import { archetypeFor } from '../../engine/player/archetype'
+import { PILLAR_KEYS, PILLAR_LABELS, generatePlayerArchetype } from '../../engine/player/archetype'
 import { gradeFor } from '../../engine/player/grades'
 import { OvrChart } from '../components/OvrChart'
 import { AwardChips } from '../components/AwardChips'
@@ -70,6 +70,7 @@ export function PlayerPage() {
   const moves = league.transactions.filter((t) => t.playerIds.includes(p.id)).slice(-12).reverse()
   const fans = fanOf(league, p.id)
   const fanWhy = p.retired ? [] : fanBreakdown(league, p)
+  const arch = generatePlayerArchetype(p)
   const chartPoints = [...p.ratingHistory.map((h) => ({ label: `S${h.season}`, ovr: h.ovr })), ...(delta !== 0 ? [{ label: 'Now', ovr }] : [])]
   return (
     <div className="stack">
@@ -80,7 +81,7 @@ export function PlayerPage() {
         <div style={{ flex: 1, minWidth: 200 }}>
           <div className="title">{fullName(p)}</div>
           <div className="sub">#{p.jersey} · {p.pos} · {team ? teamFull(team) : p.retired ? 'Retired' : league.draftRights[p.id] ? `Draft rights: ${league.teams[league.draftRights[p.id]].name}` : 'Free agent'}</div>
-          <span className="archetype-chip">{archetypeFor(p)}</span>
+          <span className="archetype-chip">{arch.title}</span>
           {hof && <span className="archetype-chip hof-chip">🎖️ Hall of Fame · S{hof.season}</span>}
           {retiredByLines(league, p.id).map((t) => <span key={t} className="archetype-chip hof-chip">👕 {t}</span>)}
           <div style={{ marginTop: '0.5rem' }}>
@@ -130,6 +131,20 @@ export function PlayerPage() {
 
       <section className="panel stack">
         <h2>Ratings</h2>
+        <div className="stack" style={{ gap: '0.35rem' }}>
+          <span className="muted" style={{ fontSize: '0.8rem', fontWeight: 600 }}>2K Archetype Pillars · {arch.title}</span>
+          <div className="cat-pills">
+            {PILLAR_KEYS.map((k) => {
+              const v = arch.pillars[k]
+              return (
+                <span key={k} className={`cat-pill${arch.topPillar === k ? ' pillar-top' : ''}`}>
+                  <span className="muted">{PILLAR_LABELS[k]}</span>
+                  <strong style={{ color: ratingColor(v) }}>{gradeFor(v)} · {v}</strong>
+                </span>
+              )
+            })}
+          </div>
+        </div>
         <div className="cat-pills">
           {GROUPS.map(([g]) => {
             const avg = groupAverage(p.ratings, g)

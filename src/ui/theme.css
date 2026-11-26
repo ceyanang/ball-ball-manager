@@ -723,6 +723,11 @@ table.dt-table tr.group-row th:first-child { background: var(--surface-2); }
 /* 36-attribute category pills, GM roster synergy & scouting drawer */
 .cat-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .cat-pill { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.25rem 0.6rem; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-size: 0.82rem; }
+.cat-pill.pillar-top { border-color: var(--accent); }
+.cat-pill.syn-warn-pill { border-color: var(--loss, #d9534f); color: var(--loss, #d9534f); }
 .synergy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.6rem; }
 .synergy-card { display: flex; flex-direction: column; gap: 0.2rem; padding: 0.6rem 0.75rem; border-radius: var(--r); background: var(--surface-2); border: 1px solid var(--line); }
+.synergy-card.syn-active { border-color: var(--win, #2ca05a); background: color-mix(in srgb, var(--win, #2ca05a) 8%, var(--surface-2)); }
+.synergy-card.syn-warn { border-color: var(--loss, #d9534f); background: color-mix(in srgb, var(--loss, #d9534f) 10%, var(--surface-2)); }
+.synergy-card.syn-muted { opacity: 0.75; }
 .scout-panel { padding: 0.65rem 0.75rem; background: var(--surface-2); border-radius: var(--r); border: 1px solid var(--line); }

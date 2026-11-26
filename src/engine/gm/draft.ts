@@ -1,5 +1,6 @@
 import { renumberIfRetired } from '../stories/jerseys'
 import { MIN_SALARY, ROSTER_MAX } from '../constants'
+import { PILLAR_KEYS, PILLAR_LABELS, computePillars, generatePlayerArchetype, type PillarKey } from '../player/archetype'
 import { generatePlayer } from '../player/generate'
 import { RATING_GROUPS, RATING_KEYS, RATING_LABELS, RATING_MAX, RATING_MIN, groupAverage, type RatingGroupName } from '../player/ratings'
 import type { Rng } from '../rng'
@@ -113,21 +114,72 @@ function hashStr(s: string): number {
   return h >>> 0
 }
 
-export interface ProspectScoutReport {
-  categories: { group: RatingGroupName; est: number; lo: number; hi: number }[]
-  strengths: { key: keyof Player['ratings']; label: string; est: number }[]
+export interface ProjectedArchetype {
+  primary: string
+  alternate: string | null
+  label: string
+  uncertain: boolean
 }
 
-/** Deterministic scouting breakdown across all 7 attribute groups + top 3 standout skills (fuzzy like OVR/POT). */
+export interface ProspectScoutReport {
+  categories: { group: RatingGroupName; est: number; lo: number; hi: number }[]
+  pillars: { key: PillarKey; label: string; est: number; lo: number; hi: number }[]
+  strengths: { key: keyof Player['ratings']; label: string; est: number }[]
+  projected: ProjectedArchetype
+}
+
+const clampRating = (v: number) => Math.max(RATING_MIN, Math.min(RATING_MAX, Math.round(v)))
+
+/**
+ * Deterministic "Projected Archetype" range for an un-scouted rookie from fuzzy scouting uncertainty.
+ * Wide OVR spreads or close secondary pillars surface a plausible alternate build alongside the primary projection.
+ */
+export function projectedArchetype(p: Player, sc: { ovrLo: number; ovrHi: number; pot: number }): ProjectedArchetype {
+  const spread = Math.max(2, Math.round((sc.ovrHi - sc.ovrLo) / 2))
+  const bias = Math.round((sc.ovrLo + sc.ovrHi) / 2 - ovr(p))
+  const span = Math.min(6, Math.max(2, spread))
+
+  const estRatings = { ...p.ratings }
+  const altRatings = { ...p.ratings }
+  for (const k of RATING_KEYS) {
+    const h = hashStr(`${p.id}:arch:${k}`)
+    const noise = (h % (2 * span + 1)) - span
+    estRatings[k] = clampRating(p.ratings[k] + bias + noise)
+    // Perturb secondary upside/swing deterministically across the scouting spread to test alternate builds.
+    const swing = ((hashStr(`${p.id}:alt:${k}`) % (2 * span + 1)) - span)
+    altRatings[k] = clampRating(p.ratings[k] + bias + swing)
+  }
+
+  const primary = generatePlayerArchetype({ ...p, ratings: estRatings }).title
+  const alt = generatePlayerArchetype({ ...p, ratings: altRatings }).title
+  if (alt !== primary) {
+    return { primary, alternate: alt, label: `${primary} / ${alt}`, uncertain: true }
+  }
+  return { primary, alternate: null, label: primary, uncertain: false }
+}
+
+/** Deterministic scouting breakdown across 7 attribute groups, 6 2K pillars, top traits, and projected archetype range. */
 export function scoutProspect(p: Player, sc: { ovrLo: number; ovrHi: number; pot: number }): ProspectScoutReport {
   const spread = Math.max(2, Math.round((sc.ovrHi - sc.ovrLo) / 2))
   const bias = Math.round((sc.ovrLo + sc.ovrHi) / 2 - ovr(p))
   const categories = RATING_GROUPS.map(([group], idx) => {
     const h = hashStr(`${p.id}:${idx}`)
     const jitter = ((h % 7) - 3)
-    const est = Math.max(RATING_MIN, Math.min(RATING_MAX, groupAverage(p.ratings, group) + bias + jitter))
+    const est = clampRating(groupAverage(p.ratings, group) + bias + jitter)
     return {
       group,
+      est,
+      lo: Math.max(RATING_MIN, est - spread),
+      hi: Math.min(RATING_MAX, est + spread),
+    }
+  })
+  const rawPillars = computePillars(p.ratings, p.pos)
+  const pillars = PILLAR_KEYS.map((key, idx) => {
+    const jitter = ((hashStr(`${p.id}:pil:${idx}`) % 7) - 3)
+    const est = clampRating(rawPillars[key] + bias + jitter)
+    return {
+      key,
+      label: PILLAR_LABELS[key],
       est,
       lo: Math.max(RATING_MIN, est - spread),
       hi: Math.min(RATING_MAX, est + spread),
@@ -142,10 +194,11 @@ export function scoutProspect(p: Player, sc: { ovrLo: number; ovrHi: number; pot
       return {
         key,
         label: RATING_LABELS[key],
-        est: Math.max(RATING_MIN, Math.min(RATING_MAX, p.ratings[key] + bias + jitter)),
+        est: clampRating(p.ratings[key] + bias + jitter),
       }
     })
-  return { categories, strengths }
+  const projected = projectedArchetype(p, sc)
+  return { categories, pillars, strengths, projected }
 }
 
 /** Expected value of a prospect to a team using scouting estimates and team direction, plus a positional-need nudge. */

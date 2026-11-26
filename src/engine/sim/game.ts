@@ -3,6 +3,7 @@ import type { Rng } from '../rng'
 import type { BoxLine, Coach, CoachStyle, GameResult, Player, Team } from '../types'
 import type { PlayEvent, Side } from './playlog'
 import type { GameMods } from '../events/mods'
+import { generatePlayerArchetype } from '../player/archetype'
 import { gameLineup, lineupPenalties, minutesTargets, SLOTS, slotFit } from './rotation'
 import { chooseSubs, isBlowout, returnStarterSwaps, SUB } from './subs'
 
@@ -20,7 +21,7 @@ export const K = {
   closeBase: 0.495,
   postBase: 0.47,
   midBase: 0.382,
-  threeBase: 0.32,
+  threeBase: 0.302,
   shooterK: 0.0038,
   defK: 0.0028,
   defenseStyle: 0.015,
@@ -35,8 +36,8 @@ export const K = {
   orebBase: 0.24,
   usageExp: 3.1,
   threeStyle: 1.25,
-  /** Make-probability lost per OVR point of out-of-position cost (C at PG ≈ −7.8%). */
-  oopShot: 0.003,
+  /** Make-probability lost per OVR point of out-of-position cost (C at PG ≈ −9.1%). */
+  oopShot: 0.0035,
   /** Share of defenders' out-of-position cost taken off their perimeter/interior D. */
   oopDef: 0.5,
   /** Make-probability per morale point away from 60 (≈ ±1.6% at the extremes). */
@@ -101,6 +102,22 @@ interface PlayerSim {
   offSpread: number
   defSpread: number
   paceSkill: number
+  foulDrawMult: number
+  tovDelta: number
+  assistShareDelta: number
+  isSlasherOrForce: boolean
+  isShooterRole: boolean
+  isLobFinisher: boolean
+  // Precomputed unit-synergy role flags so computeSynergy runs in pure integer loops
+  synShooter80: boolean
+  synNonShooter: boolean
+  synStretchBig: boolean
+  synPlaymaker: boolean
+  synShooterTarget: boolean
+  synLobTarget: boolean
+  synRimProtector: boolean
+  synWeakPerim: boolean
+  synLockdown: boolean
 }
 
 interface LineupSynergy {
@@ -114,6 +131,15 @@ interface LineupSynergy {
   orebPower: number
   drebPower: number
   hustleMean: number
+  spacingRimBonus: number
+  linkThreeBonus: number
+  linkDunkBonus: number
+  linkAssistBonus: number
+  rimAnchorPaintPenalty: number
+  lockdownTovBoost: number
+  lockdownStealBoost: number
+  clutterPaintPenalty: number
+  unitAssistDelta: number
 }
 
 interface Ctx {
@@ -171,7 +197,12 @@ export function simGame(
     let three = 0, playSum = 0, playMax = 0, hands = 0, dunks = 0
     let help = 0, intD = 0, blk = 0, stl = 0, passPerc = 0, vert = 0
     let oreb = 0, dreb = 0, str = 0, hus = 0
-    for (const id of onCourt) {
+    let unitAssistDelta = 0
+    let shooters80 = 0, nonShooters = 0, stretchBigs = 0, playmakers = 0
+    let shooterTargets = 0, lobTargets = 0, rimProtectors = 0, weakPerim = 0, lockdowns = 0
+    let selfShooterPlay = 0, selfLobPlay = 0
+    for (let i = 0; i < onCourt.length; i++) {
+      const id = onCourt[i]
       const r = R(id)
       three += r.threePointShot
       const pm = r.passVision * 0.55 + r.passIQ * 0.45
@@ -189,7 +220,31 @@ export function simGame(
       dreb += r.defensiveRebound
       str += r.strength
       hus += r.hustle
+      const pr = prof[id]
+      if (pr) {
+        if (pr.assistShareDelta > unitAssistDelta) unitAssistDelta = pr.assistShareDelta
+        if (pr.synShooter80) shooters80++
+        if (pr.synNonShooter) nonShooters++
+        if (pr.synStretchBig) stretchBigs++
+        if (pr.synPlaymaker) {
+          playmakers++
+          if (pr.synShooterTarget) selfShooterPlay++
+          if (pr.synLobTarget) selfLobPlay++
+        }
+        if (pr.synShooterTarget) shooterTargets++
+        if (pr.synLobTarget) lobTargets++
+        if (pr.synRimProtector) rimProtectors++
+        if (pr.synWeakPerim) weakPerim++
+        if (pr.synLockdown) lockdowns++
+      }
     }
+    const spacingActive = shooters80 >= 3 || stretchBigs >= 1
+    const hasShooterPair = playmakers >= 1 && (shooterTargets - selfShooterPlay >= 1 || playmakers >= 2 && shooterTargets >= 1)
+    const hasFinisherPair = playmakers >= 1 && (lobTargets - selfLobPlay >= 1 || playmakers >= 2 && lobTargets >= 1)
+    const playmakerLinkActive = playmakers >= 1 && (hasShooterPair || hasFinisherPair)
+    const rimAnchorActive = rimProtectors >= 1 && weakPerim >= 1
+    const lockdownClampActive = lockdowns >= 2
+    const paintClutterActive = nonShooters >= 3
     const avgThree = three / n
     const avgPlay = playSum / n
     const avgHandsDunk = (hands * 0.5 + dunks * 0.5) / n
@@ -204,6 +259,15 @@ export function simGame(
       orebPower: (oreb * 0.64 + vert * 0.14 + str * 0.12 + hus * 0.10) / n,
       drebPower: (dreb * 0.64 + vert * 0.14 + str * 0.12 + hus * 0.10) / n,
       hustleMean: hus / n,
+      spacingRimBonus: spacingActive ? 0.026 : 0,
+      linkThreeBonus: hasShooterPair ? 0.014 : 0,
+      linkDunkBonus: hasFinisherPair ? 0.025 : 0,
+      linkAssistBonus: playmakerLinkActive ? 0.022 : 0,
+      rimAnchorPaintPenalty: rimAnchorActive ? 0.020 : 0,
+      lockdownTovBoost: lockdownClampActive ? 0.015 : 0,
+      lockdownStealBoost: lockdownClampActive ? 0.030 : 0,
+      clutterPaintPenalty: paintClutterActive ? 0.026 : 0,
+      unitAssistDelta,
     }
   }
 
@@ -213,6 +277,8 @@ export function simGame(
     for (const id of ids) {
       const p = players[id]
       const r = p.ratings
+      const arch = generatePlayerArchetype(p)
+      const t = arch.tendencies
       const rimThreat = Math.max(r.layup, r.drivingDunk, r.standingDunk, r.closeShot)
       const postThreat = r.postControl * 0.45 + Math.max(r.postHook, r.postFade) * 0.55
       const bestScore = Math.max(rimThreat, r.midRangeShot, r.threePointShot, postThreat)
@@ -231,19 +297,86 @@ export function simGame(
       // Higher shotIQ curbs forced mid-range jumpers and low-skill 3PA chucking
       const wMid = Math.max(1, r.midRangeShot - 30) * 0.5 * Math.max(0.6, 1 - iqTilt * (r.midRangeShot < 72 ? 1.2 : 0.4))
       const wThree = Math.max(1, r.threePointShot - 32) * 1.48 * Math.max(0.5, 1 + (r.threePointShot >= 74 ? iqTilt * 0.6 : -iqTilt))
+      const zm = t.zoneMult
 
       prof[id] = {
-        usage: Math.pow(scoring / K.pivot, K.usageExp),
-        handlerW: Math.pow(scoring / K.pivot, K.usageExp) * (0.45 * r.ballHandle + 0.35 * r.speedWithBall + 0.2 * r.passVision),
+        usage: Math.pow(scoring / K.pivot, K.usageExp) * t.usageMult,
+        handlerW: Math.pow(scoring / K.pivot, K.usageExp) * (0.45 * r.ballHandle + 0.35 * r.speedWithBall + 0.2 * r.passVision) * t.handlerMult,
         rebOffW: (0.62 * r.offensiveRebound + 0.15 * r.vertical + 0.13 * r.strength + 0.1 * r.hustle) ** 2,
         rebDefW: (0.62 * r.defensiveRebound + 0.15 * r.vertical + 0.13 * r.strength + 0.1 * r.hustle) ** 2,
-        stealW: (0.64 * r.steal + 0.22 * r.passPerception + 0.14 * r.helpDefenseIQ) ** 2,
-        blockW: (0.76 * r.block + 0.24 * r.vertical) ** 3,
-        passerW: (0.5 * r.passVision + 0.3 * r.passIQ + 0.2 * r.passAccuracy) ** 5.5,
-        shotZoneW: [wLayup, wDriveDunk, wStandDunk, wClose, wPost, wMid, wThree],
+        stealW: ((0.64 * r.steal + 0.22 * r.passPerception + 0.14 * r.helpDefenseIQ) ** 2) * t.stealMult,
+        blockW: ((0.76 * r.block + 0.24 * r.vertical) ** 3) * t.blockMult,
+        passerW: ((0.5 * r.passVision + 0.3 * r.passIQ + 0.2 * r.passAccuracy) ** 5.5) * t.passerMult,
+        shotZoneW: [
+          wLayup * zm[0],
+          wDriveDunk * zm[1],
+          wStandDunk * zm[2],
+          wClose * zm[3],
+          wPost * zm[4],
+          wMid * zm[5],
+          wThree * zm[6],
+        ],
         offSpread: 0.11 * (1 - (r.offensiveConsistency - 25) / 80),
         defSpread: 6.5 * (1 - (r.defensiveConsistency - 25) / 80),
         paceSkill: r.speed * 0.5 + r.agility * 0.3 + r.speedWithBall * 0.1 + r.hustle * 0.1,
+        foulDrawMult: t.foulDrawMult,
+        tovDelta: t.tovDelta,
+        assistShareDelta: t.assistShareDelta,
+        isSlasherOrForce:
+          arch.baseRole === 'Slasher' ||
+          arch.baseRole === 'Slashing Playmaker' ||
+          arch.baseRole === 'Interior Force' ||
+          arch.baseRole === 'Paint Beast' ||
+          arch.baseRole === 'Glass-Cleaning Finisher',
+        isShooterRole:
+          arch.baseRole === 'Sharpshooter' ||
+          arch.baseRole === '3&D Wing' ||
+          arch.baseRole === 'Stretch Four' ||
+          arch.baseRole === 'Stretch Five' ||
+          arch.pillars.shooting >= 82,
+        isLobFinisher:
+          r.hands >= 78 &&
+          (arch.baseRole === 'Paint Beast' ||
+            arch.baseRole === 'Glass-Cleaning Finisher' ||
+            arch.baseRole === 'Interior Force' ||
+            arch.baseRole === 'Slasher' ||
+            Math.max(r.standingDunk, r.drivingDunk) >= 82),
+        synShooter80: arch.pillars.shooting >= 80,
+        synNonShooter: r.threePointShot < 70,
+        synStretchBig:
+          (p.pos === 'PF' || p.pos === 'C') &&
+          (arch.baseRole === 'Stretch Four' ||
+            arch.baseRole === 'Stretch Five' ||
+            arch.modifiers.includes('Floor-Spacing') ||
+            arch.modifiers.includes('Inside-Out')),
+        synPlaymaker:
+          (arch.baseRole === 'Floor General' ||
+            arch.baseRole === 'Point Forward' ||
+            arch.baseRole === 'Playmaking Big' ||
+            arch.modifiers.includes('Diming')) &&
+          r.passVision >= 78,
+        synShooterTarget:
+          arch.baseRole === 'Sharpshooter' ||
+          arch.baseRole === '3&D Wing' ||
+          arch.baseRole === 'Stretch Four' ||
+          arch.baseRole === 'Stretch Five' ||
+          arch.pillars.shooting >= 82,
+        synLobTarget:
+          r.hands >= 78 &&
+          (arch.baseRole === 'Paint Beast' ||
+            arch.baseRole === 'Glass-Cleaning Finisher' ||
+            arch.baseRole === 'Interior Force' ||
+            arch.baseRole === 'Slasher' ||
+            Math.max(r.standingDunk, r.drivingDunk) >= 82),
+        synRimProtector:
+          (arch.baseRole === 'Rim Protector' && (r.block + r.helpDefenseIQ) / 2 >= 80) ||
+          (r.block + r.helpDefenseIQ) / 2 >= 84,
+        synWeakPerim: r.perimeterDefense < 72 || arch.pillars.perimeterDefense < 72,
+        synLockdown:
+          arch.baseRole === 'Perimeter Lockdown' ||
+          arch.baseRole === '3&D Wing' ||
+          arch.baseRole === 'Wing Stopper' ||
+          (arch.modifiers.includes('2-Way') && arch.pillars.perimeterDefense >= 82),
       }
       energy[id] = Math.max(0, 100 + Math.min(0, mods?.energy[id] ?? 0))
       heat[id] = 0
@@ -404,7 +537,7 @@ export function simGame(
   const maybeAssist = (off: Side, o: string[], shooter: string, zone: ShotZone) => {
     const oc = sides[off], dc = sides[other(off)]
     const base = zone === 'standDunk' ? 0.68 : zone === 'three' ? 0.78 : zone === 'mid' ? 0.56 : zone === 'post' ? 0.34 : 0.48
-    const p = base + oc.syn.playmaking * 8 - dc.syn.passDisrupt * 5
+    const p = base + oc.syn.playmaking * 8 - dc.syn.passDisrupt * 5 + oc.syn.linkAssistBonus + oc.syn.unitAssistDelta * 0.5
     if (!rng.chance(p)) return
     const mates = o.filter((id) => id !== shooter)
     const passer = rng.weighted(mates, (id) => prof[id].passerW)
@@ -423,16 +556,20 @@ export function simGame(
     const hr = R(handler)
     const oPen = oc.pen, dPen = dc.pen
     const ballCare = hr.ballHandle * 0.32 + hr.passAccuracy * 0.32 + hr.hands * 0.2 + hr.passIQ * 0.16
-    const tovP =
+    const tovP = Math.max(
+      0.03,
       K.tovBase
-      + (dc.syn.stealThreat - K.pivot) * 0.0014
-      - (ballCare - K.pivot) * 0.0015
-      + (oPen[handler] ?? 0) * 0.001
-      + fatigueCost(tired(handler)) * FATIGUE.tov
+        + (dc.syn.stealThreat - K.pivot) * 0.0014
+        - (ballCare - K.pivot) * 0.0015
+        + (oPen[handler] ?? 0) * 0.001
+        + fatigueCost(tired(handler)) * FATIGUE.tov
+        + prof[handler].tovDelta
+        + dc.syn.lockdownTovBoost,
+    )
     if (rng.chance(tovP)) {
       box[handler].tov++
       emit({ k: 'tov', side: off, player: handler })
-      const stealP = K.stealShare + (dc.syn.stealThreat - (hr.passAccuracy + hr.hands) / 2) * 0.0015
+      const stealP = K.stealShare + (dc.syn.stealThreat - (hr.passAccuracy + hr.hands) / 2) * 0.0015 + dc.syn.lockdownStealBoost
       if (rng.chance(stealP)) {
         const stealer = rng.weighted(d, (id) => prof[id].stealW)
         box[stealer].stl++
@@ -474,30 +611,59 @@ export function simGame(
       // Weak perimeter defenders are partially covered by high helpDefenseIQ / rim anchor teammates
       const helpCover = Math.max(0, dc.syn.helpAnchor) * 0.25
 
+      const sp = prof[shooter]
+      const uEff = oc.syn
+      const dEff = dc.syn
+      const paintSyn =
+        uEff.spacingRimBonus * (sp.isSlasherOrForce ? 1 : 0.3) -
+        uEff.clutterPaintPenalty -
+        dEff.rimAnchorPaintPenalty
+
       let p: number
       if (zone === 'three') {
         const contest = (perD - K.pivot) * K.defK * 0.67 * (1 - (r.shotIQ - K.pivot) * 0.004)
-        p = K.threeBase + (r.threePointShot - K.pivot) * K.shooterK - contest + oc.syn.playmaking * 0.7
+        p =
+          K.threeBase +
+          (r.threePointShot - K.pivot) * K.shooterK -
+          contest +
+          oc.syn.playmaking * 0.7 +
+          uEff.linkThreeBonus * (sp.isShooterRole ? 1 : 0.45)
       } else if (zone === 'mid') {
         const contest = (perD - K.pivot) * K.defK * (1 - (r.shotIQ - K.pivot) * 0.004)
         p = K.midBase + (r.midRangeShot - K.pivot) * K.shooterK - contest + oc.syn.playmaking * 0.4
       } else if (zone === 'layup') {
         const driveSkill = r.layup * 0.72 + r.speedWithBall * 0.14 + r.agility * 0.08 + r.hands * 0.06
         const rimDef = intD * 0.68 + perD * 0.32 + helpCover
-        p = K.rimBase + (driveSkill - K.pivot) * K.shooterK - (rimDef - K.pivot) * K.defK + oc.syn.spacing + oc.syn.playmaking * 0.5
+        p = K.rimBase + (driveSkill - K.pivot) * K.shooterK - (rimDef - K.pivot) * K.defK + oc.syn.spacing + oc.syn.playmaking * 0.5 + paintSyn
       } else if (zone === 'driveDunk') {
         const dunkSkill = r.drivingDunk * 0.72 + r.vertical * 0.18 + r.speedWithBall * 0.1
         const rimDef = intD * 0.75 + perD * 0.25 + helpCover
-        p = K.rimBase + 0.03 + (dunkSkill - K.pivot) * K.shooterK - (rimDef - K.pivot) * K.defK + oc.syn.spacing + oc.syn.playmaking * 0.5
+        p =
+          K.rimBase +
+          0.03 +
+          (dunkSkill - K.pivot) * K.shooterK -
+          (rimDef - K.pivot) * K.defK +
+          oc.syn.spacing +
+          oc.syn.playmaking * 0.5 +
+          paintSyn +
+          uEff.linkDunkBonus * (sp.isLobFinisher ? 1 : 0.4)
       } else if (zone === 'standDunk') {
         const finishSkill = r.standingDunk * 0.7 + r.hands * 0.18 + r.strength * 0.12
-        p = K.rimBase + 0.04 + (finishSkill - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK + oc.syn.playmaking * 0.7 + oc.syn.rollerHands
+        p =
+          K.rimBase +
+          0.04 +
+          (finishSkill - K.pivot) * K.shooterK -
+          (intD - K.pivot) * K.defK +
+          oc.syn.playmaking * 0.7 +
+          oc.syn.rollerHands +
+          paintSyn +
+          uEff.linkDunkBonus * (sp.isLobFinisher ? 1 : 0.4)
       } else if (zone === 'close') {
         const touchSkill = r.closeShot * 0.82 + r.hands * 0.18
-        p = K.closeBase + (touchSkill - K.pivot) * K.shooterK - (intD + helpCover * 0.6 - K.pivot) * K.defK + oc.syn.spacing * 0.7
+        p = K.closeBase + (touchSkill - K.pivot) * K.shooterK - (intD + helpCover * 0.6 - K.pivot) * K.defK + oc.syn.spacing * 0.7 + paintSyn
       } else {
         const postSkill = r.postHook * 0.42 + r.postFade * 0.33 + r.postControl * 0.15 + r.strength * 0.1
-        p = K.postBase + (postSkill - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK + oc.syn.spacing * 0.8
+        p = K.postBase + (postSkill - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK + oc.syn.spacing * 0.8 + paintSyn
       }
 
       // Shot IQ, athleticism/speed edge, quarter consistency, fatigue, OOP, morale, chemistry, HFA, rubberband
@@ -520,7 +686,7 @@ export function simGame(
         : zone === 'mid' ? K.foulMid
         : zone === 'post' ? K.foulPost + (r.postControl - K.pivot) * 0.001
         : K.foulRim + (zone === 'driveDunk' || zone === 'layup' ? (r.layup * 0.5 + r.drivingDunk * 0.5 - K.pivot) * 0.0007 : 0)
-      const foulP = Math.max(0.01, baseFoul * (1 + (r.drawFoul - K.pivot) * 0.0075))
+      const foulP = Math.max(0.01, baseFoul * (1 + (r.drawFoul - K.pivot) * 0.0075) * (isRim || zone === 'post' ? sp.foulDrawMult : 1))
 
       if (rng.chance(foulP)) {
         foul(d, isRim || zone === 'post' ? 'interiorDefense' : 'perimeterDefense')

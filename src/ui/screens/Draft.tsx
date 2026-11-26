@@ -1,10 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { autoPick, currentSlot, draftUntilUser, makePick, releaseRights, rookieSalary, rookieYears, scoutProspect, signRights } from '../../engine/gm/draft'
+import { autoPick, currentSlot, draftUntilUser, makePick, projectedArchetype, releaseRights, rookieSalary, rookieYears, scoutProspect, signRights } from '../../engine/gm/draft'
 import { gradeFor } from '../../engine/player/grades'
 import { ratingColor } from '../ratingColor'
 import { needThresholds, teamNeeds, type NeedLevel } from '../../engine/gm/needs'
-import { archetypeFor } from '../../engine/player/archetype'
 import type { Player } from '../../engine/types'
 import { DataTable, type Column } from '../components/DataTable'
 import { NeedDot, NeedsStrip } from '../components/NeedDot'
@@ -49,7 +48,7 @@ export function Draft() {
         <div className="pcell">
           <span className="muted" style={{ width: '1.6rem' }}>{r.rank}</span>
           <Face seed={r.p.faceSeed} age={r.p.age} colors={{ primary: '#555b66', secondary: '#ffffff' }} size={34} />
-          <span><span className="pname">{fullName(r.p)}</span><span className="sub">{archetypeFor(r.p)}</span></span>
+          <span><span className="pname">{fullName(r.p)}</span><span className="sub">Proj: {projectedArchetype(r.p, r.sc).label}</span></span>
         </div>
       ),
     },
@@ -154,10 +153,24 @@ export function Draft() {
               return (
                 <div className="scout-panel stack" style={{ gap: '0.6rem' }}>
                   <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-                    <strong>{fullName(r.p)} · Scouting profile</strong>
+                    <div className="row" style={{ flexWrap: 'wrap', gap: '0.5rem' }}>
+                      <strong>{fullName(r.p)} · Scouting profile</strong>
+                      <span className="cat-pill">
+                        <span className="muted">Projected archetype</span>
+                        <strong>{rep.projected.label}</strong>
+                      </span>
+                    </div>
                     <span className="muted" style={{ fontSize: '0.85rem' }}>
                       Top traits: {rep.strengths.map((s) => `${s.label} (~${s.est})`).join(' · ')}
                     </span>
+                  </div>
+                  <div className="cat-pills">
+                    {rep.pillars.map((pil) => (
+                      <span key={pil.key} className="cat-pill" title={`Estimated ${pil.lo}–${pil.hi}`}>
+                        <span className="muted">{pil.label}</span>
+                        <strong style={{ color: ratingColor(pil.est) }}>{gradeFor(pil.est)} ({pil.lo}–{pil.hi})</strong>
+                      </span>
+                    ))}
                   </div>
                   <div className="cat-pills">
                     {rep.categories.map((c) => (

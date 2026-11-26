@@ -1,3 +1,4 @@
+import { archetypeFor } from '../../engine/player/archetype'
 import type { Player, Team } from '../../engine/types'
 import { Sheet } from '../components/Sheet'
 import { Face } from '../face/Face'
@@ -41,7 +42,7 @@ export function WatchPlayerSheet({ player, team, line, ppg, frac, periods, final
             <span className="w-sheet-face"><Face seed={player.faceSeed} age={player.age} colors={team.colors} size={56} jersey={player.jersey} title={fullName(player)} /></span>
             <div className="w-sheet-who">
               <div>{player.pos} · #{player.jersey} · {teamFull(team)}</div>
-              <div className="muted">{ppg === null ? 'No games yet this season' : `Averages ${ppg.toFixed(1)} ppg`}</div>
+              <div className="muted">{archetypeFor(player)} · {ppg === null ? 'No games yet this season' : `Averages ${ppg.toFixed(1)} ppg`}</div>
             </div>
             <button className={`btn${fav ? ' w-fav-on' : ''}`} onClick={onToggleFav} aria-pressed={fav}>{fav ? '⭐ Your guy' : '☆ Favorite'}</button>
           </div>

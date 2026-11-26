@@ -6,6 +6,7 @@ import { rosterSynergy } from '../../engine/gm/synergy'
 import { SLOTS, autoRotation, coachRotation, validateRotation } from '../../engine/sim/rotation'
 import type { Player, Rotation } from '../../engine/types'
 import { Face } from '../face/Face'
+import { LineupFitPanel } from '../components/LineupFitPanel'
 import { OvrPill } from '../components/OvrPill'
 import { dropInRotation, type DropTarget, type Section } from '../rotationEdit'
 import { useStore } from '../store'
@@ -177,6 +178,8 @@ export function MyTeam() {
   }
 
   const ghost = drag ? league.players[drag.id] : null
+  const starterPlayers = draft.starters.map((id) => league.players[id]).filter(Boolean)
+  const rosterSyn = rosterSynergy(roster)
 
   const contractColumns: Column<Player>[] = [
     { key: 'player', label: 'Player', align: 'left', defaultDir: 'asc', value: (p) => fullName(p), cell: (p) => <Link className="link" to={`/player/${p.id}`}>{fullName(p)}</Link> },
@@ -232,6 +235,8 @@ export function MyTeam() {
         </div>
       </section>
 
+      <LineupFitPanel starters={starterPlayers} />
+
       <section className="panel rot-section">
         <h3>{LABEL.bench} <span className="count">{draft.bench.length}/{BENCH_SLOTS}</span></h3>
         <div className="rot-grid">
@@ -266,10 +271,10 @@ export function MyTeam() {
       <section className="panel stack">
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
           <h3>Roster synergy</h3>
-          <span className="muted">Overall fit <strong style={{ color: ratingColor(rosterSynergy(roster).overall) }}>{rosterSynergy(roster).overall}</strong></span>
+          <span className="muted">Overall fit <strong style={{ color: ratingColor(rosterSyn.overall) }}>{rosterSyn.overall}</strong></span>
         </div>
         <div className="synergy-grid">
-          {rosterSynergy(roster).pillars.map((pil) => (
+          {rosterSyn.pillars.map((pil) => (
             <div key={pil.key} className="synergy-card">
               <div className="row" style={{ justifyContent: 'space-between' }}>
                 <strong>{pil.label}</strong>
