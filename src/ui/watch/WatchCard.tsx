@@ -10,100 +10,120 @@ const Stat = ({ v, label }: { v: number; label: string }) => (
 )
 
 const STAR4 = (cx: number, cy: number, r: number) => {
-  const k = r * 0.3
+  const k = r * 0.24
   return `M${cx} ${cy - r} Q${cx + k} ${cy - k} ${cx + r} ${cy} Q${cx + k} ${cy + k} ${cx} ${cy + r} Q${cx - k} ${cy + k} ${cx - r} ${cy} Q${cx - k} ${cy - k} ${cx} ${cy - r}Z`
 }
+
+const is90Plus = (t: OvrTier | null): t is 'red' | 'prismatic' | 'blacksilver' | 'blackgold' =>
+  t === 'red' || t === 'prismatic' || t === 'blacksilver' || t === 'blackgold'
 
 /** Special animated border effects around the portrait for 90+ OVR tiers. */
 function PortraitFx({ tier }: { tier: OvrTier }) {
   if (tier === 'red') {
     return (
-      <svg className="w-aura aura-red" viewBox="-6 -6 58 62" aria-hidden="true">
-        <g className="w-fx-a">
-          <path d="M27 1 C26 -4, 30 -5, 31 -1 C33 -4, 36 -2, 34 2 Z" fill="#ff4d2e" />
-          <path d="M29 1 C29 -2, 31 -3, 32 0 Z" fill="#ffd166" />
-          <path d="M45 20 C50 18, 51 23, 46 25 C50 26, 49 30, 45 29 Z" fill="#ff3b3b" />
-          <path d="M1 31 C-4 29, -4 34, 0 35 C-3 37, -1 40, 1 38 Z" fill="#ff5e2b" />
-          <circle cx="40" cy="-2" r="1.4" fill="#ff9f1a" />
-          <circle cx="-2" cy="22" r="1.2" fill="#ffd166" />
+      <svg className="w-aura aura-red" viewBox="-8 -10 62 66" aria-hidden="true">
+        {/* Flickering flame tongues hugging top & sides */}
+        <g className="w-flame-1">
+          <path d="M22 1 C20 -6, 25 -9, 27 -2 C29 -8, 33 -6, 32 1 Z" fill="#ff3b1f" />
+          <path d="M24 1 C24 -4, 27 -5, 28 0 Z" fill="#ffd166" />
+          <path d="M45 16 C51 13, 53 19, 47 22 C52 23, 51 28, 45 27 Z" fill="#ff4d24" />
+          <path d="M45 19 C48 18, 49 21, 46 23 Z" fill="#ffb703" />
+          <path d="M1 26 C-5 24, -5 30, 0 32 C-4 34, -2 39, 1 36 Z" fill="#ff3b1f" />
         </g>
-        <g className="w-fx-b">
-          <path d="M36 1 C37 -4, 41 -4, 40 1 C43 -2, 46 1, 43 4 Z" fill="#ff6a1a" />
-          <path d="M38 1 C39 -2, 41 -2, 41 1 Z" fill="#ffe082" />
-          <path d="M12 49 C11 53, 15 54, 16 50 C18 53, 21 52, 19 49 Z" fill="#ff3b3b" />
-          <path d="M45 36 C49 35, 50 39, 45 41 Z" fill="#ff7a1a" />
-          <circle cx="24" cy="-3" r="1.1" fill="#ff5252" />
-          <circle cx="48" cy="14" r="1.2" fill="#ffd166" />
+        <g className="w-flame-2">
+          <path d="M33 1 C34 -7, 39 -8, 38 -1 C42 -5, 46 -1, 43 4 Z" fill="#ff6a1a" />
+          <path d="M36 1 C37 -4, 40 -4, 40 1 Z" fill="#ffe082" />
+          <path d="M1 38 C-4 37, -4 43, 1 44 Z" fill="#ff6a1a" />
+          <path d="M45 33 C50 32, 51 38, 45 39 Z" fill="#ff4526" />
         </g>
+        {/* Rising glowing embers */}
+        <circle className="w-ember e1" cx="29" cy="0" r="1.4" fill="#ffd166" />
+        <circle className="w-ember e2" cx="42" cy="4" r="1.2" fill="#ff9f1a" />
+        <circle className="w-ember e3" cx="-1" cy="24" r="1.3" fill="#ff6a1a" />
+        <circle className="w-ember e4" cx="47" cy="29" r="1.2" fill="#ffd166" />
+        <circle className="w-ember e5" cx="19" cy="-1" r="1.0" fill="#ff5252" />
       </svg>
     )
   }
   if (tier === 'prismatic') {
     return (
-      <svg className="w-aura aura-prism" viewBox="-6 -6 58 62" aria-hidden="true">
-        <g className="w-fx-a">
-          <path d={STAR4(44, 3, 4.2)} fill="#2bb8ff" />
-          <path d={STAR4(44, 3, 2)} fill="#fff" />
-          <path d={STAR4(1, 38, 3.6)} fill="#e04bff" />
-          <path d={STAR4(1, 38, 1.7)} fill="#fff" />
-          <circle cx="26" cy="-2" r="1.3" fill="#ffe14d" />
-          <circle cx="48" cy="30" r="1.3" fill="#3ddc84" />
+      <svg className="w-aura aura-prism" viewBox="-8 -10 62 66" aria-hidden="true">
+        <g className="w-prism-spark s1" style={{ transformOrigin: '45px 2px' }}>
+          <path d={STAR4(45, 2, 5.4)} fill="#2bb8ff" />
+          <path d={STAR4(45, 2, 2.4)} fill="#ffffff" />
         </g>
-        <g className="w-fx-b">
-          <path d={STAR4(28, 0, 3.6)} fill="#ffe14d" />
-          <path d={STAR4(28, 0, 1.6)} fill="#fff" />
-          <path d={STAR4(46, 44, 4)} fill="#3ddc84" />
-          <path d={STAR4(46, 44, 1.8)} fill="#fff" />
-          <path d={STAR4(14, 50, 3.2)} fill="#ff5c8a" />
-          <circle cx="-2" cy="22" r="1.3" fill="#2bb8ff" />
+        <g className="w-prism-spark s2" style={{ transformOrigin: '0px 36px' }}>
+          <path d={STAR4(0, 36, 4.6)} fill="#e04bff" />
+          <path d={STAR4(0, 36, 2.0)} fill="#ffffff" />
         </g>
+        <g className="w-prism-spark s3" style={{ transformOrigin: '27px -1px' }}>
+          <path d={STAR4(27, -1, 4.4)} fill="#ffe14d" />
+          <path d={STAR4(27, -1, 1.9)} fill="#ffffff" />
+        </g>
+        <g className="w-prism-spark s4" style={{ transformOrigin: '46px 44px' }}>
+          <path d={STAR4(46, 44, 4.8)} fill="#3ddc84" />
+          <path d={STAR4(46, 44, 2.1)} fill="#ffffff" />
+        </g>
+        <circle className="w-ember e1" cx="15" cy="51" r="1.4" fill="#ff5c8a" />
+        <circle className="w-ember e2" cx="48" cy="22" r="1.3" fill="#2bb8ff" />
+        <circle className="w-ember e3" cx="-2" cy="18" r="1.2" fill="#ffe14d" />
       </svg>
     )
   }
   if (tier === 'blacksilver') {
     return (
-      <svg className="w-aura aura-silver" viewBox="-6 -6 58 62" aria-hidden="true">
-        <g className="w-fx-a" fill="none" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="24,0 29,-4 33,1 39,-3 44,2" stroke="#9cc4ff" strokeWidth="2.4" opacity="0.55" />
-          <polyline points="24,0 29,-4 33,1 39,-3 44,2" stroke="#f2f7ff" strokeWidth="1.15" />
-          <polyline points="1,24 -4,29 1,34 -3,40 2,46" stroke="#9cc4ff" strokeWidth="2.4" opacity="0.55" />
-          <polyline points="1,24 -4,29 1,34 -3,40 2,46" stroke="#ffffff" strokeWidth="1.15" />
-          <polyline points="28,50 33,54 37,49 43,53" stroke="#9cc4ff" strokeWidth="2.2" opacity="0.5" />
-          <polyline points="28,50 33,54 37,49 43,53" stroke="#e8f1ff" strokeWidth="1.05" />
+      <svg className="w-aura aura-silver" viewBox="-8 -10 62 66" aria-hidden="true">
+        {/* Arc 1: top-right corner snap + fork */}
+        <g className="w-bolt b1" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 0 L28 -3 L31 1 L39 -4 L43 1 L47 0 L46 9 L49 14" stroke="#66b3ff" strokeWidth="3.2" opacity="0.55" />
+          <path d="M21 0 L28 -3 L31 1 L39 -4 L43 1 L47 0 L46 9 L49 14" stroke="#ffffff" strokeWidth="1.25" />
+          <path d="M39 -4 L42 -8" stroke="#cfe6ff" strokeWidth="1.0" />
+          <circle cx="49" cy="14" r="1.4" fill="#ffffff" stroke="none" />
         </g>
-        <g className="w-fx-b" fill="none" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="46,12 50,17 45,22 50,27 45,33" stroke="#9cc4ff" strokeWidth="2.4" opacity="0.55" />
-          <polyline points="46,12 50,17 45,22 50,27 45,33" stroke="#ffffff" strokeWidth="1.15" />
-          <polyline points="6,50 11,54 16,49 22,53" stroke="#9cc4ff" strokeWidth="2.2" opacity="0.5" />
-          <polyline points="6,50 11,54 16,49 22,53" stroke="#e8f1ff" strokeWidth="1.05" />
-          <polyline points="31,-1 36,2 41,-3 46,4" stroke="#ffffff" strokeWidth="1.1" />
+        {/* Arc 2: left edge discharge + lower corner */}
+        <g className="w-bolt b2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1 19 L-4 24 L1 29 L-3 36 L1 42 L0 48 L8 50" stroke="#66b3ff" strokeWidth="3.2" opacity="0.55" />
+          <path d="M1 19 L-4 24 L1 29 L-3 36 L1 42 L0 48 L8 50" stroke="#ffffff" strokeWidth="1.25" />
+          <path d="M-3 36 L-7 39" stroke="#cfe6ff" strokeWidth="1.0" />
+          <circle cx="0" cy="48" r="1.3" fill="#e8f4ff" stroke="none" />
+        </g>
+        {/* Arc 3: right-bottom surge */}
+        <g className="w-bolt b3" fill="none" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M46 25 L50 31 L45 36 L49 44 L44 50 L33 51 L27 54" stroke="#7cc2ff" strokeWidth="3.0" opacity="0.5" />
+          <path d="M46 25 L50 31 L45 36 L49 44 L44 50 L33 51 L27 54" stroke="#ffffff" strokeWidth="1.2" />
+          <path d="M49 44 L52 47" stroke="#cfe6ff" strokeWidth="0.95" />
+          <circle cx="27" cy="54" r="1.2" fill="#ffffff" stroke="none" />
         </g>
       </svg>
     )
   }
   if (tier === 'blackgold') {
     return (
-      <svg className="w-aura aura-gold" viewBox="-6 -6 58 62" aria-hidden="true">
-        <g className="w-fx-a">
-          <path d={STAR4(45, 2, 4.8)} fill="#ffc83d" />
-          <path d={STAR4(45, 2, 2.2)} fill="#fff8d6" />
-          <path d={STAR4(0, 34, 4.2)} fill="#ffd859" />
-          <path d={STAR4(0, 34, 1.9)} fill="#fff8d6" />
-          <path d={STAR4(24, 50, 3.8)} fill="#ffc83d" />
-          <path d={STAR4(24, 50, 1.7)} fill="#fff8d6" />
-          <circle cx="31" cy="-2" r="1.3" fill="#ffe88a" />
-          <circle cx="48" cy="24" r="1.2" fill="#ffc83d" />
+      <svg className="w-aura aura-gold" viewBox="-8 -10 62 66" aria-hidden="true">
+        <g className="w-gold-star gs1" style={{ transformOrigin: '45px 2px' }}>
+          <path d={STAR4(45, 2, 6.2)} fill="#ffc83d" />
+          <path d={STAR4(45, 2, 2.8)} fill="#fffbe6" />
         </g>
-        <g className="w-fx-b">
-          <path d={STAR4(27, -1, 4.2)} fill="#ffd859" />
-          <path d={STAR4(27, -1, 1.8)} fill="#fff8d6" />
-          <path d={STAR4(46, 43, 4.5)} fill="#ffc83d" />
-          <path d={STAR4(46, 43, 2)} fill="#fff8d6" />
-          <path d={STAR4(7, 49, 3.6)} fill="#ffe270" />
-          <path d={STAR4(7, 49, 1.6)} fill="#fff8d6" />
-          <circle cx="-2" cy="21" r="1.3" fill="#ffe88a" />
-          <circle cx="38" cy="52" r="1.1" fill="#ffd859" />
+        <g className="w-gold-star gs2" style={{ transformOrigin: '0px 34px' }}>
+          <path d={STAR4(0, 34, 5.2)} fill="#ffd859" />
+          <path d={STAR4(0, 34, 2.3)} fill="#fffbe6" />
         </g>
+        <g className="w-gold-star gs3" style={{ transformOrigin: '26px -2px' }}>
+          <path d={STAR4(26, -2, 4.8)} fill="#ffe270" />
+          <path d={STAR4(26, -2, 2.1)} fill="#ffffff" />
+        </g>
+        <g className="w-gold-star gs4" style={{ transformOrigin: '45px 44px' }}>
+          <path d={STAR4(45, 44, 5.4)} fill="#ffc83d" />
+          <path d={STAR4(45, 44, 2.4)} fill="#fffbe6" />
+        </g>
+        <g className="w-gold-star gs5" style={{ transformOrigin: '16px 50px' }}>
+          <path d={STAR4(16, 50, 4.2)} fill="#ffd859" />
+          <path d={STAR4(16, 50, 1.8)} fill="#ffffff" />
+        </g>
+        <circle className="w-ember e1" cx="34" cy="0" r="1.4" fill="#fff2a8" />
+        <circle className="w-ember e2" cx="48" cy="22" r="1.3" fill="#ffc83d" />
+        <circle className="w-ember e3" cx="-2" cy="19" r="1.2" fill="#ffe270" />
+        <circle className="w-ember e4" cx="35" cy="52" r="1.2" fill="#fff2a8" />
       </svg>
     )
   }
@@ -129,6 +149,7 @@ export const WatchCard = memo(function WatchCard({ cardId, player, team, benchCo
       {fav && <span className="w-mark star" aria-hidden="true">⭐</span>}
       {hot && <span className="w-mark fire" aria-hidden="true">🔥</span>}
       <div className="w-face-box">
+        {is90Plus(tier) && <div className={`w-ring tier-${tier}`} aria-hidden="true" />}
         <div className={`w-face${tier ? ` tier-${tier}` : ''}`}>
           {player && <span className={`w-ovr tier-${tier}`} title={`Overall ${ovr}`}>{ovr}</span>}
           {player
