@@ -1,3 +1,5 @@
+import { computeOvr } from '../player/ratings'
+import type { Rng } from '../rng'
 import type { League, Player } from '../types'
 import { GmError, pname } from './cap'
 
@@ -7,6 +9,22 @@ export const TRAINING_SLOTS = 3
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
 export const isTraining = (l: League, playerId: string): boolean => l.training.some((t) => t.playerId === playerId)
+
+/** CPU teams quietly focus development on their top young prospects too, keeping league parity. */
+export function aiDevIds(l: League): Set<string> {
+  const byTeam: Record<string, Player[]> = {}
+  for (const p of Object.values(l.players)) {
+    if (!p.teamId || p.retired || p.teamId === l.userTeamId || p.age > 24) continue
+    ;(byTeam[p.teamId] ??= []).push(p)
+  }
+  const out = new Set<string>()
+  const score = (p: Player) => (p.pot - computeOvr(p.ratings, p.pos)) * 1.5 + p.pot - p.age
+  for (const roster of Object.values(byTeam)) {
+    roster.sort((a, b) => score(b) - score(a))
+    for (const p of roster.slice(0, 2)) out.add(p.id)
+  }
+  return out
+}
 
 /** A better developer on the bench makes every slot count for more: 0.67× at dev 30, 1× at 60, 1.4× at 95. */
 export function coachFactor(l: League, teamId: string): number {
@@ -26,13 +44,20 @@ export function lateBloomFactor(p: Player): number {
 
 const youthFactor = (age: number) => (age <= 22 ? 1.3 : age <= 25 ? 1 : age <= 28 ? 0.5 : 0.15)
 
+/** Ceiling jump on a breakout: bigger for raw/mid-tier prospects than guys already near 90+. */
+export function breakoutBump(p: Player, rng: Rng): number {
+  if (p.pot >= 90) return rng.int(1, 3)
+  if (p.pot >= 85) return rng.int(2, 4)
+  return rng.int(3, 6)
+}
+
 /**
  * Chance that an invested player breaks out (his ceiling jumps and he gains a couple of points) over one development
  * check; `scale` is 1 for each in-season tick and larger for the summer. Roughly a one-in-five season for the
  * ideal late bloomer with a good coach, and rare for everyone else.
  */
 export function breakoutChance(p: Player, coachF: number, scale = 1): number {
-  return clamp(0.012 * lateBloomFactor(p) * youthFactor(p.age) * coachF * scale, 0, 0.35)
+  return clamp(0.007 * lateBloomFactor(p) * youthFactor(p.age) * coachF * scale, 0, 0.22)
 }
 
 /** Drops slots whose player has left the user's team (traded, released, retired). */

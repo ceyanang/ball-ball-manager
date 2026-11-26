@@ -278,7 +278,7 @@ export function aiTrimRosters(l: League): void {
 /** Fresh veterans so the pool never runs dry. */
 export function addFreeAgentBatch(l: League, rng: Rng, n: number): void {
   for (let i = 0; i < n; i++) {
-    const p = generatePlayer(rng, { season: l.season, targetOvr: Math.max(53, Math.min(70, Math.round(rng.normal(62, 3.5)))), age: rng.int(24, 34) })
+    const p = generatePlayer(rng, { season: l.season, targetOvr: Math.max(58, Math.min(73, Math.round(rng.normal(66, 3.5)))), age: rng.int(24, 34) })
     p.ratingHistory = [{ season: l.season + (l.phase === 'offseason' ? 1 : 0), ovr: ovr(p) }]
     l.players[p.id] = p
   }

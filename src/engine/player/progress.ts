@@ -1,6 +1,6 @@
 import type { Rng } from '../rng'
 import type { League, Player, ProgressEvent, Ratings, StatLine } from '../types'
-import { breakoutChance, coachFactor } from '../gm/training'
+import { aiDevIds, breakoutBump, breakoutChance, coachFactor } from '../gm/training'
 import { POSITION_WEIGHTS, RATING_KEYS, computeOvr } from './ratings'
 
 const RATING_MIN = 40
@@ -9,10 +9,10 @@ const MIN_MINUTES = 50
 const ovr = (p: Player) => computeOvr(p.ratings, p.pos)
 
 function riseChance(age: number) {
-  return age <= 23 ? 0.4 : age <= 27 ? 0.25 : age <= 30 ? 0.12 : 0.06
+  return age <= 23 ? 0.4 : age <= 27 ? 0.2 : age <= 30 ? 0.08 : 0.05
 }
 function fallChance(age: number) {
-  return age <= 27 ? 0.04 : age <= 30 ? 0.12 : age <= 32 ? 0.25 : 0.4
+  return age <= 27 ? 0.04 : age <= 30 ? 0.14 : age <= 32 ? 0.28 : 0.42
 }
 
 const gameScore = (s: StatLine) =>
@@ -67,31 +67,35 @@ export function progressTick(league: League, rng: Rng): ProgressEvent[] {
   const perf = performance(league)
   const events: ProgressEvent[] = []
   const invested = new Set(league.training.map((t) => t.playerId))
+  const aiDev = aiDevIds(league)
   for (const p of Object.values(league.players)) {
     if (!p.teamId) continue
-    // A development slot: a real shot at a breakout, plus faster growth and a softer slide while he's in the program.
-    const inv = invested.has(p.id) && p.teamId === league.userTeamId
+    // User development slots and CPU young-core focus both get real breakout odds and faster growth.
+    const userInv = invested.has(p.id) && p.teamId === league.userTeamId
+    const inv = userInv || aiDev.has(p.id)
     const cf = inv ? coachFactor(league, p.teamId) : 1
     if (inv && rng.chance(breakoutChance(p, cf))) {
       const from = ovr(p), potFrom = p.pot
-      p.pot = Math.min(99, p.pot + rng.int(3, 6))
+      p.pot = Math.min(99, p.pot + breakoutBump(p, rng))
       shift(p, 2, rng)
-      events.push({ season: league.season, day: league.day, playerId: p.id, teamId: p.teamId, from, to: ovr(p), breakout: { potFrom, potTo: p.pot } })
+      const to = ovr(p)
+      if (userInv) events.push({ season: league.season, day: league.day, playerId: p.id, teamId: p.teamId, from, to, breakout: { potFrom, potTo: p.pot } })
+      else if (to !== from) events.push({ season: league.season, day: league.day, playerId: p.id, teamId: p.teamId, from, to })
       continue
     }
     const tilt = perf[p.id] ?? 0
     let up = riseChance(p.age) * (1 + 1.5 * tilt)
     let down = fallChance(p.age) * (1 - 1.5 * tilt)
     if (inv) {
-      up = Math.min(0.9, up * 1.9 * cf)
-      down *= 0.3
+      up = Math.min(0.8, up * 1.3 * cf)
+      down *= 0.6
     }
     const r = rng.next()
     const dir = r < up ? 1 : r < up + down ? -1 : 0
     if (!dir) continue
     if (dir > 0 && ovr(p) >= p.pot) continue
-    // The last few points to the 90s and up come slowly.
-    if (dir > 0 && ovr(p) >= 88 && rng.chance(ovr(p) >= 93 ? 0.75 : 0.5)) continue
+    // The last few points above 89 come slowly.
+    if (dir > 0 && ovr(p) >= 89 && rng.chance(ovr(p) >= 93 ? 0.75 : 0.5)) continue
     const from = ovr(p)
     shift(p, dir * (rng.chance(0.7) ? 1 : 2), rng)
     const to = ovr(p)

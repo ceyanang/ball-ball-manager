@@ -39,9 +39,18 @@ describe('league talent over many seasons', () => {
       log.push(`after season ${s}: 80+=${n80(l)} 85+=${nAt(l, 85)} 90+=${nAt(l, 90)} top8=${top8Mean(l).toFixed(1)}`)
     }
     console.log(log.join('\n'))
-    // Plateau: 80+ stays a minority (<= 20% of rostered players), 90+ stays a handful, and the average rotation barely drifts.
-    expect(n80(l) / rostered(l).length).toBeLessThanOrEqual(0.2)
-    expect(nAt(l, 90)).toBeLessThanOrEqual(16)
-    expect(top8Mean(l) - start.top8).toBeLessThan(3.5)
+    const draftedStars = rostered(l)
+      .filter((p) => p.draft)
+      .sort((a, b) => ovr(b) - ovr(a))
+      .slice(0, 25)
+    console.log('top 25 drafted picks:', draftedStars.map((p) => `#${p.draft!.pick}(${ovr(p)})`).join(', '))
+    // Plateau: 80+ stays near ~100 (18-30% of rostered players), 90+ stays around ~24 (16-32), and top8 barely drifts.
+    expect(n80(l) / rostered(l).length).toBeGreaterThanOrEqual(0.18)
+    expect(n80(l) / rostered(l).length).toBeLessThanOrEqual(0.30)
+    expect(nAt(l, 90)).toBeGreaterThanOrEqual(16)
+    expect(nAt(l, 90)).toBeLessThanOrEqual(32)
+    expect(Math.abs(top8Mean(l) - start.top8)).toBeLessThan(3.0)
+    // Top drafted players aren't exclusively pick #1s.
+    expect(draftedStars.filter((p) => p.draft!.pick > 1).length).toBeGreaterThanOrEqual(18)
   })
 })

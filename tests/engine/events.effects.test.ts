@@ -63,7 +63,8 @@ describe('event effects', () => {
     expect(p.ratings.three).toBe(99)
   })
   it('ovrNudge raises OVR by at least 1 touching at most 5 ratings', () => {
-    const { l, p } = fresh()
+    const { l } = fresh()
+    const p = committed(l, l.userTeamId).find((q) => ovr(q) < 92)!
     const before = ovr(p), r0 = { ...p.ratings }
     applyEffects(l, [{ kind: 'ovrNudge', player: p.id, delta: 1 }])
     expect(ovr(p)).toBeGreaterThanOrEqual(before + 1)

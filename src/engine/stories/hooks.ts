@@ -128,6 +128,7 @@ export function onOffseasonStart(l: League): void {
 
 export function onNewSeason(l: League): void {
   pruneNews(l)
+  expireOffers(l)
   clearStaleInbox(l)
   for (const k of Object.keys(l.fans.players)) {
     if (!l.players[k] || l.players[k].retired) delete l.fans.players[k]

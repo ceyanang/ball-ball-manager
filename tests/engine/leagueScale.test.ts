@@ -9,27 +9,29 @@ const rostered = (seed: number) =>
     .map((p) => computeOvr(p.ratings, p.pos))
 
 describe('new-league talent scale', () => {
-  it('makes 80+ rare (at most 12% of rostered players)', () => {
+  it('follows the 2K curve: roughly top 100 players at 80+ (~20-30% of rostered players)', () => {
     for (const s of SEEDS) {
       const o = rostered(s)
-      expect(o.filter((v) => v >= 80).length / o.length).toBeLessThanOrEqual(0.12)
+      const n80 = o.filter((v) => v >= 80).length
+      expect(n80).toBeGreaterThanOrEqual(85)
+      expect(n80).toBeLessThanOrEqual(125)
     }
   })
 
-  it('keeps the top end: 8-14 players at 89+ and at least one at 94+', () => {
+  it('keeps the top end: roughly top 24 players at 90+ (19-30) and at least one at 95+', () => {
     for (const s of SEEDS) {
       const o = rostered(s)
-      const n = o.filter((v) => v >= 89).length
-      expect(n).toBeGreaterThanOrEqual(8)
-      expect(n).toBeLessThanOrEqual(14)
-      expect(Math.max(...o)).toBeGreaterThanOrEqual(94)
+      const n = o.filter((v) => v >= 90).length
+      expect(n).toBeGreaterThanOrEqual(19)
+      expect(n).toBeLessThanOrEqual(30)
+      expect(Math.max(...o)).toBeGreaterThanOrEqual(95)
     }
   })
 
-  it('keeps 70 as a solid rotation player: at least 40% of the league is 70+', () => {
+  it('keeps 70+ as the main rotation baseline: at least 65% of the league is 70+', () => {
     for (const s of SEEDS) {
       const o = rostered(s)
-      expect(o.filter((v) => v >= 70).length / o.length).toBeGreaterThanOrEqual(0.4)
+      expect(o.filter((v) => v >= 70).length / o.length).toBeGreaterThanOrEqual(0.65)
     }
   })
 

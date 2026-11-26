@@ -17,7 +17,6 @@ import type { League, Player, Team } from '../types'
 
 const PER_TEAM = 14
 const FREE_AGENTS = 25
-const SUPERSTARS = 8
 /** How strongly a franchise's hidden pull sets its draft slot (0 = coin flip each round). */
 const PULL_WEIGHT = 2
 /** Franchise quality: rating shift = pull × QUALITY_SD, capped at ±QUALITY_MAX. */
@@ -59,19 +58,24 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     rotation: { starters: [], bench: [], inactive: [] },
   }))
 
-  // Tiered talent (2K-style): one lead per team (8 of them superstars), 4 starters, 7 bench, 2 deep bench.
+  // Tiered talent (NBA 2K-style): ~24 players at 90+, ~100 at 80+, ~320 at 70+.
   const make = (n: number, target: () => number) =>
     Array.from({ length: n }, () => generatePlayer(rng, { season, targetOvr: target() }))
   const clampT = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, Math.round(v)))
   const tiers: Player[][] = [
     [
-      ...make(1, () => rng.int(94, 97)),
-      ...make(SUPERSTARS - 1, () => clampT(rng.normal(92, 2.5), 89, 97)),
-      ...make(teams.length - SUPERSTARS, () => clampT(rng.normal(85, 4), 78, 88)),
+      ...make(2, () => rng.int(96, 98)),
+      ...make(7, () => clampT(rng.normal(93.8, 1.0), 93, 95)),
+      ...make(14, () => clampT(rng.normal(91.3, 0.7), 90, 92)),
+      ...make(teams.length - 23, () => clampT(rng.normal(87.5, 1.1), 86, 89)),
     ],
-    make(teams.length * 4, () => clampT(rng.normal(74.5, 3), 68, 84)),
-    make(teams.length * 7, () => clampT(rng.normal(70, 3), 62, 79)),
-    make(teams.length * 2, () => clampT(rng.normal(64, 3), 56, 72)),
+    [
+      ...make(20, () => clampT(rng.normal(85.5, 1.5), 83, 88)),
+      ...make(55, () => clampT(rng.normal(81.5, 1.5), 79, 84)),
+      ...make(teams.length * 4 - 75, () => clampT(rng.normal(77.5, 1.5), 75, 80)),
+    ],
+    make(teams.length * 7, () => clampT(rng.normal(73.5, 2.4), 68, 79)),
+    make(teams.length * 2, () => clampT(rng.normal(67.5, 2.5), 61, 74)),
   ]
 
   // Allocation draft within each tier, respecting positional needs. Each team gets a hidden,
@@ -146,8 +150,8 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
 
   for (let i = 0; i < FREE_AGENTS; i++) {
     let p: Player
-    do p = generatePlayer(rng, { season, targetOvr: clampT(rng.normal(62, 2.5), 58, 66) })
-    while (ovr(p) < 58 || ovr(p) > 66)
+    do p = generatePlayer(rng, { season, targetOvr: clampT(rng.normal(66, 2.5), 60, 71) })
+    while (ovr(p) < 60 || ovr(p) > 71)
     players[p.id] = p
   }
 

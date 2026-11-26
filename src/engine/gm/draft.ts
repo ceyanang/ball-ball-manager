@@ -29,22 +29,22 @@ export function rookieSalary(slot: DraftSlot): number {
 export const rookieYears = (slot: DraftSlot) => (slot.round === 1 ? 3 : 2)
 
 const FIRST_ROUND = 30
-const FIRST_ROUND_FLOOR = 68
+const FIRST_ROUND_FLOOR = 69
 
-/** Target OVR of each prospect, best first. Slot-shaped: a Flagg/Wemby type up top, then 68+ through the first round. */
+/** Target OVR of each prospect, best first. Top picks are NBA-ready, R1 is 69+, and R2 offers playable depth flyers. */
 export function prospectTargets(rng: Rng): { target: number; generational: boolean }[] {
   const out: { target: number; generational: boolean }[] = []
   for (let r = 0; r < PROSPECTS; r++) {
     if (r >= FIRST_ROUND) {
-      out.push({ target: Math.max(42, Math.min(62, Math.round(rng.normal(54, 5.5)))), generational: false })
+      out.push({ target: Math.max(56, Math.min(70, Math.round(rng.normal(63, 3.5)))), generational: false })
       continue
     }
-    const generational = r < 2 && rng.chance(0.6)
+    const generational = r < 3 && rng.chance(0.42)
     if (generational) {
-      out.push({ target: Math.max(77, Math.min(84, Math.round(rng.normal(80, 1.5)))), generational })
+      out.push({ target: Math.max(79, Math.min(86, Math.round(rng.normal(82, 1.5)))), generational })
       continue
     }
-    const base = r === 0 ? 77 : r < 5 ? 79 - 0.9 * r : r < 14 ? 74.5 - 0.55 * (r - 5) : 70.5 - 0.15 * (r - 14)
+    const base = r === 0 ? 79 : r < 5 ? 79.5 - 0.85 * r : r < 14 ? 75 - 0.35 * (r - 5) : 71.5 - 0.14 * (r - 14)
     out.push({ target: Math.max(FIRST_ROUND_FLOOR, Math.round(base + rng.normal(0, 1.2))), generational })
   }
   return out.sort((a, b) => b.target - a.target)
@@ -55,17 +55,22 @@ export function generateProspects(l: League, rng: Rng): { ids: string[]; scout: 
   const scout: DraftState['scout'] = {}
   const targets = prospectTargets(rng)
   for (let i = 0; i < PROSPECTS; i++) {
-    const elite = i < 8
     const { target, generational } = targets[i]
     const p = generatePlayer(rng, { season: l.season + 1, age: rng.int(19, 22), targetOvr: target })
     const o = ovr(p)
-    p.pot = Math.max(o + 3, Math.min(97, Math.round(o + rng.normal(generational ? 14 : elite ? 9 : 6, generational ? 3 : 4) - (p.age - 19) * 1.5)))
+    const meanUpside = generational ? 13.0 : i < 5 ? 9.8 : i < 14 ? 5.5 : i < 30 ? 3.5 : 3.5
+    const sdUpside = generational ? 2.8 : i < 14 ? 4.0 : 3.5
+    const sleeper = i >= 14 && i < 30 && rng.chance(0.10) ? rng.int(6, 10)
+      : i >= 30 && rng.chance(0.05) ? rng.int(9, 15) : 0
+    p.pot = Math.max(o + 3, Math.min(98, Math.round(o + rng.normal(meanUpside, sdUpside) + sleeper - (p.age - 19) * 1.2)))
     p.morale = 60
     l.players[p.id] = p
     ids.push(p.id)
-    const spread = rng.int(3, 7)
+    const spread = rng.int(3, 6)
     const shift = rng.int(-3, 3)
-    scout[p.id] = { ovrLo: o + shift - spread, ovrHi: o + shift + spread, pot: Math.max(40, Math.min(99, Math.round(p.pot + rng.normal(0, 4)))) }
+    const hidden = sleeper > 0 ? sleeper * (0.4 + rng.next() * 0.45) : 0
+    const scoutPot = Math.max(50, Math.min(99, Math.round(p.pot - hidden + rng.normal(0, i < 10 ? 4.5 : 5.5))))
+    scout[p.id] = { ovrLo: o + shift - spread, ovrHi: o + shift + spread, pot: scoutPot }
   }
   return { ids, scout }
 }
@@ -101,9 +106,13 @@ export function setupDraft(l: League, rng: Rng): void {
 
 export const currentSlot = (l: League) => l.draft?.order.find((s) => !s.playerId) ?? null
 
-/** Expected value of a prospect to a team: OVR now and ceiling, with a small nudge for positions it lacks. */
-function draftScore(have: number, p: Player): number {
-  return 0.5 * ovr(p) + 0.5 * p.pot + (have <= 1 ? 1.5 : have >= 4 ? -1.5 : 0)
+/** Expected value of a prospect to a team using scouting estimates and team direction, plus a positional-need nudge. */
+function draftScore(l: League, teamId: string, have: number, p: Player): number {
+  const sc = l.draft?.scout[p.id]
+  const estOvr = sc ? (sc.ovrLo + sc.ovrHi) / 2 : ovr(p)
+  const estPot = sc ? sc.pot : p.pot
+  const wOvr = teamMode(l, teamId) === 'contend' ? 0.58 : 0.38
+  return wOvr * estOvr + (1 - wOvr) * estPot + (have <= 1 ? 1.5 : have >= 4 ? -1.5 : 0)
 }
 
 export function makePick(l: League, playerId: string): void {
@@ -122,7 +131,7 @@ function aiPick(l: League): void {
   const s = currentSlot(l)!
   const have: Record<string, number> = {}
   for (const q of committed(l, s.teamId)) have[q.pos] = (have[q.pos] ?? 0) + 1
-  const score = (p: Player) => draftScore(have[p.pos] ?? 0, p)
+  const score = (p: Player) => draftScore(l, s.teamId, have[p.pos] ?? 0, p)
   const best = l.draft!.prospects.map((id) => l.players[id]).reduce((a, b) => (score(b) > score(a) ? b : a))
   makePick(l, best.id)
 }

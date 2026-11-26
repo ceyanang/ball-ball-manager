@@ -164,7 +164,7 @@ export function preLeagueCredit(p: Player): number {
   const latest = p.ratingHistory.at(-1)!.season
   const ageOnArrival = p.age - (latest - first.season)
   const years = Math.min(PRE_LEAGUE_MAX_YEARS, Math.max(0, ageOnArrival - PRE_LEAGUE_DEBUT_AGE))
-  return years * (Math.max(0, first.ovr - 70) / 3.2)
+  return years * (Math.max(0, first.ovr - 75) / 3.0)
 }
 
 /** Credit for one season line: a good per-game all-around line, scaled by games played. */

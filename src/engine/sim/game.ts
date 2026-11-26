@@ -10,7 +10,7 @@ import { chooseSubs, isBlowout, returnStarterSwaps, SUB } from './subs'
 /** Tuning constants (calibrated by the realism tests). */
 export const K = {
   /** Rating treated as league-average in all make/miss formulas. */
-  pivot: 72,
+  pivot: 75,
   basePace: 97,
   paceStyle: 4,
   defenseStylePace: -2,
@@ -242,12 +242,12 @@ export function simGame(
     const o = sides[off].onCourt, d = sides[other(off)].onCourt
     const p = K.orebBase + (mean(o, (id) => R(id).oreb) - mean(d, (id) => R(id).dreb)) * 0.003
     if (rng.chance(p)) {
-      const id = rng.weighted(o, (id) => R(id).oreb ** 1.5)
+      const id = rng.weighted(o, (id) => R(id).oreb ** 2)
       box[id].oreb++
       emit({ k: 'reb', side: off, player: id, off: true })
       return true
     }
-    const id = rng.weighted(d, (id) => R(id).dreb ** 1.5)
+    const id = rng.weighted(d, (id) => R(id).dreb ** 2)
     box[id].dreb++
     emit({ k: 'reb', side: other(off), player: id, off: false })
     return false

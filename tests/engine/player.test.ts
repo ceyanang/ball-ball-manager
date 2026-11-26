@@ -81,7 +81,7 @@ describe('salaryForPlayer', () => {
   }
   it('maps low OVR to min and elite to max', () => {
     expect(at(60)).toBe(MIN_SALARY)
-    expect(at(92)).toBe(MAX_SALARY)
+    expect(at(95)).toBe(MAX_SALARY)
   })
   it('is monotone in OVR at age 27', () => {
     let prev = 0
