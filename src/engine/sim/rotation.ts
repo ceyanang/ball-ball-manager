@@ -61,6 +61,9 @@ export function autoRotation(players: Player[]): Rotation {
     const j = rest.findIndex((p, i) => i >= active.length && want(p))
     if (j >= 0 && active.length) active[active.length - 1] = rest[j]
   }
+  // MyCareer: the coach always dresses the followed player so there is a game to play, however low his Career OVR reads.
+  const followed = rest.find((p) => p.careerBuild && !active.includes(p))
+  if (followed && active.length) active[active.length - 1] = followed
   const ids = (ps: Player[]) => ps.map((p) => p.id)
   return { starters: ids(starters), bench: ids(active), inactive: ids(rest.filter((p) => !active.includes(p))) }
 }

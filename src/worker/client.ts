@@ -1,10 +1,11 @@
 import type { WatchCapture } from '../engine/season/advance'
+import type { MomentAnswer, MomentPrompt } from '../engine/sim/moments'
 import type { League } from '../engine/types'
 import type { SimCommand, SimResponse } from './protocol'
 
 let worker: Worker | null = null
 let nextId = 1
-const pending = new Map<number, { resolve: (r: { league: League; watch: WatchCapture | null }) => void; reject: (e: Error) => void }>()
+const pending = new Map<number, { resolve: (r: { league: League; watch: WatchCapture | null; moment: MomentPrompt | null }) => void; reject: (e: Error) => void }>()
 
 function getWorker(): Worker {
   if (worker) return worker
@@ -14,7 +15,7 @@ function getWorker(): Worker {
     if (!p) return
     pending.delete(e.data.id)
     if ('error' in e.data) p.reject(new Error(e.data.error))
-    else p.resolve({ league: e.data.league, watch: e.data.watch ?? null })
+    else p.resolve({ league: e.data.league, watch: e.data.watch ?? null, moment: e.data.moment ?? null })
   }
   const fail = (msg: string) => {
     for (const p of pending.values()) p.reject(new Error(msg))
@@ -27,7 +28,7 @@ function getWorker(): Worker {
   return worker
 }
 
-function request(league: League, cmd: SimCommand): Promise<{ league: League; watch: WatchCapture | null }> {
+function request(league: League, cmd: SimCommand): Promise<{ league: League; watch: WatchCapture | null; moment: MomentPrompt | null }> {
   const id = nextId++
   return new Promise((resolve, reject) => {
     pending.set(id, { resolve, reject })
@@ -41,5 +42,10 @@ export function runSim(league: League, cmd: SimCommand): Promise<League> {
 
 /** Plays one day and returns the user's game as a play log (null on an off day). */
 export function runWatch(league: League): Promise<{ league: League; watch: WatchCapture | null }> {
-  return request(league, { type: 'watchDay' })
+  return request(league, { type: 'watchDay' }).then(({ league: next, watch }) => ({ league: next, watch }))
+}
+
+/** MyCareer: plays or sims one day; a returned `moment` means the game is paused waiting for an answer. */
+export function runCareerDay(league: League, cmd: { mode: 'play' | 'sim' } | { answer: MomentAnswer }): Promise<{ league: League; moment: MomentPrompt | null }> {
+  return request(league, 'answer' in cmd ? { type: 'careerAnswer', answer: cmd.answer } : { type: 'careerDay', mode: cmd.mode }).then(({ league: next, moment }) => ({ league: next, moment }))
 }

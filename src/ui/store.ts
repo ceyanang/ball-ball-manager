@@ -10,7 +10,8 @@ import type { EventFrequency, EventLogEntry } from '../engine/events/state'
 import { eventGame, playAllStarEvent, userSideIndex } from '../engine/allstar/allstar'
 import type { AllStarKind, Game, League, Rotation } from '../engine/types'
 import { deleteSave, listSaves, loadSave, onSaveWritten, parseImport, rememberOpenedSave, writeSave } from '../save/db'
-import { runSim, runWatch } from '../worker/client'
+import { runCareerDay, runSim, runWatch } from '../worker/client'
+import type { MomentAnswer, MomentPrompt } from '../engine/sim/moments'
 import type { PlayEvent } from '../engine/sim/playlog'
 import type { WatchCapture } from '../engine/season/advance'
 import type { SimCommand } from '../worker/protocol'
@@ -30,6 +31,8 @@ interface State {
   /** Short confirmation of the last GM move. */
   notice: string | null
   watch: WatchSession | null
+  /** MyCareer: the "you're open" moment waiting for an answer (the game is paused until it is answered). */
+  moment: MomentPrompt | null
   newLeague: (opts: { seed: number; userTeamIndex: number; name: string }) => Promise<void>
   /** Starts a MyCareer save: a normal league plus your own player, waiting on draft night. */
   newCareer: (opts: { seed: number; name: string; build: CareerBuildInput }) => Promise<void>
@@ -37,6 +40,10 @@ interface State {
   remove: (id: string) => Promise<void>
   sim: (cmd: SimCommand) => Promise<void>
   startWatch: () => Promise<void>
+  /** MyCareer: play or sim today; playing stops at each moment. */
+  careerDay: (mode: 'play' | 'sim') => Promise<void>
+  /** MyCareer: answer the pending moment (re-runs the game with it locked in). */
+  careerAnswer: (answer: MomentAnswer) => Promise<void>
   /** Plays the queued All-Star Weekend game (watching it live, or just simming it). Doesn't count for stats. */
   playAllStar: (kind: AllStarKind, watch: boolean) => void
   endWatch: () => void
@@ -111,6 +118,22 @@ export const useStore = create<State>((set, get) => {
     }
   }
 
+  /** One MyCareer step: saves the result (a paused game saves its answers so a reload asks the same moment) and shows any moment. */
+  async function runCareer(run: (league: League) => Promise<{ league: League; moment: MomentPrompt | null }>) {
+    const { league, busy, saveId } = get()
+    if (busy || !league) return
+    set({ busy: true, error: null, notice: null })
+    try {
+      const res = await run(league)
+      if (get().saveId === saveId) set({ league: res.league, moment: res.moment })
+      if (saveId) await writeSave(saveId, res.league)
+    } catch (e) {
+      set({ error: `The sim stopped unexpectedly: ${(e as Error).message}` })
+    } finally {
+      set({ busy: false })
+    }
+  }
+
   return {
   saveId: null,
   league: null,
@@ -118,6 +141,7 @@ export const useStore = create<State>((set, get) => {
   error: null,
   notice: null,
   watch: null,
+  moment: null,
 
   async newLeague(opts) {
     if (get().busy) return
@@ -169,6 +193,14 @@ export const useStore = create<State>((set, get) => {
 
   async sim(cmd) {
     await runAndSave((league) => runSim(league, cmd).then((next) => ({ league: next, watch: null })))
+  },
+
+  async careerDay(mode) {
+    await runCareer((league) => runCareerDay(league, { mode }))
+  },
+
+  async careerAnswer(answer) {
+    await runCareer((league) => runCareerDay(league, { answer }))
   },
 
   async startWatch() {

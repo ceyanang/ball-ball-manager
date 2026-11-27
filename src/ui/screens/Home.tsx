@@ -5,6 +5,7 @@ import { TeamBadge } from '../components/TeamBadge'
 import { GameDayHero } from '../components/GameDay'
 import { NewsCard } from '../components/Stories'
 import { PlayoffHub } from './PlayoffHub'
+import { DayCard } from './career/DayCard'
 import { useStore } from '../store'
 import { didWin, fullName, nextGame, one, ordinal, ovrOf, recentResults, rosterOf, rowPct, seasonLine, teamFull } from '../util'
 
@@ -56,6 +57,7 @@ export function Home() {
 
   return (
     <div className="stack">
+      <DayCard />
       {asgPending && (
         <Link to="/all-star" className="panel row" style={{ justifyContent: 'space-between', textDecoration: 'none', color: 'inherit' }}>
           <span>🌟 <strong>All-Star Weekend is here!</strong> The rosters are set — watch the game live.</span><span className="link">Open →</span>

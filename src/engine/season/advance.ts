@@ -2,6 +2,7 @@ import { playPendingAllStar, selectAllStars } from '../allstar/allstar'
 import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
+import { DEFAULT_MOMENT_RATE } from '../sim/moments'
 import type { PlayEvent } from '../sim/playlog'
 import { autoRotation, coachRotation } from '../sim/rotation'
 import { advanceOffseason, simFreeAgency, startOffseason } from '../gm/offseason'
@@ -11,7 +12,7 @@ import { rollInjuries, tickInjuries } from '../sim/injury'
 import { addBoxToStatLines } from '../stats/stats'
 import type { Game, League, Phase, Player, Series } from '../types'
 import { afterUserGame, beforeUserGame, onOffDay } from '../events/hooks'
-import { buildMods, tickEffects } from '../events/mods'
+import { buildMods, tickEffects, type GameMods } from '../events/mods'
 import { advancePlayoffs, seedPlayoffs } from './playoffs'
 import { pruneTraining } from '../gm/training'
 import { afterDay, afterGame, onBreakout, afterOffseason, onInjury, onRegularSeasonEnd, onReturn, onSeasonEnd, onSeriesDecided } from '../stories/hooks'
@@ -23,9 +24,26 @@ const PROGRESS_EVERY = 10
 export interface WatchCapture { gameId: string; log: PlayEvent[] }
 interface Capture { teamId: string; out: WatchCapture | null }
 
-function playGame(league: League, g: Game, rng: Rng, capture?: Capture): void {
+/** MyCareer: the followed player's moment settings for `g` (his team plays, he is signed); undefined in every other game. */
+function careerMods(league: League, g: Game, mods: GameMods | undefined, auto: boolean): GameMods | undefined {
+  const c = league.career
+  if (!c || c.status !== 'active') return mods
+  const p = league.players[c.playerId]
+  if (!p || !p.teamId || (g.homeId !== p.teamId && g.awayId !== p.teamId)) return mods
+  const answers = c.pending?.gameId === g.id ? c.pending.answers : []
+  const base: GameMods = mods ?? { shooting: {}, defense: {}, energy: {}, sit: [], chemistry: {} }
+  return { ...base, career: { playerId: p.id, rate: DEFAULT_MOMENT_RATE, answers, auto, playoffs: g.playoff !== null } }
+}
+
+function playGame(league: League, g: Game, rng: Rng, capture?: Capture, careerAuto = true): void {
   const log: PlayEvent[] | undefined = capture && (g.homeId === capture.teamId || g.awayId === capture.teamId) ? [] : undefined
-  const res = simGame(league.teams[g.homeId], league.teams[g.awayId], league.players, league.coaches, rng, log, buildMods(league, g))
+  const res = simGame(league.teams[g.homeId], league.teams[g.awayId], league.players, league.coaches, rng, log, careerMods(league, g, buildMods(league, g), careerAuto))
+  // Reward share: a game he actually played counts full when played by hand, half when simmed.
+  const c = league.career
+  if (c && c.status === 'active') {
+    const line = res.box.find((b) => b.playerId === c.playerId)
+    if (line && line.min > 0) { if (careerAuto) c.simmed++; else c.played++ }
+  }
   if (g.homeId === league.userTeamId || g.awayId === league.userTeamId) tickEffects(league)
   if (log && capture) capture.out = { gameId: g.id, log }
   g.result = res
@@ -69,7 +87,7 @@ function autoUserRotation(league: League): void {
 }
 
 /** Mutates `league`: plays the current day and advances the calendar. Returns true when the user should look (a trade offer, or All-Star Weekend just got set). */
-function stepDay(league: League, rng: Rng, capture?: Capture, pause = false): boolean {
+export function stepDay(league: League, rng: Rng, capture?: Capture, pause = false, careerAuto = true): boolean {
   if (league.phase === 'offseason') return false
   const userGameToday = league.games.find(
     (g) => g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null) && (g.homeId === league.userTeamId || g.awayId === league.userTeamId),
@@ -87,7 +105,7 @@ function stepDay(league: League, rng: Rng, capture?: Capture, pause = false): bo
   if (league.phase === 'regular') playPendingAllStar(league)
   for (const g of league.games) {
     if (g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null)) {
-      playGame(league, g, rng, capture)
+      playGame(league, g, rng, capture, careerAuto)
       played.push(g)
     }
   }

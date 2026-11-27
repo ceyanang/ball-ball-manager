@@ -48,4 +48,18 @@ describe('Career OVR seam', () => {
     expect(autoRotation(roster).starters).toContain(weak.id)
     expect(coachRotation(roster).starters).toContain(weak.id)
   })
+
+  it('the coach always dresses the followed player, even when his Career OVR is the lowest on the team', () => {
+    const l = createLeague({ seed: 3, userTeamIndex: 0, name: 'S' })
+    const { roster, weak } = followed(l)
+    // Make him the worst player by Career OVR: ratings at the floor read 58.
+    weak.careerBuild = { ...weak.careerBuild!, startProgress: 0.5 }
+    weak.careerBuild.max = { ...weak.careerBuild.max }
+    for (const k of Object.keys(weak.ratings) as (keyof typeof weak.ratings)[]) weak.ratings[k] = 25
+    expect(ovrOf(weak)).toBeLessThan(Math.min(...roster.filter((p) => p !== weak).map(ovrOf)))
+    for (const rot of [autoRotation(roster), coachRotation(roster)]) {
+      expect(rot.inactive).not.toContain(weak.id)
+      expect([...rot.starters, ...rot.bench]).toContain(weak.id)
+    }
+  })
 })

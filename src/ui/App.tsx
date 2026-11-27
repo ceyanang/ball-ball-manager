@@ -29,6 +29,7 @@ import { Social } from './screens/Social'
 import { History } from './screens/History'
 import { EventLog } from './screens/EventLog'
 import { Builder } from './screens/career/Builder'
+import { Moment } from './screens/career/Moment'
 import { DraftNight } from './screens/career/DraftNight'
 import { isCareer } from '../engine/career/state'
 import { EventModal } from './components/EventModal'
@@ -69,6 +70,7 @@ export default function App() {
   return (
     <HashRouter>
       <EventModal />
+      <Moment />
       <Routes>
         <Route path="/dev/faces" element={<FaceGallery />} />
         <Route element={<Shell />}>
