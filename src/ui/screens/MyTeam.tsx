@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { STARTERS, ACTIVE_MAX } from '../../engine/constants'
 import { archetypeFor } from '../../engine/player/archetype'
-import { computeOvr } from '../../engine/player/ratings'
+import { slotOvr } from '../../engine/career/careerOvr'
 import { rosterSynergy } from '../../engine/gm/synergy'
 import { SLOTS, autoRotation, coachRotation, validateRotation } from '../../engine/sim/rotation'
 import type { Player, Rotation } from '../../engine/types'
@@ -155,7 +155,7 @@ export function MyTeam() {
             {p.pos} · {archetypeFor(p)} · STA {p.ratings.stamina}
             {line ? ` · ${one(line.pg.pts)}/${one(line.pg.reb)}/${one(line.pg.ast)}` : ''}
           </span>
-          {offPos && <span className="rwarn">Natural {p.pos} · {computeOvr(p.ratings, slot)} as {slot}</span>}
+          {offPos && <span className="rwarn">Natural {p.pos} · {slotOvr(p, slot)} as {slot}</span>}
           {p.injury && <span className="hurt">🤕 {p.injury.gamesRemaining >= 999 ? 'out for season' : `${p.injury.gamesRemaining}g`}</span>}
         </span>
         <OvrPill value={ovrOf(p)} pot={p.pot} />

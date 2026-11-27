@@ -1,11 +1,12 @@
+import { ovrOf } from '../career/careerOvr'
 import type { Rng } from '../rng'
 import type { League, Player, ProgressEvent, Ratings, StatLine } from '../types'
 import { aiDevIds, breakoutBump, breakoutChance, coachFactor } from '../gm/training'
-import { RATING_KEYS, RATING_MAX, RATING_MIN, computeOvr, heightMaxFor, weightsForRatings } from './ratings'
+import { RATING_KEYS, RATING_MAX, RATING_MIN, heightMaxFor, weightsForRatings } from './ratings'
 
 const MIN_MINUTES = 50
 
-const ovr = (p: Player) => computeOvr(p.ratings, p.pos)
+const ovr = (p: Player): number => ovrOf(p)
 
 function riseChance(age: number) {
   return age <= 23 ? 0.4 : age <= 27 ? 0.2 : age <= 30 ? 0.08 : 0.05

@@ -1,4 +1,4 @@
-import { computeOvr } from '../player/ratings'
+import { ovrOf } from '../career/careerOvr'
 import type { Rng } from '../rng'
 import type { League, Player } from '../types'
 import { GmError, pname } from './cap'
@@ -18,7 +18,7 @@ export function aiDevIds(l: League): Set<string> {
     ;(byTeam[p.teamId] ??= []).push(p)
   }
   const out = new Set<string>()
-  const score = (p: Player) => (p.pot - computeOvr(p.ratings, p.pos)) * 1.5 + p.pot - p.age
+  const score = (p: Player) => (p.pot - ovrOf(p)) * 1.5 + p.pot - p.age
   for (const roster of Object.values(byTeam)) {
     roster.sort((a, b) => score(b) - score(a))
     for (const p of roster.slice(0, 2)) out.add(p.id)

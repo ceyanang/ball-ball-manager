@@ -1,8 +1,8 @@
 import { ACTIVE_MAX, OT_MIN, STARTERS, TEAM_MINUTES } from '../constants'
-import { computeOvr } from '../player/ratings'
+import { ovrOf, slotOvr } from '../career/careerOvr'
 import type { Player, Position, Rotation, Team } from '../types'
 
-const ovr = (p: Player) => computeOvr(p.ratings, p.pos)
+const ovr = (p: Player): number => ovrOf(p)
 
 /** Starting-five slot order: starters[i] plays SLOTS[i]. */
 export const SLOTS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C']
@@ -12,7 +12,7 @@ export const OFF_POS_PENALTY = [0, 2.5, 8, 16, 26]
 
 /** How good `p` is when playing `slot`: their OVR re-weighted for that spot, minus an out-of-position cost. */
 export function slotFit(p: Player, slot: Position): number {
-  return computeOvr(p.ratings, slot) - OFF_POS_PENALTY[Math.abs(SLOT_IDX[p.pos] - SLOT_IDX[slot])]
+  return slotOvr(p, slot) - OFF_POS_PENALTY[Math.abs(SLOT_IDX[p.pos] - SLOT_IDX[slot])]
 }
 
 /**

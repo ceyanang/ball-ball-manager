@@ -1,5 +1,5 @@
 import { MAX_SALARY, MIN_SALARY } from './constants'
-import { computeOvr } from './player/ratings'
+import { ovrOf } from './career/careerOvr'
 import type { Player } from './types'
 
 const SALARY_FLOOR_OVR = 68
@@ -7,7 +7,7 @@ const SALARY_MAX_OVR = 95
 
 /** Market salary (thousands) from OVR, discounted for age > 32. Rounded to 100. */
 export function salaryForPlayer(p: Player): number {
-  const ovr = computeOvr(p.ratings, p.pos)
+  const ovr = ovrOf(p)
   let s: number
   if (ovr <= SALARY_FLOOR_OVR) s = MIN_SALARY
   else if (ovr >= SALARY_MAX_OVR) s = MAX_SALARY

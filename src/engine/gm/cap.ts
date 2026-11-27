@@ -1,9 +1,9 @@
 import { ACTIVE_MAX, MIN_SALARY, ROSTER_MAX, ROSTER_MIN, SALARY_CAP, STARTERS } from '../constants'
-import { computeOvr } from '../player/ratings'
+import { ovrOf } from '../career/careerOvr'
 import { autoRotation, coachRotation, rescaleMinutes } from '../sim/rotation'
 import type { League, Player, Rotation, TxType } from '../types'
 
-export const ovr = (p: Player) => computeOvr(p.ratings, p.pos)
+export const ovr = (p: Player): number => ovrOf(p)
 export const money = (k: number) => (Math.abs(k) >= 1000 ? `$${(k / 1000).toFixed(1)}M` : `$${k}K`)
 
 /** Thrown by GM actions with a message that can be shown to the user as-is. */

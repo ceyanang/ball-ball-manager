@@ -5,7 +5,8 @@ import { salaryForPlayer } from '../contracts'
 import { PARODY_TEAMS } from '../data/teams'
 import { generatePlayer, RATING_MIN } from '../player/generate'
 import { pickJersey } from '../player/jerseyNumber'
-import { calculatePlayerOVR, heightMaxFor } from '../player/ratings'
+import { heightMaxFor } from '../player/ratings'
+import { ovrOf } from '../career/careerOvr'
 import { Rng } from '../rng'
 import { generateSchedule, tradeDeadline } from '../schedule/schedule'
 import { createPicks } from '../gm/draft'
@@ -27,7 +28,7 @@ const QUALITY_MAX = 5
 const isG = (p: Player) => p.pos === 'PG' || p.pos === 'SG'
 const isF = (p: Player) => p.pos === 'SF' || p.pos === 'PF'
 const isB = (p: Player) => p.pos === 'PF' || p.pos === 'C'
-const ovr = (p: Player) => calculatePlayerOVR(p.ratings, p.pos)
+const ovr = (p: Player): number => ovrOf(p)
 
 function unmetNeeds(roster: Player[]) {
   const g = roster.filter(isG).length, f = roster.filter(isF).length, b = roster.filter(isB).length

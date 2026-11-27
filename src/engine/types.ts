@@ -1,6 +1,6 @@
 import type { RivalryState } from './rivals/state'
 import type { EventsState } from './events/state'
-import type { CareerState } from './career/types'
+import type { CareerBuild, CareerState } from './career/types'
 export type Position = 'PG' | 'SG' | 'SF' | 'PF' | 'C'
 export type Conference = 'East' | 'West'
 export type CoachStyle = 'pace' | 'three' | 'defense' | 'balanced'
@@ -61,6 +61,8 @@ export interface Player {
   ratingHistory: { season: number; ovr: number }[]
   /** Set once a player hangs it up; retired players stay in the save for history. */
   retired?: boolean
+  /** MyCareer: set only on the followed player; his league-visible OVR is the Career OVR. */
+  careerBuild?: CareerBuild
 }
 /** Every rostered player id appears exactly once across the three lists. */
 export interface Rotation {

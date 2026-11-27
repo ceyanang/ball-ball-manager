@@ -1,6 +1,6 @@
 import { generatePlayerArchetype, type PlayerArchetype } from '../player/archetype'
 import { gradeFor } from '../player/grades'
-import { computeOvr } from '../player/ratings'
+import { ovrOf } from '../career/careerOvr'
 import type { Player } from '../types'
 
 export interface SynergyPillar {
@@ -60,7 +60,7 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 export function rosterSynergy(roster: Player[]): RosterSynergy {
   const core = [...roster]
     .filter((p) => !p.retired)
-    .sort((a, b) => computeOvr(b.ratings, b.pos) - computeOvr(a.ratings, a.pos))
+    .sort((a, b) => ovrOf(b) - ovrOf(a))
     .slice(0, 9)
   if (!core.length) {
     return {
