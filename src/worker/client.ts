@@ -45,6 +45,11 @@ export function runWatch(league: League): Promise<{ league: League; watch: Watch
   return request(league, { type: 'watchDay' }).then(({ league: next, watch }) => ({ league: next, watch }))
 }
 
+/** MyCareer: the whole offseason in one go (it stops for a contract choice). */
+export function runCareerOffseason(league: League): Promise<League> {
+  return request(league, { type: 'careerOffseason' }).then((r) => r.league)
+}
+
 /** MyCareer: plays or sims one day; a returned `moment` means the game is paused waiting for an answer. */
 export function runCareerDay(league: League, cmd: { mode: 'play' | 'sim' } | { answer: MomentAnswer }): Promise<{ league: League; moment: MomentPrompt | null }> {
   return request(league, 'answer' in cmd ? { type: 'careerAnswer', answer: cmd.answer } : { type: 'careerDay', mode: cmd.mode }).then(({ league: next, moment }) => ({ league: next, moment }))

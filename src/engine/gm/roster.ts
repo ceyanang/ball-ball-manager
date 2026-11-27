@@ -5,6 +5,7 @@ import type { Rng } from '../rng'
 import type { League, Player } from '../types'
 import {
   GmError, capProblem, capSeason, committed, isFreeAgent, log, money, onWaivers, ovr, payroll, pname, refreshRotation, teamPlayers, tname,
+  gmTeamId,
 } from './cap'
 import { askSalary, askYears, formOf, playerValue, standingsOf, strengthOrder, teamMode } from './value'
 
@@ -54,7 +55,7 @@ export function claimWaiver(l: League, teamId: string, playerId: string): void {
 
 /** Resolve every pending waiver: worst record claims first, otherwise dead money and free agency. */
 export function processWaivers(l: League): void {
-  const order = worstFirst(l).filter((id) => id !== l.userTeamId)
+  const order = worstFirst(l).filter((id) => id !== gmTeamId(l))
   for (const w of [...l.waivers]) {
     const p = l.players[w.playerId]
     const yearsLeft = w.contract.expires - capSeason(l) + 1
@@ -151,7 +152,7 @@ export function freeAgencyDay(l: League, rng: Rng): void {
   const perf = formOf(l)
   const fas = Object.values(l.players).filter((p) => isFreeAgent(l, p))
   const ask = new Map(fas.map((p) => [p.id, currentAsk(l, p, perf)]))
-  for (const teamId of rng.shuffle(Object.keys(l.teams).filter((id) => id !== l.userTeamId))) {
+  for (const teamId of rng.shuffle(Object.keys(l.teams).filter((id) => id !== gmTeamId(l)))) {
     const mine = committed(l, teamId)
     const n = mine.length
     if (n >= ROSTER_MAX) continue
@@ -241,7 +242,7 @@ export function fillRoster(l: League, teamId: string, target = AI_ROSTER_TARGET,
 /** CPU teams under the target sign the best free agent they can afford (in season: immediately at his ask). */
 export function aiFillRosters(l: League, target = AI_ROSTER_TARGET): void {
   ensurePlayable(l)
-  const short = Object.keys(l.teams).filter((id) => id !== l.userTeamId && committed(l, id).length < target)
+  const short = Object.keys(l.teams).filter((id) => id !== gmTeamId(l) && committed(l, id).length < target)
   if (!short.length) return
   const perf = formOf(l)
   for (const teamId of short) fillRoster(l, teamId, target, perf)
@@ -266,10 +267,10 @@ export function ensurePlayable(l: League): void {
 /** CPU teams over the limit release their least valuable players. */
 export function aiTrimRosters(l: League): void {
   for (const teamId of Object.keys(l.teams)) {
-    if (teamId === l.userTeamId) continue
+    if (teamId === gmTeamId(l)) continue
     const mode = teamMode(l, teamId)
     while (committed(l, teamId).length > ROSTER_MAX) {
-      const worst = committed(l, teamId).sort((a, b) => playerValue(l, a, mode) - playerValue(l, b, mode))[0]
+      const worst = committed(l, teamId).filter((p) => !p.careerBuild).sort((a, b) => playerValue(l, a, mode) - playerValue(l, b, mode))[0]
       releasePlayer(l, worst.id)
     }
   }
@@ -322,10 +323,10 @@ export function aiWantsResign(l: League, teamId: string, p: Player): boolean {
 /** CPU teams decide on their own expiring players at the end of the re-signing period. */
 export function aiResign(l: League, rng: Rng): void {
   for (const teamId of Object.keys(l.teams)) {
-    if (teamId === l.userTeamId) continue
+    if (teamId === gmTeamId(l)) continue
     const mode = teamMode(l, teamId)
     const expiring = teamPlayers(l, teamId)
-      .filter((p) => p.contract && p.contract.expires === l.season)
+      .filter((p) => !p.careerBuild && p.contract && p.contract.expires === l.season)
       .sort((a, b) => playerValue(l, b, mode) - playerValue(l, a, mode))
     for (const p of expiring) {
       const salary = askSalary(l, p)
@@ -349,7 +350,7 @@ export function aiResign(l: League, rng: Rng): void {
 /** Anyone whose deal ended and wasn't re-signed hits the open market. */
 export function releaseExpired(l: League): void {
   for (const p of Object.values(l.players)) {
-    if (!p.teamId || !p.contract || p.contract.expires >= capSeason(l)) continue
+    if (!p.teamId || p.careerBuild || !p.contract || p.contract.expires >= capSeason(l)) continue
     const teamId = p.teamId
     p.teamId = null
     p.contract = null

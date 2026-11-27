@@ -2,7 +2,7 @@ import { renumberIfRetired } from '../stories/jerseys'
 import type { Rng } from '../rng'
 import type { League, Player, Position, TradeAsset } from '../types'
 import { STARTERS } from '../constants'
-import { GmError, capProblem, capSeason, committed, log, ovr, pname, refreshRotation, teamPlayers, tname, tradesOpen } from './cap'
+import { GmError, capProblem, capSeason, committed, gmTeamId, log, ovr, pname, refreshRotation, teamPlayers, tname, tradesOpen } from './cap'
 import { memo, rosterStamp } from './cache'
 import { rosterSynergy, synergyFitFrom } from './synergy'
 import { type Mode, pickValue, playerValue, teamMode } from './value'
@@ -126,7 +126,7 @@ export function proposeTrade(l: League, t: Trade): Verdict {
 
 /** Everything `teamId` could put in a deal right now. */
 export function tradeableAssets(l: League, teamId: string): Asset[] {
-  const players = committed(l, teamId).map((p): Asset => ({ kind: 'player', id: p.id }))
+  const players = committed(l, teamId).filter((p) => !p.careerBuild).map((p): Asset => ({ kind: 'player', id: p.id }))
   const picks = l.picks.filter((p) => p.ownerId === teamId && (!l.draft || p.season > l.draft.season || l.draft.order.some((s) => s.pickId === p.id && !s.playerId)))
   return [...players, ...picks.map((p): Asset => ({ kind: 'pick', id: p.id }))]
 }
@@ -203,7 +203,7 @@ function aiPackage(l: League, buyer: string, seller: string, wanted: Asset[]): A
  */
 export function aiTrades(l: League, rng: Rng, attempts: number): number {
   if (!tradesOpen(l)) return 0
-  const ai = Object.keys(l.teams).filter((id) => id !== l.userTeamId)
+  const ai = Object.keys(l.teams).filter((id) => id !== gmTeamId(l))
   const mode = Object.fromEntries(ai.map((id) => [id, teamMode(l, id)]))
   let made = 0
   for (let i = 0; i < attempts; i++) {
@@ -211,7 +211,7 @@ export function aiTrades(l: League, rng: Rng, attempts: number): number {
     const others = ai.filter((id) => id !== buyer)
     const mismatched = others.filter((id) => mode[id] !== mode[buyer])
     const seller = rng.pick(mismatched.length && rng.chance(0.8) ? mismatched : others)
-    const healthy = committed(l, seller).filter((p) => !p.injury || p.injury.gamesRemaining < 10)
+    const healthy = committed(l, seller).filter((p) => !p.careerBuild).filter((p) => !p.injury || p.injury.gamesRemaining < 10)
     // A contender shops for help now; a rebuilder for youth.
     const fits = healthy.filter((p) => (mode[buyer] === 'contend' ? p.age >= 26 : p.age <= 25))
     const targets = rng.shuffle(fits.length ? fits : healthy).slice(0, 3)

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { createLeague } from '../engine/league/create'
+import { acceptOffer } from '../engine/career/contracts'
 import { createCareerLeague, type CareerBuildInput } from '../engine/career/create'
 import { isCareer } from '../engine/career/state'
 import { validateRotation } from '../engine/sim/rotation'
@@ -10,7 +11,7 @@ import type { EventFrequency, EventLogEntry } from '../engine/events/state'
 import { eventGame, playAllStarEvent, userSideIndex } from '../engine/allstar/allstar'
 import type { AllStarKind, Game, League, Rotation } from '../engine/types'
 import { deleteSave, listSaves, loadSave, onSaveWritten, parseImport, rememberOpenedSave, writeSave } from '../save/db'
-import { runCareerDay, runSim, runWatch } from '../worker/client'
+import { runCareerDay, runCareerOffseason, runSim, runWatch } from '../worker/client'
 import type { MomentAnswer, MomentPrompt } from '../engine/sim/moments'
 import type { PlayEvent } from '../engine/sim/playlog'
 import type { WatchCapture } from '../engine/season/advance'
@@ -44,6 +45,10 @@ interface State {
   careerDay: (mode: 'play' | 'sim') => Promise<void>
   /** MyCareer: answer the pending moment (re-runs the game with it locked in). */
   careerAnswer: (answer: MomentAnswer) => Promise<void>
+  /** MyCareer: run the offseason to the next season (stops at a contract choice). */
+  careerOffseason: () => Promise<void>
+  /** MyCareer: sign the chosen contract offer. */
+  chooseOffer: (index: number) => void
   /** Plays the queued All-Star Weekend game (watching it live, or just simming it). Doesn't count for stats. */
   playAllStar: (kind: AllStarKind, watch: boolean) => void
   endWatch: () => void
@@ -201,6 +206,17 @@ export const useStore = create<State>((set, get) => {
 
   async careerAnswer(answer) {
     await runCareer((league) => runCareerDay(league, { answer }))
+  },
+
+  async careerOffseason() {
+    await runCareer((league) => runCareerOffseason(league).then((next) => ({ league: next, moment: null })))
+  },
+
+  chooseOffer(index) {
+    get().act((l) => {
+      const offer = l.career?.offers?.[index]
+      if (offer) acceptOffer(l, offer)
+    }, { career: true })
   },
 
   async startWatch() {

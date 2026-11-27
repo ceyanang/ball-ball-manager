@@ -11,6 +11,8 @@ export type SimCommand =
   /** MyCareer: one day. `play` stops at each moment; `careerAnswer` locks one in and re-runs the day. */
   | { type: 'careerDay'; mode: 'play' | 'sim' }
   | { type: 'careerAnswer'; answer: MomentAnswer }
+  /** MyCareer: runs the whole offseason (stops if he owes a contract decision). */
+  | { type: 'careerOffseason' }
 export interface SimRequest { id: number; cmd: SimCommand; league: League }
 export type SimResponse = { id: number; league: League; watch?: WatchCapture | null; moment?: MomentPrompt | null } | { id: number; error: string }
 

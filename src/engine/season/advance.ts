@@ -3,6 +3,9 @@ import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
 import { DEFAULT_MOMENT_RATE } from '../sim/moments'
+import { rollSuddenMove } from '../career/contracts'
+import { onCareerOffseasonStart } from '../career/offseason'
+import { storyRng } from '../stories/state'
 import type { PlayEvent } from '../sim/playlog'
 import { autoRotation, coachRotation } from '../sim/rotation'
 import { advanceOffseason, simFreeAgency, startOffseason } from '../gm/offseason'
@@ -89,6 +92,8 @@ function autoUserRotation(league: League): void {
 /** Mutates `league`: plays the current day and advances the calendar. Returns true when the user should look (a trade offer, or All-Star Weekend just got set). */
 export function stepDay(league: League, rng: Rng, capture?: Capture, pause = false, careerAuto = true): boolean {
   if (league.phase === 'offseason') return false
+  // MyCareer: a contract decision is waiting on him, so the calendar holds until he answers.
+  if (league.career?.offers) return true
   const userGameToday = league.games.find(
     (g) => g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null) && (g.homeId === league.userTeamId || g.awayId === league.userTeamId),
   )
@@ -134,14 +139,17 @@ export function stepDay(league: League, rng: Rng, capture?: Capture, pause = fal
     if ((league.phase as Phase) === 'offseason') {
       onSeasonEnd(league)
       startOffseason(league, rng)
+      onCareerOffseasonStart(league)
       afterDay(league, played, newsFrom, txFrom)
       return false
     }
   }
   const offer = afterDay(league, played, newsFrom, txFrom)
   const popup = pause && !!userGameToday && afterUserGame(league, userGameToday)
+  // MyCareer: once a week the league may trade or cut him (weighted by how he is playing).
+  const moved = league.career?.status === 'active' && league.phase === 'regular' && league.day % 7 === 3 && !!rollSuddenMove(league, storyRng(league, 811))
   league.day++
-  return offer || allStarNow || popup
+  return offer || allStarNow || popup || moved
 }
 
 /** `stopOnOffer`: pause when a CPU team sends the user a trade offer (the app does; scripts and tests don't). */
@@ -152,7 +160,7 @@ export function simDays(league: League, days: number, opts: SimOpts = {}): Leagu
   const next = structuredClone(league)
   const rng = new Rng(next.rng)
   const phase = next.phase
-  for (let i = 0; i < days && next.phase === phase; i++) if (stepDay(next, rng, undefined, opts.pauseForEvents) && (opts.stopOnOffer || next.events.pending)) break
+  for (let i = 0; i < days && next.phase === phase && !next.career?.offers; i++) if (stepDay(next, rng, undefined, opts.pauseForEvents) && (opts.stopOnOffer || next.events.pending)) break
   return next
 }
 
@@ -185,7 +193,7 @@ export function simUntil(league: League, target: 'regularEnd' | 'playoffsEnd' | 
     target === 'deadline' ? next.phase !== 'regular' || next.day >= next.tradeDeadlineDay
     : target === 'regularEnd' ? next.phase !== 'regular' : next.phase === 'offseason'
   // A trade offer for the user pauses the sim so they can answer it.
-  for (let guard = 0; !done() && guard < 1000; guard++) if (stepDay(next, rng, undefined, opts.pauseForEvents) && (opts.stopOnOffer || next.events.pending)) break
+  for (let guard = 0; !done() && !next.career?.offers && guard < 1000; guard++) if (stepDay(next, rng, undefined, opts.pauseForEvents) && (opts.stopOnOffer || next.events.pending)) break
   return next
 }
 

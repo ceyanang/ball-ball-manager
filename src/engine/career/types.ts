@@ -7,6 +7,7 @@ export interface CareerBuild { max: Ratings; startFraction: number; startProgres
 export interface GrowthEntry { season: number; day: number; key: keyof Ratings; delta: number; source: string }
 /** The game being played right now: saved so a reload asks the same moment again (Task 7 fills `rngState`). */
 export interface PendingGame { gameId: string; answers: MomentAnswer[]; rngState?: number }
+export interface CareerOffer { teamId: string; salary: number; years: number; note: string }
 export interface CareerState {
   playerId: string; status: CareerStatus; build: CareerBuild
   draftTags: string[]; draftAnswers: number[]
@@ -14,5 +15,7 @@ export interface CareerState {
   played: number; simmed: number
   growth: GrowthEntry[]; log: { season: number; text: string }[]
   pending: PendingGame | null
+  /** A contract decision waiting on him (expiry, a cut): the calendar and the offseason stop until he picks. */
+  offers?: CareerOffer[] | null
   ending: { id: string; title: string; lines: string[] } | null
 }

@@ -6,7 +6,7 @@ import type { Rng } from '../rng'
 import { generateSchedule, tradeDeadline } from '../schedule/schedule'
 import { computeStandings } from '../standings'
 import type { League, OffseasonReport, Player, Ratings } from '../types'
-import { GmError, committed, log, money, ovr, payroll, pname, refreshRotation, teamPlayers, tname } from './cap'
+import { GmError, committed, gmTeamId, log, money, ovr, payroll, pname, refreshRotation, teamPlayers, tname } from './cap'
 import { finishDraft, draftUntilUser, setupDraft } from './draft'
 import { FA_DAYS, addFreeAgentBatch, aiFillRosters, aiResign, aiTrimRosters, freeAgencyDay, processWaivers, releaseExpired } from './roster'
 import { aiTrades } from './trade'
@@ -133,7 +133,7 @@ function coachingCarousel(l: League, rng: Rng, report: OffseasonReport): void {
   const pct = Object.fromEntries([...st.East, ...st.West].map((r) => [r.teamId, r.pct]))
   const order = strengthOrder(l)
   for (const t of Object.values(l.teams)) {
-    if (t.id === l.userTeamId) continue
+    if (t.id === gmTeamId(l)) continue
     const expected = 0.72 - (0.44 * order.indexOf(t.id)) / 29
     const coach = l.coaches[t.coachId]
     const retiring = coach.age >= 70
@@ -273,13 +273,13 @@ export function seasonStartProblem(l: League): string | null {
 }
 
 export function startNewSeason(l: League, rng: Rng): void {
-  const problem = seasonStartProblem(l)
+  const problem = l.career ? null : seasonStartProblem(l)
   if (problem) throw new GmError(problem)
   processWaivers(l)
   for (const pid of Object.keys(l.draftRights)) delete l.draftRights[pid]
   // Unsigned veterans who sat through free agency may call it a career.
   const unsigned = Object.values(l.players)
-    .filter((p) => !p.teamId && !p.retired && !l.draft?.prospects.includes(p.id))
+    .filter((p) => !p.teamId && !p.retired && !p.careerBuild && !l.draft?.prospects.includes(p.id))
     .sort((a, b) => ovr(b) - ovr(a))
   const played = new Set(Object.values(l.statLines).map((s) => s.playerId))
   const quit: string[] = []

@@ -13,6 +13,8 @@ export class GmError extends Error {}
 export const capSeason = (l: League) => (l.phase === 'offseason' ? l.season + 1 : l.season)
 
 /** Everyone wearing the team's uniform, including offseason players whose deals are ending. */
+/** The team a human GM runs: in MyCareer nobody does, so the GM engine treats every team as CPU-managed. */
+export const gmTeamId = (l: League): string => (l.career ? '' : l.userTeamId)
 export const teamPlayers = (l: League, teamId: string) => Object.values(l.players).filter((p) => p.teamId === teamId && !p.retired)
 
 /** Players under contract for the cap season: the roster that counts. */
@@ -103,5 +105,6 @@ export const onWaivers = (l: League, playerId: string) => l.waivers.some((w) => 
 
 /** Not on a team, not retired, not a prospect, not held as draft rights, not on waivers. */
 export function isFreeAgent(l: League, p: Player): boolean {
-  return !p.teamId && !p.retired && !l.draftRights[p.id] && !(l.draft?.prospects.includes(p.id) ?? false) && !onWaivers(l, p.id)
+  // MyCareer: the followed player is never an ordinary free agent; only his own offers can sign him.
+  return !p.careerBuild && !p.teamId && !p.retired && !l.draftRights[p.id] && !(l.draft?.prospects.includes(p.id) ?? false) && !onWaivers(l, p.id)
 }

@@ -6,7 +6,7 @@ import { RATING_GROUPS, RATING_KEYS, RATING_LABELS, RATING_MAX, RATING_MIN, grou
 import type { Rng } from '../rng'
 import { computeStandings } from '../standings'
 import type { DraftPick, DraftSlot, DraftState, League, LotteryEntry, Player, Team } from '../types'
-import { GmError, capProblem, committed, log, money, ovr, pname, refreshRotation, teamPlayers, tname } from './cap'
+import { GmError, capProblem, committed, gmTeamId, log, money, ovr, pname, refreshRotation, teamPlayers, tname } from './cap'
 import { aiWantsResign } from './roster'
 import { playerValue, teamMode } from './value'
 
@@ -233,7 +233,7 @@ function aiPick(l: League): void {
 
 /** CPU teams pick until the user is on the clock (or the draft ends). */
 export function draftUntilUser(l: League): void {
-  for (let s = currentSlot(l); s && s.teamId !== l.userTeamId; s = currentSlot(l)) aiPick(l)
+  for (let s = currentSlot(l); s && s.teamId !== gmTeamId(l); s = currentSlot(l)) aiPick(l)
 }
 
 /** Picks for the user by the same logic the CPU uses. */
@@ -250,14 +250,14 @@ export function finishDraft(l: League): void {
   // the rest are let go.
   const keepers: Record<string, number[]> = {}
   for (const teamId of Object.keys(l.teams)) {
-    if (teamId === l.userTeamId) continue
+    if (teamId === gmTeamId(l)) continue
     const mode = teamMode(l, teamId)
     keepers[teamId] = teamPlayers(l, teamId)
       .filter((p) => p.contract?.expires === l.season && aiWantsResign(l, teamId, p))
       .map((p) => playerValue(l, p, mode))
   }
   for (const [pid, teamId] of Object.entries(l.draftRights)) {
-    if (teamId === l.userTeamId) continue
+    if (teamId === gmTeamId(l)) continue
     const slot = d.order.find((s) => s.playerId === pid)!
     const rookie = playerValue(l, l.players[pid], teamMode(l, teamId))
     const held = keepers[teamId].filter((v) => v > rookie).length
