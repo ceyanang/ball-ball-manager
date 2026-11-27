@@ -1,3 +1,4 @@
+import { RIVAL, isRivalGame } from '../rivals/rivalry'
 import { ovr, teamPlayers } from '../gm/cap'
 import { askSalary, standingsOf, strengthOrder } from '../gm/value'
 import type { BoxLine, Game, League, Player } from '../types'
@@ -150,18 +151,21 @@ export function updateFans(l: League, g: Game): void {
   const r = g.result
   if (!r) return
   const homeWon = r.homeScore > r.awayScore
+  const rival = isRivalGame(l, g)
+  const mult = rival ? RIVAL.fanSwing : 1
   for (const b of r.box) {
     if (b.min < 6) continue
     const p = l.players[b.playerId]
     if (!p) continue
     const won = (b.teamId === g.homeId) === homeWon
     const perf = (gameScore(b) - expectedGameScore(ovr(p), b.min)) / 8 + b.pm / 15 + (won ? 0.1 : -0.05)
-    l.fans.players[p.id] = Math.round(clamp(buzzOf(l, p.id) * 0.85 + clamp(perf, -1, 1) * 15, -100, 100))
+    l.fans.players[p.id] = Math.round(clamp(buzzOf(l, p.id) * 0.85 + clamp(perf, -1, 1) * 15 * mult, -100, 100))
+    if (rival) p.morale = Math.round(clamp((p.morale ?? 60) + (won ? RIVAL.moraleSwing : -RIVAL.moraleSwing), 0, 100))
   }
   const order = strengthOrder(l)
   for (const [id, won, opp] of [[g.homeId, homeWon, g.awayId], [g.awayId, !homeWon, g.homeId]] as [string, boolean, string][]) {
     const underdog = order.indexOf(id) > order.indexOf(opp)
-    const swing = (won ? 8 : -8) * (won === underdog ? 1.6 : 1) * (g.playoff ? 1.5 : 1)
+    const swing = (won ? 8 : -8) * (won === underdog ? 1.6 : 1) * (g.playoff ? 1.5 : 1) * mult
     l.fans.teams[id] = Math.round(clamp(teamFan(l, id) * 0.9 + swing, -100, 100))
   }
 }
