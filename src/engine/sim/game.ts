@@ -9,6 +9,9 @@ import { chooseSubs, isBlowout, returnStarterSwaps, SUB } from './subs'
 
 /** Tuning constants (calibrated by the realism tests). */
 export const K = {
+  /** Rival-game volatility (make-probability units): each player's on/off-night spread and the vet/new-guy mean tilt. */
+  rivalSd: 0.10,
+  rivalTilt: 0.03,
   /** Rating treated as league-average in all make/miss formulas. */
   pivot: 75,
   basePace: 97,
@@ -189,6 +192,8 @@ export function simGame(
   /** Quarter-by-quarter consistency variance (refreshed each period from offensiveConsistency / defensiveConsistency). */
   const qOffMod: Record<string, number> = {}
   const qDefMod: Record<string, number> = {}
+  /** Rival games only: a player's make-probability shift for the whole game. */
+  const rivalForm: Record<string, number> = {}
   const tired = (id: string) => Math.max(0, FATIGUE.line - (energy[id] ?? 100))
   const shotHeat = (id: string, made: boolean) => { heat[id] = Math.max(0, Math.min(5, (heat[id] ?? 0) + (made ? 1 : -1))) }
 
@@ -669,7 +674,7 @@ export function simGame(
       // Shot IQ, athleticism/speed edge, quarter consistency, fatigue, OOP, morale, chemistry, HFA, rubberband
       p += (r.shotIQ - K.pivot) * 0.0007
       p += ((r.speed + r.agility) * 0.5 - K.pivot) * 0.0005
-      p += qOffMod[shooter]
+      p += qOffMod[shooter] + (rivalForm[shooter] ?? 0)
       if (clutch) p += (r.offensiveConsistency - 70) * 0.0005
       p -= (oPen[shooter] ?? 0) * K.oopShot
       p -= fatigueCost(tired(shooter)) * FATIGUE.shot
@@ -744,6 +749,9 @@ export function simGame(
       for (const id of sides[s].ids) {
         qOffMod[id] = rng.normal(0, prof[id].offSpread)
         qDefMod[id] = rng.normal(0, prof[id].defSpread)
+        // Rival games: one on/off night per player for the whole game, skewed up for long-time vets and down for new guys.
+        const tilt = mods?.volatility?.[id]
+        if (periodNo === 1 && tilt !== undefined) rivalForm[id] = rng.normal(tilt * K.rivalTilt, K.rivalSd)
       }
     }
     if (periodNo > 1) {

@@ -1,4 +1,6 @@
 import { STARTERS } from '../constants'
+import { isRivalGame } from '../rivals/rivalry'
+import { tenureMap, tiltFor } from '../rivals/tilt'
 import { clamp } from '../stories/state'
 import type { Game, League } from '../types'
 
@@ -14,14 +16,27 @@ export interface GameMods {
   sit: string[]
   /** teamId → chemistry 0–100 (50 = neutral). */
   chemistry: Record<string, number>
+  /** Rival games only: player id → tilt (+1 vets burst, −1 new guys struggle, 0 neutral). Adds extra swing to the player's shooting. */
+  volatility?: Record<string, number>
 }
 
 const CAP = { shooting: 6, defense: 10, energy: 50 }
 const isUserGame = (l: League, g: Game) => g.homeId === l.userTeamId || g.awayId === l.userTeamId
 
+/** Tilt for every rostered player on both sides of a rival game. */
+function rivalVolatility(l: League, g: Game): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const teamId of [g.homeId, g.awayId]) {
+    const tenure = tenureMap(l, teamId)
+    for (const p of Object.values(l.players)) if (p.teamId === teamId && !p.retired) out[p.id] = tiltFor(l, p, tenure)
+  }
+  return out
+}
+
 /** The user's active event effects (and chemistry) as sim modifiers for `g`; undefined when there is nothing to apply. */
 export function buildMods(l: League, g: Game): GameMods | undefined {
-  if (!isUserGame(l, g)) return undefined
+  const volatility = isRivalGame(l, g) ? rivalVolatility(l, g) : undefined
+  if (!isUserGame(l, g)) return volatility ? { shooting: {}, defense: {}, energy: {}, sit: [], chemistry: {}, volatility } : undefined
   const me = l.userTeamId
   const roster = Object.values(l.players).filter((p) => p.teamId === me && !p.retired)
   const mods: GameMods = { shooting: {}, defense: {}, energy: {}, sit: [], chemistry: {} }
@@ -44,7 +59,8 @@ export function buildMods(l: League, g: Game): GameMods | undefined {
   mods.sit = able.length - sit.length >= STARTERS ? sit : []
   const chem = l.chemistry[me] ?? 50
   if (chem !== 50) mods.chemistry[me] = chem
-  const empty = !mods.sit.length && !Object.keys(mods.chemistry).length && !Object.keys(mods.shooting).length && !Object.keys(mods.defense).length && !Object.keys(mods.energy).length
+  if (volatility) mods.volatility = volatility
+  const empty = !volatility && !mods.sit.length && !Object.keys(mods.chemistry).length && !Object.keys(mods.shooting).length && !Object.keys(mods.defense).length && !Object.keys(mods.energy).length
   return empty ? undefined : mods
 }
 
