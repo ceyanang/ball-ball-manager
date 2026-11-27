@@ -4,6 +4,7 @@ import { AWARD_NAMES, awardNews, computeAwards, induct, seasonHistory } from './
 import { addNews, gameHighlights, injuryNews, pruneNews, seriesNews } from './highlights'
 import { clearStaleInbox, expireOffers, injuryPing, maybeAiOffer, offseasonInbox, ping, returnPing, weeklyInbox } from './inbox'
 import { RECORD_LABEL, careerRecords, gameRecords, seasonRecords, type Broken } from './records'
+import { recordRivalShowing } from '../rivals/showing'
 import { addSeriesHeat, rolloverRivalry } from '../rivals/rivalry'
 import { recomputeFanBase, updateFans, weeklyMorale } from './sentiment'
 import { evaluateJerseys } from './jerseys'
@@ -31,6 +32,7 @@ export function afterGame(l: League, g: Game): void {
   const broken = gameRecords(l, g)
   gameHighlights(l, g, broken, highs)
   updateFans(l, g)
+  recordRivalShowing(l, g)
 }
 
 export function onInjury(l: League, playerId: string, inj: Injury): void {
@@ -81,8 +83,15 @@ export function onSeasonEnd(l: League): void {
 }
 
 /** A player in the user's development program just broke out (in season or over the summer). */
-export function onBreakout(l: League, p: Player, potFrom: number): void {
+export function onBreakout(l: League, p: Player, potFrom: number, cause?: 'rival'): void {
   const name = pname(p)
+  if (cause === 'rival') {
+    // Only the user's own players make news; CPU bumps stay quiet so the feed isn't flooded.
+    if (p.teamId !== l.userTeamId) return
+    addNews(l, { kind: 'award', emoji: '🔥', title: `${name} rises to the rivalry`, text: `${name} stepped up in the big rival games: his ceiling jumps from ${potFrom} to ${p.pot}.`, playerIds: [p.id], teamIds: [p.teamId], weight: 7 })
+    ping(l, 'roster', `breakout:${p.id}:${l.season}:${l.day}`, `🔥 ${name} stepped up!`, `${name} thrived in the rival games: his potential jumped from ${potFrom} to ${p.pot}.`, `/player/${p.id}`)
+    return
+  }
   addNews(l, {
     kind: 'award', emoji: '🌱', title: `${name} is breaking out`,
     text: `${name} (${p.draft ? `${p.draft.round === 1 ? 'round 1, pick ' + p.draft.pick : 'round 2, pick ' + p.draft.pick}` : 'undrafted'}) has found another gear: his ceiling jumps from ${potFrom} to ${p.pot}.`,

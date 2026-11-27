@@ -12,6 +12,7 @@ import { FA_DAYS, addFreeAgentBatch, aiFillRosters, aiResign, aiTrimRosters, fre
 import { aiTrades } from './trade'
 import { aiDevIds, breakoutBump, breakoutChance, coachFactor, isTraining, pruneTraining } from './training'
 import { strengthOrder } from './value'
+import { applyRivalBumps } from '../rivals/showing'
 import { afterOffseason, onBreakout, onNewSeason, onOffseasonStart, onRetired } from '../stories/hooks'
 
 /** Offseason rating change: growth toward potential when young, peak plateau 27-29, decline with age, some variance. */
@@ -152,6 +153,7 @@ function coachingCarousel(l: League, rng: Rng, report: OffseasonReport): void {
 export function startOffseason(l: League, rng: Rng): void {
   const report: OffseasonReport = { retired: [], changes: [], coaching: [] }
   updateMorale(l)
+  applyRivalBumps(l, rng)
   const mins = seasonMinutes(l)
   const aiDev = aiDevIds(l)
   for (const p of Object.values(l.players)) {
