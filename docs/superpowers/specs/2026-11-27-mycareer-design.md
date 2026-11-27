@@ -86,8 +86,10 @@ retired`), draft-night answers/hidden tags, play-vs-sim counters, and the ending
   progress toward his own max build, scaled so a fully maxed build reads **99** and a new rookie
   reads about 68. Progress is a weighted average of (current − floor) / (max − floor), with weights
   leaning on the stats that define his archetype. The sim never reads it: games use his real
-  attribute ratings, and AI contract/trade value and league awards keep using the normal OVR. The
-  player page shows Career OVR, with the league OVR as a small secondary line.
+  attribute ratings. **Everywhere else the league treats his OVR as the Career OVR** (owner's call):
+  draft position, AI contract offers, trade value, roster tables and tiers. His "true" league OVR is
+  **never shown or used**, so players can freely experiment with builds. Implementation seam: wherever
+  the game computes or reads a player's overall, the followed player returns his Career OVR.
 - Templates come from the existing archetype data (`player/archetype.ts`); the screen shows the live
   archetype (`archetypeFor`), max OVR, and starting OVR at 19.
 - Starting ratings = floor + a start fraction (≈ 0.65–0.70; tunable) of the way to each max.
@@ -158,10 +160,12 @@ contract-event pause, ending selection, and the v13 → v14 migration.
   to the player's team at the draft and updated on trade/cut/re-sign. While he is unsigned there are no
   user games (days still advance; contract events pause as usual). My call: if no AI team offers, a
   minimum deal is always available so a career can't dead-end.
-- **Career OVR is a display/progress number, not a sim input.** A lopsided build can read 99 and still
-  play weaker than a balanced league 99; that is intended (builds have trade-offs). Everything that
-  values a player for the league (AI offers, trade value, awards) uses the league OVR so the economy
-  stays honest.
+- **Career OVR is what the league sees, but never what the sim reads.** A lopsided build can read 99 and
+  play differently from a balanced 99 on the court, because games run on attributes; that is the
+  intended trade-off. The builder must find every place a player's overall is computed or cached (roster
+  tables, tiers, valuation, draft logic, contracts) and route the followed player through the one
+  Career OVR seam, so nothing leaks his true OVR. Teams' own strength and auto-rotations also read OVR
+  today, so check that his coach and minutes behave sensibly with it.
 - **Injuries** use the existing injury system; they feed growth (health) and retirement prompts. A
   played game's moments are skipped if he is out, with that game auto-simmed.
 
