@@ -21,6 +21,8 @@ export interface CareerState {
   retirement?: { kind: 'suggest' | 'forced'; text: string } | null
   /** How many times he has refused to retire. */
   refusals?: number
+  /** He suffered a season-ending injury this season (the summer heals `injury`, so the prompt reads this). */
+  seasonInjury?: boolean
   /** He walked away by choice (not because the prompt forced it). */
   retiredEarly?: boolean
   ending: { id: string; title: string; lines: string[] } | null

@@ -12,6 +12,7 @@ export function onCareerOffseasonStart(l: League): void {
   const p = l.players[c.playerId]
   // A retirement prompt comes first; if he refuses, his contract decision follows.
   const r = retirementPrompt(l)
+  c.seasonInjury = false
   if (r) c.retirement = r
   else if (p.contract && p.contract.expires <= l.season) c.offers = contractOffers(l)
 }

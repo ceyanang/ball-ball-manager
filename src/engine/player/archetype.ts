@@ -1,3 +1,4 @@
+import { careerOvr } from '../career/careerOvr'
 import type { Player } from '../types'
 import {
   PILLAR_KEYS,
@@ -512,9 +513,9 @@ function buildTendencies(baseRole: BaseRole, modifiers: ArchetypeModifier[]): Ar
 /**
  * Dynamic NBA 2K-style archetype generator powered directly by the player's position and 36 attributes.
  */
-export function generatePlayerArchetype(p: Player): PlayerArchetype {
+export function generatePlayerArchetype(p: Player, ovrOverride?: number): PlayerArchetype {
   const pillars = computePillars(p.ratings, p.pos)
-  const ovr = calculatePlayerOVR(p.ratings, p.pos)
+  const ovr = ovrOverride ?? calculatePlayerOVR(p.ratings, p.pos)
   let topPillar: PillarKey = 'shooting'
   let topVal = pillars.shooting
   if (pillars.finishing > topVal) { topVal = pillars.finishing; topPillar = 'finishing' }
@@ -530,6 +531,7 @@ export function generatePlayerArchetype(p: Player): PlayerArchetype {
 }
 
 /** 2K-style archetype title from ratings. */
+/** The displayed title: for the followed player it reads his Career OVR, never his true league OVR. */
 export function archetypeFor(p: Player): string {
-  return generatePlayerArchetype(p).title
+  return generatePlayerArchetype(p, p.careerBuild ? careerOvr(p) : undefined).title
 }

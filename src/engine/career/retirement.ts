@@ -16,10 +16,11 @@ export function retirementPrompt(l: League): { kind: 'suggest' | 'forced'; text:
   const p = l.players[c.playerId]
   if (!p || p.retired) return null
   const o = ovrOf(p)
+  const badInjury = p.injury?.severity === 'season' || !!c.seasonInjury
   const decline = peakOf(p) - o
-  if (p.age >= 40 || (p.age >= 36 && o <= 60) || (p.age >= 35 && p.injury?.severity === 'season'))
+  if (p.age >= 40 || (p.age >= 36 && o <= 60) || (p.age >= 35 && badInjury))
     return { kind: 'forced', text: `At ${p.age}, the body has decided for you. It is time to walk away.` }
-  if (p.injury?.severity === 'season' && p.age >= 31)
+  if (badInjury && p.age >= 31)
     return { kind: 'suggest', text: 'A season-ending injury at this age makes everyone wonder whether you should come back at all.' }
   if (p.age >= 35) return { kind: 'suggest', text: `You are ${p.age}. The game has changed and your legs have noticed. Hang it up, or one more year?` }
   if (p.age >= 32 && decline >= 15) return { kind: 'suggest', text: `You are not the player you were — down ${decline} from your peak. Is it time?` }

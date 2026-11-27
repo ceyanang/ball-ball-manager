@@ -71,6 +71,16 @@ describe('retirement', () => {
     expect(l.career!.status).toBe('retired')
   })
 
+  it('a season-ending injury seen during the season still drives the prompt after the summer heals it', () => {
+    const l = active()
+    me(l).age = 35
+    l.career!.seasonInjury = true
+    me(l).injury = null
+    expect(retirementPrompt(l)!.kind).toBe('forced')
+    me(l).age = 32
+    expect(retirementPrompt(l)!.kind).toBe('suggest')
+  })
+
   it('a decline below the threshold forces the prompt after refusing', () => {
     const l = active()
     me(l).age = 37

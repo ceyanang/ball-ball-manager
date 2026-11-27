@@ -115,3 +115,13 @@ describe('career growth', () => {
     expect(sum()).toBeLessThan(before)
   })
 })
+
+describe('bulk sims still grow him (review finding)', () => {
+  it('simming a stretch without day-by-day events grants some growth, logged', async () => {
+    const { simDays } = await import('../../src/engine/season/advance')
+    const l = simDays(active(9), 40)
+    expect(l.career!.growth.length).toBeGreaterThan(0)
+    expect(l.career!.growth.every((g) => g.delta > 0)).toBe(true)
+    for (const k of RATING_KEYS) expect(me(l).ratings[k]).toBeLessThanOrEqual(me(l).careerBuild!.max[k])
+  })
+})

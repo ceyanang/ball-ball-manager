@@ -3,6 +3,8 @@ import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
 import { DEFAULT_MOMENT_RATE } from '../sim/moments'
+import { growPlayer } from '../career/growth'
+import { RATING_KEYS } from '../player/ratings'
 import { rollSuddenMove } from '../career/contracts'
 import { onCareerOffseasonStart } from '../career/offseason'
 import { storyRng } from '../stories/state'
@@ -38,14 +40,25 @@ function careerMods(league: League, g: Game, mods: GameMods | undefined, auto: b
   return { ...base, career: { playerId: p.id, rate: DEFAULT_MOMENT_RATE, answers, auto, playoffs: g.playoff !== null } }
 }
 
-function playGame(league: League, g: Game, rng: Rng, capture?: Capture, careerAuto = true): void {
+function playGame(league: League, g: Game, rng: Rng, capture?: Capture, careerAuto = true, passive = false): void {
   const log: PlayEvent[] | undefined = capture && (g.homeId === capture.teamId || g.awayId === capture.teamId) ? [] : undefined
   const res = simGame(league.teams[g.homeId], league.teams[g.awayId], league.players, league.coaches, rng, log, careerMods(league, g, buildMods(league, g), careerAuto))
   // Reward share: a game he actually played counts full when played by hand, half when simmed.
   const c = league.career
   if (c && c.status === 'active') {
     const line = res.box.find((b) => b.playerId === c.playerId)
-    if (line && line.min > 0) { if (careerAuto) c.simmed++; else c.played++ }
+    if (line && line.min > 0) {
+      if (careerAuto) c.simmed++; else c.played++
+      // Bulk sims roll no pop-up events, so every game he plays still adds a little (halved by reward share when simmed).
+      if (passive) {
+        const p = league.players[c.playerId]
+        const r = storyRng(league, 640 + c.played + c.simmed)
+        if (p.careerBuild && r.chance(0.5)) {
+          const keys = RATING_KEYS.filter((k) => p.careerBuild!.max[k] > p.ratings[k])
+          if (keys.length) growPlayer(league, p.id, [{ key: r.pick(keys), amount: 2 }], 'Season grind')
+        }
+      }
+    }
   }
   if (g.homeId === league.userTeamId || g.awayId === league.userTeamId) tickEffects(league)
   if (log && capture) capture.out = { gameId: g.id, log }
@@ -56,6 +69,7 @@ function playGame(league: League, g: Game, rng: Rng, capture?: Capture, careerAu
   for (const id of hurt) if (!league.players[id].injury) onReturn(league, id)
   for (const { playerId, injury } of rollInjuries(res, league.players, rng)) {
     league.players[playerId].injury = injury
+    if (league.career && playerId === league.career.playerId && injury.severity === 'season') league.career.seasonInjury = true
     onInjury(league, playerId, injury)
   }
   if (!g.playoff) {
@@ -110,7 +124,7 @@ export function stepDay(league: League, rng: Rng, capture?: Capture, pause = fal
   if (league.phase === 'regular') playPendingAllStar(league)
   for (const g of league.games) {
     if (g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null)) {
-      playGame(league, g, rng, capture, careerAuto)
+      playGame(league, g, rng, capture, careerAuto, !pause)
       played.push(g)
     }
   }

@@ -146,7 +146,7 @@ export function resolveCareerDraft(l: League, rng: Rng): { slot: number; teamId:
     const worst = [...roster].sort((a, b) => ovr(a) - ovr(b))[0]
     worst.teamId = null
     worst.contract = null
-    log(l, 'release', [teamId], [worst.id], `${tname(l, teamId)} cleared a spot for their first-round pick by releasing ${pname(worst)}.`)
+    log(l, 'release', [teamId], [worst.id], `${tname(l, teamId)} cleared a spot for their draft pick by releasing ${pname(worst)}.`)
   }
 
   const round: 1 | 2 = slot <= 30 ? 1 : 2
