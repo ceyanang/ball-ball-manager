@@ -1,3 +1,4 @@
+import type { RivalryState } from './rivals/state'
 import type { EventsState } from './events/state'
 export type Position = 'PG' | 'SG' | 'SF' | 'PF' | 'C'
 export type Conference = 'East' | 'West'
@@ -200,7 +201,7 @@ export interface AllStarEvent {
 export interface TrainingSlot { playerId: string; season: number; day: number }
 
 export interface League {
-  version: 12; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 13; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]
@@ -232,4 +233,6 @@ export interface League {
   events: EventsState
   /** Team chemistry 0–100 per team (starts at 50). */
   chemistry: Record<string, number>
+  /** Rival heat, dynamic rivals and the rival-game showing tally. */
+  rivalry: RivalryState
 }

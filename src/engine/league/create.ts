@@ -12,6 +12,7 @@ import { createPicks } from '../gm/draft'
 import { emptyStories } from '../stories/state'
 import { recomputeFanBase } from '../stories/sentiment'
 import { emptyEvents } from '../events/state'
+import { emptyRivalry } from '../rivals/state'
 import { autoRotation } from '../sim/rotation'
 import type { League, Player, Team } from '../types'
 
@@ -171,7 +172,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
   const games = generateSchedule(teams, season, rng)
 
   const league: League = {
-    version: 12,
+    version: 13,
     favoritePlayerIds: [],
     name: opts.name,
     seed: opts.seed,
@@ -201,6 +202,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     training: [],
     ...emptyStories(),
     events: emptyEvents(),
+    rivalry: emptyRivalry(),
     chemistry: Object.fromEntries(teams.map((t) => [t.id, 50])),
   }
   recomputeFanBase(league)
