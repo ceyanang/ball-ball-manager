@@ -16,6 +16,7 @@ export interface Spec {
   cooldownDays?: number
   request?: boolean
   playoffsOnly?: boolean
+  career?: boolean
   emoji: string
   /** Who it's about. Omit for a whole-team event (then the names are the head coach's). */
   who?: (p: Player, rank: number, ctx: EventCtx) => boolean
@@ -36,7 +37,7 @@ export function event(spec: Spec): EventDef {
   }
   return {
     id: spec.id, when: spec.when, weight: spec.weight ?? 1, cooldownDays: spec.cooldownDays ?? 20, kind: spec.request ? 'request' : undefined,
-    playoffsOnly: spec.playoffsOnly, emoji: spec.emoji,
+    playoffsOnly: spec.playoffsOnly, career: spec.career, emoji: spec.emoji,
     pick(ctx) {
       if (spec.needs && !spec.needs(ctx)) return null
       const base = { coachId: ctx.l.teams[ctx.l.userTeamId].coachId, teamId: ctx.l.userTeamId }
@@ -63,6 +64,8 @@ export const buff = (id: string, stat: 'shooting' | 'defense' | 'energy' | 'all'
 export const teamBuff = (stat: 'shooting' | 'defense' | 'energy' | 'all', amount: number, games: number): Effect => ({ kind: 'buff', target: 'team', stat, amount, games })
 export const rest = (id: string): Effect => ({ kind: 'rest', player: id })
 export const train = (id: string, skill: keyof Ratings, delta: number): Effect => ({ kind: 'train', player: id, skill, delta })
+/** MyCareer: permanent growth on named stats (scaled by age, played-vs-simmed and health; capped by his max build). */
+export const grow = (id: string, grants: [keyof Ratings, number][], source: string): Effect => ({ kind: 'grow', player: id, grants: grants.map(([key, amount]) => ({ key, amount })), source })
 export const nudge = (id: string, delta: number): Effect => ({ kind: 'ovrNudge', player: id, delta })
 
 // Player filters -----------------------------------------------------------------------------------------------------

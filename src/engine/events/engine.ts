@@ -1,7 +1,8 @@
 import { ovr } from '../gm/cap'
 import { clamp, storyRng } from '../stories/state'
 import type { Game, League, Player } from '../types'
-import { CATALOG } from './catalog'
+import { isCareer } from '../career/state'
+import { CAREER_EVENTS, CATALOG } from './catalog'
 import { applyEffects } from './effects'
 import type { EventCtx, EventDef, EventWhen } from './types'
 import type { EventLogEntry, Subjects } from './state'
@@ -18,7 +19,7 @@ const DEFAULT_COOLDOWN = 10
 let override: EventDef[] | null = null
 /** Tests swap the catalog for a tiny one (pass null to restore). */
 export function setCatalogForTests(defs: EventDef[] | null): void { override = defs }
-export const catalog = (): EventDef[] => override ?? CATALOG
+export const catalog = (): EventDef[] => override ?? [...CATALOG, ...CAREER_EVENTS]
 export const eventDef = (id: string): EventDef | undefined => catalog().find((d) => d.id === id)
 
 /** One increasing clock across seasons, so cooldowns survive the day counter resetting. */
@@ -63,7 +64,7 @@ export function rollEvent(l: League, when: EventWhen, game: Game | null): boolea
   const now = eventClock(l)
   const options: { def: EventDef; subjects: Subjects }[] = []
   for (const def of catalog()) {
-    if (def.when !== when || (def.playoffsOnly && l.phase !== 'playoffs') || (ev.cooldowns[def.id] ?? 0) > now) continue
+    if (!!def.career !== isCareer(l) || def.when !== when || (def.playoffsOnly && l.phase !== 'playoffs') || (ev.cooldowns[def.id] ?? 0) > now) continue
     const subjects = def.pick(ctx)
     if (subjects) options.push({ def, subjects })
   }

@@ -31,6 +31,8 @@ export interface EventDef {
   /** A player asking for something (used for labelling). */
   kind?: 'request'
   playoffsOnly?: boolean
+  /** MyCareer events only roll in career leagues (and normal events never do). */
+  career?: boolean
   /** Picks who the event is about, or null when it can't fire right now. */
   pick(ctx: EventCtx): Subjects | null
   emoji: string
