@@ -4,6 +4,7 @@ import { AWARD_NAMES, awardNews, computeAwards, induct, seasonHistory } from './
 import { addNews, gameHighlights, injuryNews, pruneNews, seriesNews } from './highlights'
 import { clearStaleInbox, expireOffers, injuryPing, maybeAiOffer, offseasonInbox, ping, returnPing, weeklyInbox } from './inbox'
 import { RECORD_LABEL, careerRecords, gameRecords, seasonRecords, type Broken } from './records'
+import { addSeriesHeat, rolloverRivalry } from '../rivals/rivalry'
 import { recomputeFanBase, updateFans, weeklyMorale } from './sentiment'
 import { evaluateJerseys } from './jerseys'
 import { socialDay, socialOffseason } from './social'
@@ -43,7 +44,7 @@ export function onReturn(l: League, playerId: string): void {
 }
 
 export function onSeriesDecided(l: League, seriesIds: string[]): void {
-  for (const s of l.playoffs?.series ?? []) if (seriesIds.includes(s.id)) seriesNews(l, s)
+  for (const s of l.playoffs?.series ?? []) if (seriesIds.includes(s.id)) { seriesNews(l, s); addSeriesHeat(l, s) }
 }
 
 function recordNews(l: League, broken: Broken[]): void {
@@ -126,7 +127,20 @@ export function onOffseasonStart(l: League): void {
   offseasonInbox(l)
 }
 
+/** Cool the heat, lock in each team's dynamic rivals, and tell the user when their team gains a new rival. */
+function rivalryRollover(l: League): void {
+  const before = new Set(l.rivalry.dynamic[l.userTeamId] ?? [])
+  rolloverRivalry(l)
+  const me = l.teams[l.userTeamId]
+  for (const id of l.rivalry.dynamic[l.userTeamId] ?? []) {
+    if (before.has(id) || !l.teams[id]) continue
+    const t = l.teams[id]
+    addNews(l, { kind: 'award', emoji: '🔥', title: `${me.city} ${me.name} and ${t.city} ${t.name} are becoming rivals`, text: `Years of playoff clashes have turned ${t.city} into a real rival for ${me.city}. Expect the games between you to get wild.`, playerIds: [], teamIds: [me.id, id], weight: 6 })
+  }
+}
+
 export function onNewSeason(l: League): void {
+  rivalryRollover(l)
   pruneNews(l)
   expireOffers(l)
   clearStaleInbox(l)
