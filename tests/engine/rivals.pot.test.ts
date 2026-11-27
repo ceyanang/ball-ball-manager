@@ -33,6 +33,18 @@ describe('rival showing tally', () => {
   })
 })
 
+describe('offseason POT bump ping', () => {
+  it('uses its own inbox key so it never blocks the development-program breakout ping', () => {
+    const l = mk()
+    const p = roster(l, l.userTeamId)[0]
+    p.pot = 80
+    l.rivalry.showing[p.id] = 5
+    for (let s = 1; s <= 50 && !l.inbox.length; s++) { l.rivalry.showing[p.id] = 5; applyRivalBumps(l, Rng.fromSeed(s)) }
+    expect(l.inbox.length).toBeGreaterThan(0)
+    expect(l.inbox.every((i) => i.key.startsWith('rival:'))).toBe(true)
+  })
+})
+
 describe('offseason POT bump', () => {
   const shared = mk()
   const trial = (showing: number, seed: number) => {

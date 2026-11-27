@@ -1,3 +1,4 @@
+import { Rng } from '../rng'
 import type { League, Player } from '../types'
 
 /** Completed seasons (before this one) each player has appeared for `teamId`, in one pass over the stat lines. */
@@ -20,3 +21,12 @@ export function tiltFor(l: League, p: Player, tenure: Map<string, number>): -1 |
 }
 
 export const rivalTilt = (l: League, p: Player, teamId: string): -1 | 0 | 1 => tiltFor(l, p, tenureMap(l, teamId))
+
+/**
+ * One on/off night per player for a rival game: normal(tilt × tiltScale, sd). Drawn from a private Rng seeded off a
+ * read-only look at the shared one, so the shared stream (and every later game) is exactly what it would have been.
+ */
+export function drawRivalForms(rng: Rng, tilts: Record<string, number>, tiltScale: number, sd: number): Record<string, number> {
+  const own = Rng.fromSeed((rng.state.s ^ 0x9e3779b9) >>> 0)
+  return Object.fromEntries(Object.entries(tilts).map(([id, t]) => [id, own.normal(t * tiltScale, sd)]))
+}

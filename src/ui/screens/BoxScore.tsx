@@ -1,3 +1,4 @@
+import { isRivalGame } from '../../engine/rivals/rivalry'
 import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import type { BoxLine, League, Team } from '../../engine/types'
@@ -97,6 +98,7 @@ export function BoxScore() {
   return (
     <div className="stack">
       <section className="panel stack">
+        {isRivalGame(league, g) && <div style={{ fontWeight: 700 }}>🔥 Rivalry game</div>}
         <div className="muted">Day {g.day} · {g.playoff ? `Playoffs, game ${g.playoff.gameNum}` : 'Regular season'} · Final{r.ot ? ` (${r.ot > 1 ? r.ot : ''}OT)` : ''}</div>
         <div className="final-score">
           <Link to={`/team/${away.id}`} aria-label={teamFull(away)}><TeamBadge team={away} size={52} /></Link>

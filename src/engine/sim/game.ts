@@ -3,6 +3,7 @@ import type { Rng } from '../rng'
 import type { BoxLine, Coach, CoachStyle, GameResult, Player, Team } from '../types'
 import type { PlayEvent, Side } from './playlog'
 import type { GameMods } from '../events/mods'
+import { drawRivalForms } from '../rivals/tilt'
 import { generatePlayerArchetype } from '../player/archetype'
 import { gameLineup, lineupPenalties, minutesTargets, SLOTS, slotFit } from './rotation'
 import { chooseSubs, isBlowout, returnStarterSwaps, SUB } from './subs'
@@ -744,14 +745,13 @@ export function simGame(
     periodNo++
     possInPeriod = 0
     periodStart = pending.length
+    // Rival games: one on/off night per player for the whole game, skewed up for long-time vets and down for new guys.
+    if (periodNo === 1 && mods?.volatility) Object.assign(rivalForm, drawRivalForms(rng, mods.volatility, K.rivalTilt, K.rivalSd))
     // Refresh quarter-by-quarter consistency variance once per period for every active player.
     for (const s of SIDES) {
       for (const id of sides[s].ids) {
         qOffMod[id] = rng.normal(0, prof[id].offSpread)
         qDefMod[id] = rng.normal(0, prof[id].defSpread)
-        // Rival games: one on/off night per player for the whole game, skewed up for long-time vets and down for new guys.
-        const tilt = mods?.volatility?.[id]
-        if (periodNo === 1 && tilt !== undefined) rivalForm[id] = rng.normal(tilt * K.rivalTilt, K.rivalSd)
       }
     }
     if (periodNo > 1) {

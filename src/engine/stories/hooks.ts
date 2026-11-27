@@ -5,7 +5,7 @@ import { addNews, gameHighlights, injuryNews, pruneNews, seriesNews } from './hi
 import { clearStaleInbox, expireOffers, injuryPing, maybeAiOffer, offseasonInbox, ping, returnPing, weeklyInbox } from './inbox'
 import { RECORD_LABEL, careerRecords, gameRecords, seasonRecords, type Broken } from './records'
 import { recordRivalShowing } from '../rivals/showing'
-import { addSeriesHeat, rolloverRivalry } from '../rivals/rivalry'
+import { addSeriesHeat, isRivalGame, rolloverRivalry } from '../rivals/rivalry'
 import { recomputeFanBase, updateFans, weeklyMorale } from './sentiment'
 import { evaluateJerseys } from './jerseys'
 import { socialDay, socialOffseason } from './social'
@@ -33,6 +33,17 @@ export function afterGame(l: League, g: Game): void {
   gameHighlights(l, g, broken, highs)
   updateFans(l, g)
   recordRivalShowing(l, g)
+  rivalGameNews(l, g)
+}
+
+/** The user's own rivalry games get a news line (CPU-vs-CPU rivalry games stay quiet). */
+function rivalGameNews(l: League, g: Game): void {
+  const r = g.result
+  if (!r || (g.homeId !== l.userTeamId && g.awayId !== l.userTeamId) || !isRivalGame(l, g)) return
+  const homeWon = r.homeScore > r.awayScore
+  const [w, lo] = homeWon ? [l.teams[g.homeId], l.teams[g.awayId]] : [l.teams[g.awayId], l.teams[g.homeId]]
+  const [ws, ls] = homeWon ? [r.homeScore, r.awayScore] : [r.awayScore, r.homeScore]
+  addNews(l, { kind: 'award', emoji: '🔥', title: `${w.city} ${w.name} take the rivalry game`, text: `${w.city} beat rival ${lo.city} ${ws}–${ls} in a heated one.`, playerIds: [], teamIds: [w.id, lo.id], gameId: g.id, weight: 5 })
 }
 
 export function onInjury(l: League, playerId: string, inj: Injury): void {
@@ -89,7 +100,7 @@ export function onBreakout(l: League, p: Player, potFrom: number, cause?: 'rival
     // Only the user's own players make news; CPU bumps stay quiet so the feed isn't flooded.
     if (p.teamId !== l.userTeamId) return
     addNews(l, { kind: 'award', emoji: '🔥', title: `${name} rises to the rivalry`, text: `${name} stepped up in the big rival games: his ceiling jumps from ${potFrom} to ${p.pot}.`, playerIds: [p.id], teamIds: [p.teamId], weight: 7 })
-    ping(l, 'roster', `breakout:${p.id}:${l.season}:${l.day}`, `🔥 ${name} stepped up!`, `${name} thrived in the rival games: his potential jumped from ${potFrom} to ${p.pot}.`, `/player/${p.id}`)
+    ping(l, 'roster', `rival:${p.id}:${l.season}:${l.day}`, `🔥 ${name} stepped up!`, `${name} thrived in the rival games: his potential jumped from ${potFrom} to ${p.pot}.`, `/player/${p.id}`)
     return
   }
   addNews(l, {

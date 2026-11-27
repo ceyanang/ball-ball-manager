@@ -3,7 +3,7 @@ import { buildMods, type GameMods } from '../../src/engine/events/mods'
 import { committed } from '../../src/engine/gm/cap'
 import { createLeague } from '../../src/engine/league/create'
 import { Rng } from '../../src/engine/rng'
-import { rivalTilt } from '../../src/engine/rivals/tilt'
+import { drawRivalForms, rivalTilt } from '../../src/engine/rivals/tilt'
 import { simGame } from '../../src/engine/sim/game'
 import type { Game, League, StatLine } from '../../src/engine/types'
 
@@ -65,5 +65,17 @@ describe('rivalTilt', () => {
   it('in a founding league with no history nobody is tilted', () => {
     const p = Object.values(league.players).find((x) => x.teamId === 't_dal')!
     expect(rivalTilt(league, p, 't_dal')).toBe(0)
+  })
+})
+
+describe('rival form draws never touch the shared sim rng', () => {
+  it('drawRivalForms leaves the rng state alone and is deterministic', () => {
+    const rng = Rng.fromSeed(77)
+    rng.next()
+    const before = { ...rng.state }
+    const a = drawRivalForms(rng, { a: 1, b: -1, c: 0 }, 0.03, 0.1)
+    expect(rng.state).toEqual(before)
+    expect(drawRivalForms(rng, { a: 1, b: -1, c: 0 }, 0.03, 0.1)).toEqual(a)
+    expect(Object.keys(a).sort()).toEqual(['a', 'b', 'c'])
   })
 })
