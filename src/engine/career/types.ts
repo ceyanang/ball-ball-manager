@@ -17,5 +17,11 @@ export interface CareerState {
   pending: PendingGame | null
   /** A contract decision waiting on him (expiry, a cut): the calendar and the offseason stop until he picks. */
   offers?: CareerOffer[] | null
+  /** A retirement prompt waiting on him (suggested: he may refuse; forced: he may not). */
+  retirement?: { kind: 'suggest' | 'forced'; text: string } | null
+  /** How many times he has refused to retire. */
+  refusals?: number
+  /** He walked away by choice (not because the prompt forced it). */
+  retiredEarly?: boolean
   ending: { id: string; title: string; lines: string[] } | null
 }

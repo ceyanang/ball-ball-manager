@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createLeague } from '../engine/league/create'
 import { acceptOffer } from '../engine/career/contracts'
+import { answerRetirement } from '../engine/career/retirement'
 import { createCareerLeague, type CareerBuildInput } from '../engine/career/create'
 import { isCareer } from '../engine/career/state'
 import { validateRotation } from '../engine/sim/rotation'
@@ -49,6 +50,8 @@ interface State {
   careerOffseason: () => Promise<void>
   /** MyCareer: sign the chosen contract offer. */
   chooseOffer: (index: number) => void
+  /** MyCareer: answer a retirement prompt, or retire early with `force`. */
+  retire: (choice: 'accept' | 'refuse' | 'force') => void
   /** Plays the queued All-Star Weekend game (watching it live, or just simming it). Doesn't count for stats. */
   playAllStar: (kind: AllStarKind, watch: boolean) => void
   endWatch: () => void
@@ -217,6 +220,10 @@ export const useStore = create<State>((set, get) => {
       const offer = l.career?.offers?.[index]
       if (offer) acceptOffer(l, offer)
     }, { career: true })
+  },
+
+  retire(choice) {
+    get().act((l) => { answerRetirement(l, choice) }, { career: true })
   },
 
   async startWatch() {

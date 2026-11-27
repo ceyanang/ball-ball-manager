@@ -1,6 +1,7 @@
 import { FA_DAYS } from '../gm/roster'
 import { advanceOffseason, simFreeAgency, startNewSeason } from '../gm/offseason'
 import { contractOffers } from './contracts'
+import { retirementPrompt } from './retirement'
 import { Rng } from '../rng'
 import type { League } from '../types'
 
@@ -9,7 +10,10 @@ export function onCareerOffseasonStart(l: League): void {
   const c = l.career
   if (!c || c.status !== 'active') return
   const p = l.players[c.playerId]
-  if (p.contract && p.contract.expires <= l.season) c.offers = contractOffers(l)
+  // A retirement prompt comes first; if he refuses, his contract decision follows.
+  const r = retirementPrompt(l)
+  if (r) c.retirement = r
+  else if (p.contract && p.contract.expires <= l.season) c.offers = contractOffers(l)
 }
 
 /**
@@ -21,7 +25,7 @@ export function careerAdvanceOffseason(l: League): { status: 'paused' | 'newSeas
   const next = structuredClone(l)
   const r = new Rng(next.rng)
   for (let guard = 0; guard < 30; guard++) {
-    if (next.career?.offers) return { status: 'paused', league: next }
+    if (next.career?.offers || next.career?.retirement) return { status: 'paused', league: next }
     const os = next.offseason
     if (!os) break
     if (os.step === 'ready') {

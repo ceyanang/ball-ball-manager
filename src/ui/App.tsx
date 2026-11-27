@@ -29,6 +29,8 @@ import { Social } from './screens/Social'
 import { History } from './screens/History'
 import { EventLog } from './screens/EventLog'
 import { Builder } from './screens/career/Builder'
+import { Ending } from './screens/career/Ending'
+import { RetirementPrompt } from './screens/career/RetirementPrompt'
 import { ContractChoice } from './screens/career/ContractChoice'
 import { Moment } from './screens/career/Moment'
 import { DraftNight } from './screens/career/DraftNight'
@@ -43,6 +45,8 @@ function RequireLeague({ children }: { children: React.ReactNode }) {
   if (!league) return <Navigate to="/new" replace state={{ from: loc.pathname }} />
   // MyCareer: until draft night is done there is no team to show, so every league screen leads back to it.
   if (league.career?.status === 'draftNight' && loc.pathname !== '/career/draft') return <Navigate to="/career/draft" replace />
+  // A finished career opens on its epilogue (everything else stays viewable).
+  if (league.career?.status === 'retired' && league.career.ending && loc.pathname === '/') return <Navigate to="/career/ending" replace />
   return <>{children}</>
 }
 
@@ -73,6 +77,7 @@ export default function App() {
       <EventModal />
       <Moment />
       <ContractChoice />
+      <RetirementPrompt />
       <Routes>
         <Route path="/dev/faces" element={<FaceGallery />} />
         <Route element={<Shell />}>
@@ -81,6 +86,7 @@ export default function App() {
           <Route path="/saves" element={<Saves />} />
           <Route path="/career/build" element={<Builder />} />
           <Route path="/career/draft" element={guarded(<DraftNight />)} />
+          <Route path="/career/ending" element={guarded(<Ending />)} />
           <Route path="/my-team" element={guarded(<MyTeam />)} />
           <Route path="/roster" element={guarded(<Roster />)} />
           <Route path="/team/:id" element={guarded(<TeamPage />)} />

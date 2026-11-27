@@ -93,7 +93,7 @@ function autoUserRotation(league: League): void {
 export function stepDay(league: League, rng: Rng, capture?: Capture, pause = false, careerAuto = true): boolean {
   if (league.phase === 'offseason') return false
   // MyCareer: a contract decision is waiting on him, so the calendar holds until he answers.
-  if (league.career?.offers) return true
+  if (league.career?.offers || league.career?.retirement) return true
   const userGameToday = league.games.find(
     (g) => g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null) && (g.homeId === league.userTeamId || g.awayId === league.userTeamId),
   )
@@ -160,7 +160,7 @@ export function simDays(league: League, days: number, opts: SimOpts = {}): Leagu
   const next = structuredClone(league)
   const rng = new Rng(next.rng)
   const phase = next.phase
-  for (let i = 0; i < days && next.phase === phase && !next.career?.offers; i++) if (stepDay(next, rng, undefined, opts.pauseForEvents) && (opts.stopOnOffer || next.events.pending)) break
+  for (let i = 0; i < days && next.phase === phase && !next.career?.offers && !next.career?.retirement; i++) if (stepDay(next, rng, undefined, opts.pauseForEvents) && (opts.stopOnOffer || next.events.pending)) break
   return next
 }
 
@@ -193,7 +193,7 @@ export function simUntil(league: League, target: 'regularEnd' | 'playoffsEnd' | 
     target === 'deadline' ? next.phase !== 'regular' || next.day >= next.tradeDeadlineDay
     : target === 'regularEnd' ? next.phase !== 'regular' : next.phase === 'offseason'
   // A trade offer for the user pauses the sim so they can answer it.
-  for (let guard = 0; !done() && !next.career?.offers && guard < 1000; guard++) if (stepDay(next, rng, undefined, opts.pauseForEvents) && (opts.stopOnOffer || next.events.pending)) break
+  for (let guard = 0; !done() && !next.career?.offers && !next.career?.retirement && guard < 1000; guard++) if (stepDay(next, rng, undefined, opts.pauseForEvents) && (opts.stopOnOffer || next.events.pending)) break
   return next
 }
 

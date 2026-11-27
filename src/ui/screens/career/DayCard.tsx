@@ -10,6 +10,7 @@ export function DayCard() {
   const careerDay = useStore((s) => s.careerDay)
   const sim = useStore((s) => s.sim)
   const careerOffseason = useStore((s) => s.careerOffseason)
+  const retire = useStore((s) => s.retire)
   const c = league.career
   if (!c || c.status !== 'active') return null
   const p = league.players[c.playerId]
@@ -27,7 +28,8 @@ export function DayCard() {
         <div>
           <b>{p.firstName} {p.lastName}</b> <span className="muted">· {p.pos} · {p.age} · Career OVR</span> <b className="num">{ovrOf(p)}</b>
         </div>
-        <Link className="link" to={`/player/${p.id}`}>Player page</Link>
+        <span className="row"><Link className="link" to={`/player/${p.id}`}>Player page</Link>
+          <button className="btn" disabled={busy} onClick={() => { if (confirm('Retire now? Your career ends and your epilogue is written.')) retire('force') }}>Retire</button></span>
       </div>
       {offseason ? (
         <div>The season is over. The draft, free agency and the summer all happen around you.</div>
