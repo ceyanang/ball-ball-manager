@@ -2,6 +2,7 @@ import { STARTERS } from '../constants'
 import { isRivalGame } from '../rivals/rivalry'
 import { tenureMap, tiltFor } from '../rivals/tilt'
 import { clamp } from '../stories/state'
+import type { CareerMods } from '../sim/moments'
 import type { Game, League } from '../types'
 
 /** Temporary modifiers handed to `simGame` for one game. Never edits ratings. */
@@ -18,6 +19,8 @@ export interface GameMods {
   chemistry: Record<string, number>
   /** Rival games only: player id → tilt (+1 vets burst, −1 new guys struggle, 0 neutral). Adds extra swing to the player's shooting. */
   volatility?: Record<string, number>
+  /** MyCareer: in-game "you're open" moments for the followed player. */
+  career?: CareerMods
 }
 
 const CAP = { shooting: 6, defense: 10, energy: 50 }

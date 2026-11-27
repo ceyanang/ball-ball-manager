@@ -7,6 +7,7 @@ import { drawRivalForms } from '../rivals/tilt'
 import { generatePlayerArchetype } from '../player/archetype'
 import { gameLineup, lineupPenalties, minutesTargets, SLOTS, slotFit } from './rotation'
 import { chooseSubs, isBlowout, returnStarterSwaps, SUB } from './subs'
+import { MomentPause, bestOption, lookFor, momentTriggers, type MomentOption } from './moments'
 
 /** Tuning constants (calibrated by the realism tests). */
 export const K = {
@@ -184,6 +185,7 @@ export function simGame(
     const n = new Set([...t.rotation.starters, ...t.rotation.bench, ...t.rotation.inactive].filter((id) => players[id])).size
     if (n < STARTERS) throw new Error(`${t.name} has fewer than ${STARTERS} players and cannot play a game (has ${n}).`)
   }
+  const momentSeed = rng.state.s
   const R = (id: string) => players[id].ratings
   const prof: Record<string, PlayerSim> = {}
   const box: Record<string, BoxLine> = {}
@@ -418,6 +420,9 @@ export function simGame(
 
   // Story tracking only (no RNG): the last lead change and each side's biggest deficit.
   let possNo = 0, periodNo = 0, lastStint = false
+  /** MyCareer moments: the game seed (the Rng state at tip-off, so replays agree) and how many moments have come up. */
+  const gameSeed = momentSeed
+  let momentCount = 0
   type LeadChange = { side: Side; shooter: string; period: number; lastStint: boolean; poss: number; shot: boolean }
   const lead: { last: LeadChange | null } = { last: null }
   const maxDeficit: Record<Side, number> = { home: 0, away: 0 }
@@ -587,8 +592,8 @@ export function simGame(
     const clutch = (periodNo === 4 && lastStint && Math.abs(score.home - score.away) <= 8) || periodNo > 4
 
     for (let attempt = 0; attempt < 6; attempt++) {
-      const shooter = rng.weighted(o, (id) => prof[id].usage)
-      const r = R(shooter)
+      let shooter = rng.weighted(o, (id) => prof[id].usage)
+      let r = R(shooter)
       const zw = prof[shooter].shotZoneW
       const w6 = oStyle === 'three' ? zw[6] * K.threeStyle : zw[6]
       const zTot = zw[0] + zw[1] + zw[2] + zw[3] + zw[4] + zw[5] + w6
@@ -598,7 +603,7 @@ export function simGame(
         zr -= zw[k]
         if (zr < 0) { zIdx = k; break }
       }
-      const zone = ZONES[zIdx]
+      let zone = ZONES[zIdx]
 
       // Live defensive ratings (accounting for OOP cost, progressive fatigue hurting agility/speed/defense, and quarter consistency)
       let perSum = 0, intSum = 0
@@ -617,73 +622,128 @@ export function simGame(
       // Weak perimeter defenders are partially covered by high helpDefenseIQ / rim anchor teammates
       const helpCover = Math.max(0, dc.syn.helpAnchor) * 0.25
 
-      const sp = prof[shooter]
-      const uEff = oc.syn
-      const dEff = dc.syn
-      const paintSyn =
-        uEff.spacingRimBonus * (sp.isSlasherOrForce ? 1 : 0.3) -
-        uEff.clutterPaintPenalty -
-        dEff.rimAnchorPaintPenalty
+      /** Make probability for `shooter` taking a `zone` shot right now (pure: no Rng), shared by the shot and by moment descriptors. */
+      const shotProb = (shooter: string, zone: ShotZone): number => {
+        const r = R(shooter)
+        const sp = prof[shooter]
+        const uEff = oc.syn
+        const dEff = dc.syn
+        const paintSyn =
+          uEff.spacingRimBonus * (sp.isSlasherOrForce ? 1 : 0.3) -
+          uEff.clutterPaintPenalty -
+          dEff.rimAnchorPaintPenalty
 
-      let p: number
-      if (zone === 'three') {
-        const contest = (perD - K.pivot) * K.defK * 0.67 * (1 - (r.shotIQ - K.pivot) * 0.004)
-        p =
-          K.threeBase +
-          (r.threePointShot - K.pivot) * K.shooterK -
-          contest +
-          oc.syn.playmaking * 0.7 +
-          uEff.linkThreeBonus * (sp.isShooterRole ? 1 : 0.45)
-      } else if (zone === 'mid') {
-        const contest = (perD - K.pivot) * K.defK * (1 - (r.shotIQ - K.pivot) * 0.004)
-        p = K.midBase + (r.midRangeShot - K.pivot) * K.shooterK - contest + oc.syn.playmaking * 0.4
-      } else if (zone === 'layup') {
-        const driveSkill = r.layup * 0.72 + r.speedWithBall * 0.14 + r.agility * 0.08 + r.hands * 0.06
-        const rimDef = intD * 0.68 + perD * 0.32 + helpCover
-        p = K.rimBase + (driveSkill - K.pivot) * K.shooterK - (rimDef - K.pivot) * K.defK + oc.syn.spacing + oc.syn.playmaking * 0.5 + paintSyn
-      } else if (zone === 'driveDunk') {
-        const dunkSkill = r.drivingDunk * 0.72 + r.vertical * 0.18 + r.speedWithBall * 0.1
-        const rimDef = intD * 0.75 + perD * 0.25 + helpCover
-        p =
-          K.rimBase +
-          0.03 +
-          (dunkSkill - K.pivot) * K.shooterK -
-          (rimDef - K.pivot) * K.defK +
-          oc.syn.spacing +
-          oc.syn.playmaking * 0.5 +
-          paintSyn +
-          uEff.linkDunkBonus * (sp.isLobFinisher ? 1 : 0.4)
-      } else if (zone === 'standDunk') {
-        const finishSkill = r.standingDunk * 0.7 + r.hands * 0.18 + r.strength * 0.12
-        p =
-          K.rimBase +
-          0.04 +
-          (finishSkill - K.pivot) * K.shooterK -
-          (intD - K.pivot) * K.defK +
-          oc.syn.playmaking * 0.7 +
-          oc.syn.rollerHands +
-          paintSyn +
-          uEff.linkDunkBonus * (sp.isLobFinisher ? 1 : 0.4)
-      } else if (zone === 'close') {
-        const touchSkill = r.closeShot * 0.82 + r.hands * 0.18
-        p = K.closeBase + (touchSkill - K.pivot) * K.shooterK - (intD + helpCover * 0.6 - K.pivot) * K.defK + oc.syn.spacing * 0.7 + paintSyn
-      } else {
-        const postSkill = r.postHook * 0.42 + r.postFade * 0.33 + r.postControl * 0.15 + r.strength * 0.1
-        p = K.postBase + (postSkill - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK + oc.syn.spacing * 0.8 + paintSyn
+        let p: number
+        if (zone === 'three') {
+          const contest = (perD - K.pivot) * K.defK * 0.67 * (1 - (r.shotIQ - K.pivot) * 0.004)
+          p =
+            K.threeBase +
+            (r.threePointShot - K.pivot) * K.shooterK -
+            contest +
+            oc.syn.playmaking * 0.7 +
+            uEff.linkThreeBonus * (sp.isShooterRole ? 1 : 0.45)
+        } else if (zone === 'mid') {
+          const contest = (perD - K.pivot) * K.defK * (1 - (r.shotIQ - K.pivot) * 0.004)
+          p = K.midBase + (r.midRangeShot - K.pivot) * K.shooterK - contest + oc.syn.playmaking * 0.4
+        } else if (zone === 'layup') {
+          const driveSkill = r.layup * 0.72 + r.speedWithBall * 0.14 + r.agility * 0.08 + r.hands * 0.06
+          const rimDef = intD * 0.68 + perD * 0.32 + helpCover
+          p = K.rimBase + (driveSkill - K.pivot) * K.shooterK - (rimDef - K.pivot) * K.defK + oc.syn.spacing + oc.syn.playmaking * 0.5 + paintSyn
+        } else if (zone === 'driveDunk') {
+          const dunkSkill = r.drivingDunk * 0.72 + r.vertical * 0.18 + r.speedWithBall * 0.1
+          const rimDef = intD * 0.75 + perD * 0.25 + helpCover
+          p =
+            K.rimBase +
+            0.03 +
+            (dunkSkill - K.pivot) * K.shooterK -
+            (rimDef - K.pivot) * K.defK +
+            oc.syn.spacing +
+            oc.syn.playmaking * 0.5 +
+            paintSyn +
+            uEff.linkDunkBonus * (sp.isLobFinisher ? 1 : 0.4)
+        } else if (zone === 'standDunk') {
+          const finishSkill = r.standingDunk * 0.7 + r.hands * 0.18 + r.strength * 0.12
+          p =
+            K.rimBase +
+            0.04 +
+            (finishSkill - K.pivot) * K.shooterK -
+            (intD - K.pivot) * K.defK +
+            oc.syn.playmaking * 0.7 +
+            oc.syn.rollerHands +
+            paintSyn +
+            uEff.linkDunkBonus * (sp.isLobFinisher ? 1 : 0.4)
+        } else if (zone === 'close') {
+          const touchSkill = r.closeShot * 0.82 + r.hands * 0.18
+          p = K.closeBase + (touchSkill - K.pivot) * K.shooterK - (intD + helpCover * 0.6 - K.pivot) * K.defK + oc.syn.spacing * 0.7 + paintSyn
+        } else {
+          const postSkill = r.postHook * 0.42 + r.postFade * 0.33 + r.postControl * 0.15 + r.strength * 0.1
+          p = K.postBase + (postSkill - K.pivot) * K.shooterK - (intD - K.pivot) * K.defK + oc.syn.spacing * 0.8 + paintSyn
+        }
+
+        // Shot IQ, athleticism/speed edge, quarter consistency, fatigue, OOP, morale, chemistry, HFA, rubberband
+        p += (r.shotIQ - K.pivot) * 0.0007
+        p += ((r.speed + r.agility) * 0.5 - K.pivot) * 0.0005
+        p += qOffMod[shooter] + (rivalForm[shooter] ?? 0)
+        if (clutch) p += (r.offensiveConsistency - 70) * 0.0005
+        p -= (oPen[shooter] ?? 0) * K.oopShot
+        p -= fatigueCost(tired(shooter)) * FATIGUE.shot
+        p += ((players[shooter].morale ?? 60) - 60) * K.morale
+        p += (mods?.shooting[shooter] ?? 0) * 0.01 + ((mods?.chemistry[oc.team.id] ?? 50) - 50) * K.chemistry
+        if (dStyle === 'defense') p -= K.defenseStyle
+        if (off === 'home') p += K.home
+        p += Math.min(K.rubberCap, Math.max(0, score[other(off)] - score[off])) * K.rubber
+        return p
       }
 
-      // Shot IQ, athleticism/speed edge, quarter consistency, fatigue, OOP, morale, chemistry, HFA, rubberband
-      p += (r.shotIQ - K.pivot) * 0.0007
-      p += ((r.speed + r.agility) * 0.5 - K.pivot) * 0.0005
-      p += qOffMod[shooter] + (rivalForm[shooter] ?? 0)
-      if (clutch) p += (r.offensiveConsistency - 70) * 0.0005
-      p -= (oPen[shooter] ?? 0) * K.oopShot
-      p -= fatigueCost(tired(shooter)) * FATIGUE.shot
-      p += ((players[shooter].morale ?? 60) - 60) * K.morale
-      p += (mods?.shooting[shooter] ?? 0) * 0.01 + ((mods?.chemistry[oc.team.id] ?? 50) - 50) * K.chemistry
-      if (dStyle === 'defense') p -= K.defenseStyle
-      if (off === 'home') p += K.home
-      p += Math.min(K.rubberCap, Math.max(0, score[other(off)] - score[off])) * K.rubber
+      let p = shotProb(shooter, zone)
+      let sp = prof[shooter]
+      const cm = mods?.career
+      if (cm && shooter === cm.playerId) {
+        const rate = Math.min(0.95, cm.rate * (clutch ? 1.6 : 1) * (mods?.volatility ? 1.3 : 1) * (cm.playoffs ? 1.3 : 1))
+        if (momentTriggers(gameSeed, possNo, attempt, rate)) {
+          const idx = momentCount++
+          const bestZone = (id: string): ShotZone => {
+            const w = prof[id].shotZoneW
+            let bi = 0
+            for (let k = 1; k < 7; k++) if (w[k] > w[bi]) bi = k
+            return ZONES[bi]
+          }
+          const driveZone: ShotZone = prof[shooter].shotZoneW[1] > prof[shooter].shotZoneW[0] ? 'driveDunk' : 'layup'
+          const mates = o.filter((id) => id !== shooter)
+            .map((id) => ({ id, zn: bestZone(id), v: shotProb(id, bestZone(id)) }))
+            .sort((a, b) => b.v - a.v)
+            .slice(0, 2)
+          const options: MomentOption[] = [
+            { answer: { kind: 'shoot' }, label: 'Take the shot', look: lookFor(p) },
+            { answer: { kind: 'drive' }, label: 'Attack the rim', look: lookFor(shotProb(shooter, driveZone)) },
+            ...mates.map((m) => ({ answer: { kind: 'pass' as const, to: m.id }, label: `Pass to ${players[m.id].lastName}`, look: lookFor(m.v) })),
+          ]
+          let ans = cm.answers[idx]
+          if (!ans) {
+            if (!cm.auto) {
+              const per = Math.max(1, Math.round((2 * poss48 * QUARTER_MIN) / 48))
+              throw new MomentPause({
+                index: idx, period: periodNo, clock: Math.round(Math.max(0, 1 - possInPeriod / per) * QUARTER_MIN * 60),
+                score: { home: score.home, away: score.away }, options, clutch, rival: !!mods?.volatility,
+              })
+            }
+            ans = bestOption(options).answer
+          }
+          if (ans.kind === 'drive') {
+            zone = driveZone
+            p = shotProb(shooter, zone)
+          } else if (ans.kind === 'pass') {
+            const to = ans.to
+            if (o.includes(to) && to !== shooter) {
+              shooter = to
+              zone = bestZone(to)
+              r = R(shooter)
+              sp = prof[shooter]
+              p = shotProb(shooter, zone)
+            }
+          }
+        }
+      }
 
       const isRim = zone === 'layup' || zone === 'driveDunk' || zone === 'standDunk' || zone === 'close'
       const pts = zone === 'three' ? 3 : 2
