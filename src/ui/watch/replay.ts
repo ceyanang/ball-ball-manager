@@ -76,13 +76,16 @@ function apply(lines: Record<string, LiveLine>, e: PlayEvent) {
   }
 }
 
-/** Apply every not-yet-applied event with (period, t) <= target; t = 1 includes that period's periodEnd. Never mutates `s`. */
-export function advanceTo(log: PlayEvent[], s: ReplayState, period: number, t: number): { state: ReplayState; fired: PlayEvent[] } {
+/**
+ * Apply every not-yet-applied event with (period, t) <= target; t = 1 includes that period's periodEnd. Never mutates `s`.
+ * `stopAt`: never apply the event at this log index or later (a MyCareer moment waiting to be answered).
+ */
+export function advanceTo(log: PlayEvent[], s: ReplayState, period: number, t: number, stopAt = Infinity): { state: ReplayState; fired: PlayEvent[] } {
   let i = s.cursor
   const lines = { ...s.lines }
   let { home, away, period: cur, court } = s
   const fired: PlayEvent[] = []
-  while (i < log.length) {
+  while (i < log.length && i < stopAt) {
     const e = log[i]
     if (e.period > period || (e.period === period && e.t > t)) break
     apply(lines, e)

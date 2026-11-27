@@ -702,6 +702,7 @@ export function simGame(
         const rate = Math.min(0.95, cm.rate * (clutch ? 1.6 : 1) * (mods?.volatility ? 1.3 : 1) * (cm.playoffs ? 1.3 : 1))
         if (momentTriggers(gameSeed, possNo, attempt, rate)) {
           const idx = momentCount++
+          if (log && cm.marks) cm.marks[idx] = log.length
           const bestZone = (id: string): ShotZone => {
             const w = prof[id].shotZoneW
             let bi = 0

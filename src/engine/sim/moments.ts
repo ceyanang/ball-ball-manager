@@ -30,6 +30,8 @@ export interface CareerMods {
   /** Never pause: take the best-looking option at every moment (a simmed game). */
   auto: boolean
   playoffs?: boolean
+  /** Watching: filled with the play-log position of each moment (by index), so a replay can pause right there. */
+  marks?: number[]
 }
 
 /** Per-attempt chance he gets a moment when he is the selected shooter (tuned for about 3–6 a game). */

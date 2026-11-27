@@ -12,10 +12,9 @@ import type { EventFrequency, EventLogEntry } from '../engine/events/state'
 import { eventGame, playAllStarEvent, userSideIndex } from '../engine/allstar/allstar'
 import type { AllStarKind, Game, League, Rotation } from '../engine/types'
 import { deleteSave, listSaves, loadSave, onSaveWritten, parseImport, rememberOpenedSave, writeSave } from '../save/db'
-import { runCareerDay, runCareerOffseason, runSim, runWatch } from '../worker/client'
+import { runCareerDay, runCareerOffseason, runCareerWatch, runSim, runWatch } from '../worker/client'
 import type { MomentAnswer, MomentPrompt } from '../engine/sim/moments'
 import type { PlayEvent } from '../engine/sim/playlog'
-import type { WatchCapture } from '../engine/season/advance'
 import type { SimCommand } from '../worker/protocol'
 
 /** A game being watched live. `before` is the league as it stood before the game, for replaying it. Never saved. */
@@ -23,6 +22,11 @@ export interface WatchSession {
   gameId: string; log: PlayEvent[]; before: League
   /** All-Star Weekend games aren't in `league.games`: they carry their own game, headline and exit route. */
   game?: Game; meta?: string; doneTo?: string
+  /**
+   * MyCareer: `prompt` is the moment waiting for an answer; the log is then a preview that is exact up to
+   * `moments[prompt.index]`, where the replay pauses to ask. `preview` stands in for the not-yet-played game.
+   */
+  moments?: number[]; prompt?: MomentPrompt | null; preview?: Game
 }
 
 interface State {
@@ -46,6 +50,8 @@ interface State {
   careerDay: (mode: 'play' | 'sim') => Promise<void>
   /** MyCareer: answer the pending moment (re-runs the game with it locked in). */
   careerAnswer: (answer: MomentAnswer) => Promise<void>
+  /** MyCareer, watching: answer the moment the replay paused on; the game re-runs with it and the broadcast carries on. */
+  careerWatchAnswer: (answer: MomentAnswer) => Promise<void>
   /** MyCareer: run the offseason to the next season (stops at a contract choice). */
   careerOffseason: () => Promise<void>
   /** MyCareer: sign the chosen contract offer. */
@@ -95,11 +101,11 @@ const newId = () => 'save_' + Date.now().toString(36) + Math.floor(Math.random()
 export const useStore = create<State>((set, get) => {
   installExternalSync(get, set)
   /** Runs a sim step on the open league, saves the result and shows an offer notice. A watch capture, if any, starts a watch session. */
-  async function runAndSave(run: (league: League) => Promise<{ league: League; watch: WatchCapture | null }>) {
+  async function runAndSave(run: (league: League) => Promise<{ league: League; watch: Omit<WatchSession, 'before'> | null }>) {
     const { league, busy, saveId } = get()
     if (busy || !league) return
     set({ busy: true, error: null, notice: null, watch: null })
-    let res: { league: League; watch: WatchCapture | null }
+    let res: { league: League; watch: Omit<WatchSession, 'before'> | null }
     try {
       res = await run(league)
     } catch (e) {
@@ -227,7 +233,34 @@ export const useStore = create<State>((set, get) => {
   },
 
   async startWatch() {
-    await runAndSave(runWatch)
+    // MyCareer: watching is playing — the replay stops at each of his moments and asks.
+    await runAndSave(async (league) => {
+      if (!isCareer(league)) return runWatch(league)
+      const r = await runCareerWatch(league, { mode: 'play' })
+      return { league: r.league, watch: r.watch && { ...r.watch, prompt: r.moment, ...(r.preview && { preview: r.preview }) } }
+    })
+  },
+
+  async careerWatchAnswer(answer) {
+    const { league, busy, saveId, watch } = get()
+    if (busy || !league || !watch?.prompt) return
+    set({ busy: true, error: null })
+    try {
+      const r = await runCareerWatch(league, { answer })
+      if (get().saveId !== saveId) return
+      const cur = get().watch
+      set({
+        league: r.league,
+        watch: cur && r.watch && r.watch.gameId === cur.gameId
+          ? { ...cur, log: r.watch.log, moments: r.watch.moments, prompt: r.moment, preview: r.preview ?? undefined }
+          : cur,
+      })
+      if (saveId) await writeSave(saveId, r.league)
+    } catch (e) {
+      set({ error: `The sim stopped unexpectedly: ${(e as Error).message}` })
+    } finally {
+      set({ busy: false })
+    }
   },
 
   playAllStar(kind, watchIt) {

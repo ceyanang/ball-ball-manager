@@ -4,11 +4,12 @@ import { Face } from '../../face/Face'
 import { useStore } from '../../store'
 import { nextGame, teamFull } from '../../util'
 
-/** Home card for MyCareer: today's game with Play (full rewards) and Sim (half), plus a quick way to skip ahead. */
+/** Home card for MyCareer: today's game with Play (watched live, stopping at each moment; full rewards) and Sim (half), plus a quick way to skip ahead. */
 export function DayCard() {
   const league = useStore((s) => s.league)!
   const busy = useStore((s) => s.busy)
   const careerDay = useStore((s) => s.careerDay)
+  const startWatch = useStore((s) => s.startWatch)
   const sim = useStore((s) => s.sim)
   const careerOffseason = useStore((s) => s.careerOffseason)
   const retire = useStore((s) => s.retire)
@@ -45,7 +46,7 @@ export function DayCard() {
         <div className="row"><button className="btn btn-primary" disabled={busy} onClick={() => void careerOffseason()}>Continue to next season</button></div>
       ) : (
       <div className="row" style={{ flexWrap: 'wrap' }}>
-        <button className="btn btn-primary" disabled={busy} onClick={() => void careerDay('play')}>{resuming ? 'Resume game' : today && !injured ? 'Play' : 'Next day'}</button>
+        <button className="btn btn-primary" disabled={busy} onClick={() => void (resuming || (today && !injured) ? startWatch() : careerDay('play'))}>{resuming ? '▶ Resume game' : today && !injured ? '▶ Play' : 'Next day'}</button>
         {today && !injured && <button className="btn" disabled={busy} title="Half the growth, none of the pressure" onClick={() => void careerDay('sim')}>Sim</button>}
         <button className="btn" disabled={busy} onClick={() => void sim({ type: 'simDays', days: 7 })}>Sim a week</button>
       </div>

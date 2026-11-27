@@ -12,8 +12,9 @@ self.onmessage = (e: MessageEvent<SimRequest>) => {
     if (cmd.type === 'watchDay') res = { id, ...watchDay(league, OPTS) }
     else if (cmd.type === 'careerOffseason') res = { id, league: careerAdvanceOffseason(league).league }
     else if (cmd.type === 'careerDay' || cmd.type === 'careerAnswer') {
-      const r = cmd.type === 'careerDay' ? careerPlayDay(league, cmd.mode, undefined, OPTS) : careerPlayDay(league, 'play', cmd.answer, OPTS)
-      res = { id, league: r.league, moment: r.kind === 'moment' ? r.prompt : null }
+      const opts = { ...OPTS, watch: !!cmd.watch }
+      const r = cmd.type === 'careerDay' ? careerPlayDay(league, cmd.mode, undefined, opts) : careerPlayDay(league, 'play', cmd.answer, opts)
+      res = { id, league: r.league, moment: r.kind === 'moment' ? r.prompt : null, watch: r.watch ?? null, preview: r.kind === 'moment' ? r.preview ?? null : null }
     }
     else res = {
       id,

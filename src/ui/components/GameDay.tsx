@@ -68,7 +68,7 @@ export function GameDayHero({ league, game, team, records }: {
       </div>
 
       <div className="row" style={{ gap: '0.5rem', flexWrap: 'wrap' }}>
-        <button className="btn btn-primary" disabled={blocked} onClick={() => void startWatch()}>▶ Watch game</button>
+        <button className="btn btn-primary" disabled={blocked} onClick={() => void startWatch()}>▶ {league.career ? 'Play game' : 'Watch game'}</button>
       </div>
 
       <div className="gd-matchup">

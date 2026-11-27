@@ -120,4 +120,29 @@ describe('careerPlayDay', () => {
     expect(l.career!.pending).toBeNull()
     expect(l.career!.played).toBe(0)
   })
+  it('watching: a moment pauses with a preview log whose events up to the moment are what really happens', () => {
+    let l = active(12)
+    let checked = 0
+    for (let i = 0; i < 40 && checked < 3; i++) {
+      l = toGameDay(l)
+      let res = careerPlayDay(l, 'play', undefined, { watch: true })
+      while (res.kind === 'moment') {
+        const { watch, prompt, preview } = res
+        expect(watch).toBeTruthy()
+        expect(preview?.result).toBeTruthy()
+        const pos = watch!.moments![prompt.index]
+        expect(pos).toBeGreaterThanOrEqual(0)
+        expect(res.league.games.find((g) => g.id === watch!.gameId)!.result).toBeNull()
+        res = careerPlayDay(res.league, 'play', { kind: 'drive' }, { watch: true })
+        const strip = (es: NonNullable<typeof watch>['log']) => es.slice(0, pos).map(({ t: _t, ...e }) => e)
+        expect(strip(res.watch!.log)).toEqual(strip(watch!.log))
+        expect(res.watch!.moments![prompt.index]).toBe(pos)
+        checked++
+      }
+      expect(res.watch?.gameId).toBe(gameToday(l)!.id)
+      expect(res.league.career!.played).toBeGreaterThan(l.career!.played)
+      l = res.league
+    }
+    expect(checked).toBeGreaterThan(0)
+  })
 })

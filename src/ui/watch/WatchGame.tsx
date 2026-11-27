@@ -8,6 +8,7 @@ import { sfxFor } from '../../audio/watchSfx'
 import { computeStandings } from '../../engine/standings'
 import { perGame, playerSeasonStats } from '../../engine/stats/stats'
 import type { PlayEvent, Side } from '../../engine/sim/playlog'
+import type { MomentAnswer } from '../../engine/sim/moments'
 import type { Game, League, Player, Team } from '../../engine/types'
 import { useStore, type WatchSession } from '../store'
 import { fullName, seasonLine, teamFull } from '../util'
@@ -22,6 +23,7 @@ import { Sheet } from '../components/Sheet'
 import { recapRows } from './recap'
 import { WatchCard } from './WatchCard'
 import { WatchPlayerSheet } from './WatchPlayerSheet'
+import { MomentCard } from '../screens/career/Moment'
 import './watch.css'
 import { Help } from '../components/Help'
 
@@ -37,7 +39,9 @@ export function WatchGame() {
   const league = useStore((s) => s.league)
   const endWatch = useStore((s) => s.endWatch)
   const navigate = useNavigate()
-  const game = watch && league ? (watch.game ?? league.games.find((g) => g.id === watch.gameId)) : undefined
+  // MyCareer paused on a moment: the game isn't played yet, so its preview stands in until the last answer.
+  const played = watch && league ? league.games.find((g) => g.id === watch.gameId) : undefined
+  const game = watch && league ? (watch.game ?? (played?.result ? played : watch.preview ?? played)) : undefined
   if (!watch || !league || !game?.result) {
     return (
       <div className="w-screen">
@@ -108,8 +112,13 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   const navigate = useNavigate()
   const endWatch = useStore((s) => s.endWatch)
   const toggleFavorite = useStore((s) => s.toggleFavorite)
+  const careerWatchAnswer = useStore((s) => s.careerWatchAnswer)
+  const busy = useStore((s) => s.busy)
   const m = useMatchup(watch, game)
   const { log } = watch
+  /** MyCareer: the log index the replay must stop at to ask his moment (the log after it is only a preview). */
+  const stopAt = watch.prompt ? watch.moments?.[watch.prompt.index] ?? 0 : null
+  const [asking, setAsking] = useState(false)
   const nPeriods = Math.max(1, periodCount(log))
   const favs = useMemo(() => new Set(league.favoritePlayerIds), [league.favoritePlayerIds])
 
@@ -266,23 +275,28 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
 
   // The replay clock: advance t by real time × speed, fire the events reached, pause at the end of each period.
   useEffect(() => {
-    if (phase !== 'play' || confirmExit || paused) return
+    if (phase !== 'play' || confirmExit || paused || asking) return
     let raf = 0
     let last = performance.now()
     const tick = (now: number) => {
       const dt = Math.min(100, Math.max(0, now - last))
       last = now
       const { period } = clockRef.current
-      const t = Math.min(1, clockRef.current.t + (dt * speedRef.current) / periodMs(period))
+      let t = Math.min(1, clockRef.current.t + (dt * speedRef.current) / periodMs(period))
+      // His moment is up: run the clock to it, play everything before it, then stop and ask.
+      const at = stopAt !== null ? log[stopAt] : undefined
+      const ask = !!at && at.period === period && at.t <= t
+      if (ask) t = Math.max(clockRef.current.t, at.t)
       clockRef.current = { period, t }
       const prev = rsRef.current
-      const { state, fired } = advanceTo(log, prev, period, t)
+      const { state, fired } = advanceTo(log, prev, period, t, stopAt ?? Infinity)
       if (fired.length) {
         rsRef.current = state
         setRs(state)
         onFired(state, fired, prev.cursor, prev.court)
       }
       setClock({ period, t })
+      if (ask) { setAsking(true); return }
       if (t >= 1) {
         clearFx()
         sfx.buzzer()
@@ -293,7 +307,25 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [phase, confirmExit, paused, log, nPeriods])
+  }, [phase, confirmExit, paused, asking, log, nPeriods, stopAt])
+
+  /** Jumps the replay straight to his waiting moment (skipping past it isn't allowed: it hasn't happened yet). */
+  const jumpToMoment = () => {
+    const at = log[stopAt!]
+    clearFx()
+    const { state } = advanceTo(log, rsRef.current, at.period, at.t, stopAt!)
+    rsRef.current = state
+    clockRef.current = { period: at.period, t: Math.max(at.period === clockRef.current.period ? clockRef.current.t : 0, at.t) }
+    setRs(state)
+    setClock(clockRef.current)
+    setPhase('play')
+    setAsking(true)
+  }
+  const answerMoment = async (a: MomentAnswer, label: string) => {
+    setFeed((f) => pushFeed(f, [{ text: `🎯 You: ${label}`, kind: 'hot' }]))
+    await careerWatchAnswer(a)
+    setAsking(false)
+  }
 
   const nextPeriod = () => {
     const period = clockRef.current.period + 1
@@ -307,6 +339,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   const followedId = league.career?.status === 'active' ? league.career.playerId : null
   const skipToNextPlay = () => {
     const i = followedId ? nextCheckIn(log, rsRef.current, followedId) : null
+    if (stopAt !== null && (i === null || i >= stopAt)) { jumpToMoment(); return }
     if (i === null) { skipToFinal(); return }
     const e = log[i]
     clearFx()
@@ -319,6 +352,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     setPhase('play')
   }
   const skipToFinal = () => {
+    if (stopAt !== null) { jumpToMoment(); return }
     clearFx()
     sfx.buzzer()
     const f = finalState(log)
@@ -469,8 +503,10 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
         )}
       </div>
 
+      {asking && watch.prompt && <MomentCard moment={watch.prompt} busy={busy} onAnswer={(a, label) => void answerMoment(a, label)} />}
+
       <Sheet open={confirmExit} onClose={() => setConfirmExit(false)} title="Leave the game?">
-        <p style={{ margin: 0 }}>The game still counts — you’ll see the result in the box score.</p>
+        <p style={{ margin: 0 }}>{stopAt !== null ? 'Your game is paused on your moment — hit Resume game to pick it back up.' : 'The game still counts — you’ll see the result in the box score.'}</p>
         <div className="row" style={{ justifyContent: 'flex-end', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button className="btn" onClick={() => setConfirmExit(false)}>Keep watching</button>
           <button className="btn btn-primary" onClick={leave}>Leave</button>

@@ -42,7 +42,8 @@ export function useSim() {
   if (!league || league.phase === 'offseason') return null
   const problem = rosterProblem(league)
   const playsToday = nextGame(league, league.userTeamId)?.day === league.day
-  const watch: SimAction[] = playsToday ? [{ key: 'watch', label: 'Watch game', short: 'Play today\'s game live', primary: true, run: () => void startWatch() }] : []
+  // MyCareer: watching IS playing — the broadcast stops at each of his moments to ask.
+  const watch: SimAction[] = playsToday ? [{ key: 'watch', label: league.career ? 'Play game' : 'Watch game', short: 'Play today\'s game live', primary: true, run: () => void startWatch() }] : []
   const series: SimAction[] = league.phase === 'playoffs' && userSeries(league) ? [{ key: 'series', label: 'Sim series', short: 'Until your series is decided, no pop-ups', run: () => sim({ type: 'simUntil', target: 'seriesEnd' }) }] : []
   const base: SimAction[] = league.phase === 'regular'
     ? [
@@ -151,7 +152,7 @@ export function MobileSim() {
       <div className="msim" aria-busy={s.busy}>
         <button className="btn btn-primary msim-go" disabled={s.disabled} onClick={first.run}>
           {s.busy ? <span className="spinner on-accent" role="status" aria-label="Simulating" /> : <Icon name="play" size={16} />}
-          {s.busy ? 'Simming' : first.key === 'watch' ? 'Watch' : first.label}
+          {s.busy ? 'Simming' : first.key === 'watch' ? (league.career ? 'Play' : 'Watch') : first.label}
         </button>
         <button className="btn msim-more" disabled={s.disabled} onClick={() => setOpen(true)} aria-label="More sim options" aria-haspopup="dialog">
           <Icon name="more" size={20} />
