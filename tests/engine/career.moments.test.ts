@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { createLeague } from '../../src/engine/league/create'
 import { Rng } from '../../src/engine/rng'
 import { simGame } from '../../src/engine/sim/game'
-import { DEFAULT_MOMENT_RATE, MomentPause, lookFor, momentTriggers, type MomentAnswer, type MomentPrompt } from '../../src/engine/sim/moments'
+import { DEFAULT_MOMENT_RATE, LOOK_CUTOFF, MomentPause, lookFor, momentTriggers, type MomentAnswer, type MomentPrompt } from '../../src/engine/sim/moments'
 import type { GameMods } from '../../src/engine/events/mods'
 import type { GameResult } from '../../src/engine/types'
 
@@ -49,12 +49,14 @@ describe('moments', () => {
     expect(hits / 2000).toBeLessThan(0.36)
   })
 
-  it('lookFor is monotonic: green at 0.45+, yellow at 0.30+, else red', () => {
-    expect(lookFor(0.6)).toBe('green')
-    expect(lookFor(0.45)).toBe('green')
-    expect(lookFor(0.44)).toBe('yellow')
-    expect(lookFor(0.3)).toBe('yellow')
-    expect(lookFor(0.29)).toBe('red')
+  it('lookFor is monotonic: green at the green cut-off, yellow at the yellow cut-off, else red', () => {
+    const { green, yellow } = LOOK_CUTOFF
+    expect(yellow).toBeLessThan(green)
+    expect(lookFor(green + 0.1)).toBe('green')
+    expect(lookFor(green)).toBe('green')
+    expect(lookFor(green - 0.001)).toBe('yellow')
+    expect(lookFor(yellow)).toBe('yellow')
+    expect(lookFor(yellow - 0.001)).toBe('red')
     const order = { red: 0, yellow: 1, green: 2 }
     let last = 0
     for (let p = 0; p <= 1; p += 0.01) { const v = order[lookFor(p)]; expect(v).toBeGreaterThanOrEqual(last); last = v }

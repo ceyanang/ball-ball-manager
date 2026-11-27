@@ -35,7 +35,7 @@ export interface CareerMods {
 /** Per-attempt chance he gets a moment when he is the selected shooter (tuned for about 3–6 a game). */
 export const DEFAULT_MOMENT_RATE = 0.3
 /** Make-probability cut-offs for the colour descriptors (monotonic). */
-export const LOOK_CUTOFF = { green: 0.45, yellow: 0.3 }
+export const LOOK_CUTOFF = { green: 0.58, yellow: 0.46 }
 
 export const lookFor = (p: number): Look => (p >= LOOK_CUTOFF.green ? 'green' : p >= LOOK_CUTOFF.yellow ? 'yellow' : 'red')
 export const LOOK_RANK: Record<Look, number> = { red: 0, yellow: 1, green: 2 }
