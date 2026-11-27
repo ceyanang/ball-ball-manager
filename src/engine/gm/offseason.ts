@@ -12,6 +12,7 @@ import { FA_DAYS, addFreeAgentBatch, aiFillRosters, aiResign, aiTrimRosters, fre
 import { aiTrades } from './trade'
 import { aiDevIds, breakoutBump, breakoutChance, coachFactor, isTraining, pruneTraining } from './training'
 import { strengthOrder } from './value'
+import { ageCareerPlayer } from '../career/growth'
 import { applyRivalBumps } from '../rivals/showing'
 import { afterOffseason, onBreakout, onNewSeason, onOffseasonStart, onRetired } from '../stories/hooks'
 
@@ -161,6 +162,13 @@ export function startOffseason(l: League, rng: Rng): void {
     const from = ovr(p)
     const dev = p.teamId ? l.coaches[l.teams[p.teamId].coachId]?.dev ?? 60 : 50
     p.age++
+    if (p.careerBuild) {
+      // MyCareer: his growth is the career system's; the offseason only ages him.
+      ageCareerPlayer(l, p, rng)
+      recoverFromInjury(p, rng)
+      p.ratingHistory.push({ season: l.season + 1, ovr: ovr(p) })
+      continue
+    }
     const userSlot = p.teamId === l.userTeamId && isTraining(l, p.id)
     const cpuSlot = aiDev.has(p.id)
     const devSlot = userSlot || cpuSlot
@@ -181,7 +189,7 @@ export function startOffseason(l: League, rng: Rng): void {
       report.changes.push({ playerId: p.id, teamId: p.teamId, from, to })
   }
   for (const p of Object.values(l.players)) {
-    if (p.retired || !rng.chance(retireChance(p))) continue
+    if (p.retired || p.careerBuild || !rng.chance(retireChance(p))) continue
     report.retired.push({ playerId: p.id, teamId: p.teamId, age: p.age, ovr: ovr(p) })
     if (p.teamId) log(l, 'retire', [p.teamId], [p.id], `${pname(p)} (${tname(l, p.teamId)}) retired at ${p.age}.`)
     const teamId = p.teamId

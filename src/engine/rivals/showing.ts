@@ -23,7 +23,7 @@ export function recordRivalShowing(l: League, g: Game): void {
 export function applyRivalBumps(l: League, rng: Rng): void {
   for (const [id, n] of Object.entries(l.rivalry.showing)) {
     const p = l.players[id]
-    if (!p || p.retired || n < RIVAL.showingMin || p.pot >= 99) continue
+    if (!p || p.retired || p.careerBuild || n < RIVAL.showingMin || p.pot >= 99) continue
     if (!rng.chance(Math.min(RIVAL.bumpChanceCap, RIVAL.bumpChancePerShowing * n))) continue
     const potFrom = p.pot
     p.pot = Math.min(99, p.pot + breakoutBump(p, rng))

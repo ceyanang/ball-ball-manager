@@ -1,3 +1,4 @@
+import { growPlayer } from '../career/growth'
 import { ovr, pname } from '../gm/cap'
 import { RATING_KEYS, RATING_LABELS, RATING_MAX, RATING_MIN } from '../player/ratings'
 import { ping } from '../stories/inbox'
@@ -15,6 +16,8 @@ export type Effect =
   | { kind: 'train'; player: string; skill: keyof Ratings; delta: number }
   | { kind: 'ovrNudge'; player: string; delta: number }
   | { kind: 'inbox'; title: string; body: string }
+  /** MyCareer: permanent, logged growth for the followed player (scaled by age, played-vs-simmed and health; capped by his max). */
+  | { kind: 'grow'; player: string; grants: { key: keyof Ratings; amount: number }[]; source: string }
 
 const sign = (n: number) => (n >= 0 ? `+${n}` : `${n}`)
 const STAT_LABEL = { shooting: 'shooting', defense: 'defense', energy: 'energy', all: 'everything' } as const
@@ -84,6 +87,12 @@ export function applyEffects(l: League, effects: Effect[]): string[] {
         for (let i = 0; i < 6 && (ovr(p) - before) * dir < Math.abs(e.delta); i++)
           for (const k of top) p.ratings[k] = clamp(p.ratings[k] + dir, RATING_MIN, RATING_MAX)
         if (ovr(p) !== before) lines.push(`${pname(p)} OVR ${sign(ovr(p) - before)}`)
+        break
+      }
+      case 'grow': {
+        const p = player(e.player)
+        if (!p) break
+        for (const g of growPlayer(l, e.player, e.grants, e.source)) lines.push(`${pname(p)} ${SKILL_LABEL[g.key]} ${sign(g.delta)}`)
         break
       }
       case 'inbox':

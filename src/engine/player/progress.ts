@@ -75,7 +75,7 @@ export function progressTick(league: League, rng: Rng): ProgressEvent[] {
   const invested = new Set(league.training.map((t) => t.playerId))
   const aiDev = aiDevIds(league)
   for (const p of Object.values(league.players)) {
-    if (!p.teamId) continue
+    if (!p.teamId || p.careerBuild) continue // MyCareer growth runs through career/growth.ts
     // User development slots and CPU young-core focus both get real breakout odds and faster growth.
     const userInv = invested.has(p.id) && p.teamId === league.userTeamId
     const inv = userInv || aiDev.has(p.id)
