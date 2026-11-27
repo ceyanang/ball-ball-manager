@@ -1,5 +1,6 @@
 import type { RivalryState } from './rivals/state'
 import type { EventsState } from './events/state'
+import type { CareerState } from './career/types'
 export type Position = 'PG' | 'SG' | 'SF' | 'PF' | 'C'
 export type Conference = 'East' | 'West'
 export type CoachStyle = 'pace' | 'three' | 'defense' | 'balanced'
@@ -201,7 +202,7 @@ export interface AllStarEvent {
 export interface TrainingSlot { playerId: string; season: number; day: number }
 
 export interface League {
-  version: 13; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 14; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]
@@ -235,4 +236,6 @@ export interface League {
   chemistry: Record<string, number>
   /** Rival heat, dynamic rivals and the rival-game showing tally. */
   rivalry: RivalryState
+  /** MyCareer: the followed player's state; null in a normal GM league. */
+  career: CareerState | null
 }

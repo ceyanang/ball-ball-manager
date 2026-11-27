@@ -12,7 +12,7 @@ import { emptyEvents } from '../engine/events/state'
 import { emptyRivalry } from '../engine/rivals/state'
 import { backfillHeritage } from '../engine/face/backfill'
 
-export const CURRENT_VERSION = 13
+export const CURRENT_VERSION = 14
 
 const clampRating = (v: number) => Math.max(RATING_MIN, Math.min(RATING_MAX, Math.round(v)))
 const numOr = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
@@ -191,10 +191,12 @@ export function migrateLeague(raw: any): League {
     backfillHeritage(raw)
   }
   if (raw?.version === 12) raw = { ...raw, version: 13, rivalry: emptyRivalry() }
+  if (raw?.version === 13) raw = { ...raw, version: 14, career: null }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)
   if (!Array.isArray(raw.favoritePlayerIds)) raw = { ...raw, favoritePlayerIds: [] }
   if (!Array.isArray(raw.progress)) raw = { ...raw, progress: [] }
+  if (raw.career === undefined) raw = { ...raw, career: null }
   raw = { ...raw, rivalry: { ...emptyRivalry(), ...(raw.rivalry ?? {}) } }
   return raw as League
 }

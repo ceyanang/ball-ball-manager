@@ -172,7 +172,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
   const games = generateSchedule(teams, season, rng)
 
   const league: League = {
-    version: 13,
+    version: 14,
     favoritePlayerIds: [],
     name: opts.name,
     seed: opts.seed,
@@ -203,6 +203,7 @@ export function createLeague(opts: { seed: number; userTeamIndex: number; name: 
     ...emptyStories(),
     events: emptyEvents(),
     rivalry: emptyRivalry(),
+    career: null,
     chemistry: Object.fromEntries(teams.map((t) => [t.id, 50])),
   }
   recomputeFanBase(league)

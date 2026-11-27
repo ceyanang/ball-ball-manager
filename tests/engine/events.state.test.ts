@@ -6,7 +6,7 @@ import { migrateLeague } from '../../src/save/migrate'
 describe('events state (League v8)', () => {
   it('a new league starts with events on "lots", nothing pending, chemistry 50 everywhere', () => {
     const l = createLeague({ seed: 1, userTeamIndex: 0, name: 'x' })
-    expect(l.version).toBe(13)
+    expect(l.version).toBe(14)
     expect(l.events.frequency).toBe('lots')
     expect(l.events.pending).toBeNull()
     const ids = Object.keys(l.teams)
@@ -21,7 +21,7 @@ describe('events state (League v8)', () => {
     delete raw.events
     delete raw.chemistry
     const m = migrateLeague(raw)
-    expect(m.version).toBe(13)
+    expect(m.version).toBe(14)
     expect(m.events).toEqual(emptyEvents())
     for (const id of Object.keys(l.teams)) expect(m.chemistry[id]).toBe(50)
   })
