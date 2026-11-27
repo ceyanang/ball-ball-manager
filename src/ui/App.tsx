@@ -29,6 +29,7 @@ import { Social } from './screens/Social'
 import { History } from './screens/History'
 import { EventLog } from './screens/EventLog'
 import { Builder } from './screens/career/Builder'
+import { DraftNight } from './screens/career/DraftNight'
 import { isCareer } from '../engine/career/state'
 import { EventModal } from './components/EventModal'
 import { useStore } from './store'
@@ -38,6 +39,8 @@ function RequireLeague({ children }: { children: React.ReactNode }) {
   const league = useStore((s) => s.league)
   const loc = useLocation()
   if (!league) return <Navigate to="/new" replace state={{ from: loc.pathname }} />
+  // MyCareer: until draft night is done there is no team to show, so every league screen leads back to it.
+  if (league.career?.status === 'draftNight' && loc.pathname !== '/career/draft') return <Navigate to="/career/draft" replace />
   return <>{children}</>
 }
 
@@ -73,6 +76,7 @@ export default function App() {
           <Route path="/new" element={<NewLeague />} />
           <Route path="/saves" element={<Saves />} />
           <Route path="/career/build" element={<Builder />} />
+          <Route path="/career/draft" element={guarded(<DraftNight />)} />
           <Route path="/my-team" element={guarded(<MyTeam />)} />
           <Route path="/roster" element={guarded(<Roster />)} />
           <Route path="/team/:id" element={guarded(<TeamPage />)} />
