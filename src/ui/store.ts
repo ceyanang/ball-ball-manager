@@ -1,5 +1,7 @@
 import { create } from 'zustand'
 import { createLeague } from '../engine/league/create'
+import { createCareerLeague, type CareerBuildInput } from '../engine/career/create'
+import { isCareer } from '../engine/career/state'
 import { validateRotation } from '../engine/sim/rotation'
 import { GmError } from '../engine/gm/cap'
 import { Rng } from '../engine/rng'
@@ -29,6 +31,8 @@ interface State {
   notice: string | null
   watch: WatchSession | null
   newLeague: (opts: { seed: number; userTeamIndex: number; name: string }) => Promise<void>
+  /** Starts a MyCareer save: a normal league plus your own player, waiting on draft night. */
+  newCareer: (opts: { seed: number; name: string; build: CareerBuildInput }) => Promise<void>
   load: (id: string) => Promise<void>
   remove: (id: string) => Promise<void>
   sim: (cmd: SimCommand) => Promise<void>
@@ -43,9 +47,10 @@ interface State {
   clearNotice: () => void
   /**
    * Runs a GM move on a copy of the league. A GmError becomes a friendly error; on success the move is saved and
-   * its message (if any) shown as a notice. Returns whether it went through.
+   * its message (if any) shown as a notice. Returns whether it went through. In MyCareer every GM move is refused
+   * unless the caller marks it `career: true` (favourites, pop-up events, reading the inbox).
    */
-  act: (fn: (l: League, rng: Rng) => string | void) => boolean
+  act: (fn: (l: League, rng: Rng) => string | void, opts?: { career?: boolean }) => boolean
   /** Answers the pending pop-up event with the chosen option; returns what happened (null if nothing was pending). */
   answerEvent: (choice: number) => EventLogEntry | null
   /** Skips a between-day pop-up (game-day ones must be answered). */
@@ -128,6 +133,20 @@ export const useStore = create<State>((set, get) => {
     }
   },
 
+  async newCareer(opts) {
+    if (get().busy) return
+    set({ busy: true })
+    try {
+      const league = createCareerLeague(opts)
+      const saveId = newId()
+      await writeSave(saveId, league)
+      rememberOpenedSave(saveId)
+      set({ league, saveId, error: null })
+    } finally {
+      set({ busy: false })
+    }
+  },
+
   async load(id) {
     if (get().busy) return
     try {
@@ -179,12 +198,16 @@ export const useStore = create<State>((set, get) => {
       const fav = new Set(l.favoritePlayerIds)
       if (!fav.delete(playerId)) fav.add(playerId)
       l.favoritePlayerIds = [...fav]
-    })
+    }, { career: true })
   },
 
   setRotation(teamId, rot) {
     const { league, saveId, busy } = get()
     if (!league || busy) return
+    if (isCareer(league)) {
+      set({ error: 'The coach sets the rotation in MyCareer.' })
+      return
+    }
     const roster = Object.values(league.players).filter((p) => p.teamId === teamId).map((p) => p.id)
     const problems = validateRotation(rot, roster)
     if (problems.length) {
@@ -211,9 +234,13 @@ export const useStore = create<State>((set, get) => {
   clearError: () => set({ error: null }),
   clearNotice: () => set({ notice: null }),
 
-  act(fn) {
+  act(fn, opts) {
     const { league, saveId, busy } = get()
     if (!league || busy) return false
+    if (isCareer(league) && !opts?.career) {
+      set({ error: 'That’s a GM move — in MyCareer you only follow your own player.', notice: null })
+      return false
+    }
     const next = structuredClone(league)
     let msg: string | void
     try {
@@ -232,16 +259,16 @@ export const useStore = create<State>((set, get) => {
 
   answerEvent(choice) {
     let entry = null as EventLogEntry | null
-    get().act((l) => { entry = answerEventEngine(l, choice) })
+    get().act((l) => { entry = answerEventEngine(l, choice) }, { career: true })
     return entry
   },
 
   skipEvent() {
-    get().act((l) => { skipEventEngine(l) })
+    get().act((l) => { skipEventEngine(l) }, { career: true })
   },
 
   setEventFrequency(f) {
-    get().act((l) => { l.events.frequency = f })
+    get().act((l) => { l.events.frequency = f }, { career: true })
   },
 }
 })

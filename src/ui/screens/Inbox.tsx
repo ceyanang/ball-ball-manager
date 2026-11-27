@@ -39,7 +39,7 @@ export function Inbox() {
   })
   const unread = league.inbox.filter((i) => !i.read && !i.dismissed).length
   const openOffers = league.inbox.filter((i) => !i.dismissed && i.offer?.status === 'open').length
-  const mark = (id: string, patch: Partial<InboxItem>) => act((l) => { Object.assign(l.inbox.find((i) => i.id === id)!, patch) })
+  const mark = (id: string, patch: Partial<InboxItem>) => act((l) => { Object.assign(l.inbox.find((i) => i.id === id)!, patch) }, { career: true })
 
   return (
     <div className="stack">
@@ -47,7 +47,7 @@ export function Inbox() {
         <h1>Inbox {unread > 0 && <span className="count-pill">{unread}</span>}</h1>
         <div className="row" style={{ flexWrap: 'wrap' }}>
           <Link className="btn" to="/events">🎲 Events</Link>
-          {unread > 0 && <button className="btn" onClick={() => act((l) => { for (const i of l.inbox) i.read = true })}>Mark all read</button>}
+          {unread > 0 && <button className="btn" onClick={() => act((l) => { for (const i of l.inbox) i.read = true }, { career: true })}>Mark all read</button>}
           <label className="row" style={{ gap: '0.4rem' }}><input type="checkbox" checked={showDismissed} onChange={(e) => setShowDismissed(e.target.checked)} /> Show dismissed</label>
         </div>
       </div>

@@ -74,3 +74,10 @@ export function activeTab(path: string): string {
   }
   return 'more'
 }
+
+/** MyCareer hides the GM-only destinations; everything that just shows the league stays. */
+const GM_ONLY = new Set(['/office', '/trade', '/trade-finder', '/free-agents', '/draft', '/offseason'])
+export const isGmPath = (path: string): boolean => [...GM_ONLY].some((g) => path === g || path.startsWith(g + '/'))
+export const withoutGm = <T extends { to: string }>(items: T[]): T[] => items.filter((i) => !GM_ONLY.has(i.to))
+export const withoutGmGroups = (groups: { title: string; items: NavItem[] }[]) =>
+  groups.map((g) => ({ ...g, items: withoutGm(g.items) })).filter((g) => g.items.length > 0)

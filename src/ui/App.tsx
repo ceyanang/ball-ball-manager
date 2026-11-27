@@ -28,6 +28,8 @@ import { AllStar } from './screens/AllStar'
 import { Social } from './screens/Social'
 import { History } from './screens/History'
 import { EventLog } from './screens/EventLog'
+import { Builder } from './screens/career/Builder'
+import { isCareer } from '../engine/career/state'
 import { EventModal } from './components/EventModal'
 import { useStore } from './store'
 import './theme.css'
@@ -36,6 +38,13 @@ function RequireLeague({ children }: { children: React.ReactNode }) {
   const league = useStore((s) => s.league)
   const loc = useLocation()
   if (!league) return <Navigate to="/new" replace state={{ from: loc.pathname }} />
+  return <>{children}</>
+}
+
+/** MyCareer follows one player, so the GM-only screens aren't part of it. */
+function GmOnly({ children }: { children: React.ReactNode }) {
+  const league = useStore((s) => s.league)
+  if (league && isCareer(league)) return <Navigate to="/" replace />
   return <>{children}</>
 }
 
@@ -53,6 +62,7 @@ export default function App() {
   }, [load])
   if (!ready) return null
   const guarded = (el: React.ReactNode) => <RequireLeague>{el}</RequireLeague>
+  const gm = (el: React.ReactNode) => <RequireLeague><GmOnly>{el}</GmOnly></RequireLeague>
   return (
     <HashRouter>
       <EventModal />
@@ -62,6 +72,7 @@ export default function App() {
           <Route path="/" element={guarded(<Home />)} />
           <Route path="/new" element={<NewLeague />} />
           <Route path="/saves" element={<Saves />} />
+          <Route path="/career/build" element={<Builder />} />
           <Route path="/my-team" element={guarded(<MyTeam />)} />
           <Route path="/roster" element={guarded(<Roster />)} />
           <Route path="/team/:id" element={guarded(<TeamPage />)} />
@@ -72,12 +83,12 @@ export default function App() {
           <Route path="/standings" element={guarded(<Standings />)} />
           <Route path="/playoffs" element={guarded(<Playoffs />)} />
           <Route path="/leaders" element={guarded(<Leaders />)} />
-          <Route path="/office" element={guarded(<FrontOffice />)} />
-          <Route path="/trade" element={guarded(<Trade />)} />
-          <Route path="/trade-finder" element={guarded(<TradeFinder />)} />
-          <Route path="/free-agents" element={guarded(<FreeAgents />)} />
-          <Route path="/draft" element={guarded(<Draft />)} />
-          <Route path="/offseason" element={guarded(<Offseason />)} />
+          <Route path="/office" element={gm(<FrontOffice />)} />
+          <Route path="/trade" element={gm(<Trade />)} />
+          <Route path="/trade-finder" element={gm(<TradeFinder />)} />
+          <Route path="/free-agents" element={gm(<FreeAgents />)} />
+          <Route path="/draft" element={gm(<Draft />)} />
+          <Route path="/offseason" element={gm(<Offseason />)} />
           <Route path="/inbox" element={guarded(<Inbox />)} />
           <Route path="/highlights" element={guarded(<Highlights />)} />
           <Route path="/all-star" element={guarded(<AllStar />)} />

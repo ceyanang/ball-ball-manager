@@ -10,7 +10,8 @@ import { Icon } from '../components/Icon'
 import { Sheet } from '../components/Sheet'
 import { RosterPeek } from '../components/RosterPeek'
 import { ErrorBoundary } from '../ErrorBoundary'
-import { activeTab, matchesNav, MORE_GROUPS, OFFSEASON, SAVES, SIDEBAR_GROUPS, TABS } from '../nav'
+import { activeTab, matchesNav, MORE_GROUPS, OFFSEASON, SAVES, SIDEBAR_GROUPS, TABS, withoutGm, withoutGmGroups } from '../nav'
+import { isCareer } from '../../engine/career/state'
 import { WatchGame } from '../watch/WatchGame'
 import { useMusic } from '../../audio/useMusic'
 
@@ -51,12 +52,16 @@ export function Shell() {
     return r ? `${r.w}–${r.l}` : null
   }, [league])
   const offseason = league?.phase === 'offseason'
-  const sidebarGroups = !league
+  const career = !!league && isCareer(league)
+  const sidebarGroupsAll = !league
     ? [{ title: 'Start', items: [{ to: '/new', label: 'New League', icon: 'sun' as const, match: ['/new'] }, SAVES] }]
     : offseason
       ? [{ title: 'Now', items: [OFFSEASON] }, ...SIDEBAR_GROUPS]
       : SIDEBAR_GROUPS
-  const moreGroups = offseason ? [{ title: 'Now', items: [OFFSEASON] }, ...MORE_GROUPS] : MORE_GROUPS
+  const sidebarGroups = career ? withoutGmGroups(sidebarGroupsAll) : sidebarGroupsAll
+  const moreGroupsAll = offseason ? [{ title: 'Now', items: [OFFSEASON] }, ...MORE_GROUPS] : MORE_GROUPS
+  const moreGroups = career ? withoutGmGroups(moreGroupsAll) : moreGroupsAll
+  const tabs = career ? withoutGm(TABS) : TABS
   const tab = activeTab(pathname)
   const inboxBadge = unread > 0 && <span className="nav-count" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>
 
@@ -145,7 +150,7 @@ export function Shell() {
 
       {league && (
         <nav className="tabbar" aria-label="Main">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <Link key={t.to} to={t.to} className={`tab${tab === t.to ? ' active' : ''}`} aria-current={tab === t.to ? 'page' : undefined}>
               <span className="tab-icon"><Icon name={t.icon} /></span>
               <span className="tab-label">{t.label}</span>

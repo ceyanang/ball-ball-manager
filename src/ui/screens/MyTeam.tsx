@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { STARTERS, ACTIVE_MAX } from '../../engine/constants'
 import { archetypeFor } from '../../engine/player/archetype'
+import { isCareer } from '../../engine/career/state'
 import { slotOvr } from '../../engine/career/careerOvr'
 import { rosterSynergy } from '../../engine/gm/synergy'
 import { SLOTS, autoRotation, coachRotation, validateRotation } from '../../engine/sim/rotation'
@@ -60,7 +61,8 @@ export function MyTeam() {
   }, [saved])
   useUnsavedGuard(dirty, 'Leave without saving your rotation changes?')
 
-  const locked = !!draft.auto
+  const career = isCareer(league)
+  const locked = career || (!!draft.auto)
   const drop = (id: string, target: DropTarget) => { if (!locked) setDraft((d) => dropInRotation(d, id, target)) }
   const setAuto = (on: boolean) => {
     setPicked(null)
@@ -197,6 +199,7 @@ export function MyTeam() {
     {
       key: 'release', label: '', mobile: 'act', defaultDir: 'asc', sortable: false, value: () => null,
       cell: (p) => {
+        if (career) return null
         const expiring = !p.contract || p.contract.expires < capSeason(league)
         return (
           <button className="btn btn-danger" disabled={busy} onClick={() => {
@@ -224,7 +227,7 @@ export function MyTeam() {
         Starters play the listed position; bench order sets who subs in first. Injured players sit and the best fit off the bench takes their spot.
       </p>
       <label className="panel auto-coach">
-        <input type="checkbox" checked={locked} onChange={(e) => setAuto(e.target.checked)} />
+        <input type="checkbox" checked={locked} disabled={career} onChange={(e) => setAuto(e.target.checked)} />
         <span>
           <b>🤖 Let the coach run the rotation</b>
           <span className="muted">Before every game he picks the optimal starters, bench and minutes around who’s healthy. Untick to set them yourself.</span>

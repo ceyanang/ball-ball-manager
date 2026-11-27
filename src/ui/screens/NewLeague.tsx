@@ -35,6 +35,10 @@ export function NewLeague() {
       <p className="muted" style={{ margin: 0, maxWidth: '60ch' }}>
         Pick the team you’ll run. Every player, face and coach comes from the league seed, so the same seed always builds the same league.
       </p>
+      <div className="panel row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <span><b>🏀 MyCareer</b> — don’t run a team. Build one player and follow him from draft night to retirement.</span>
+        <button className="btn" onClick={() => navigate('/career/build')}>Build a player</button>
+      </div>
       <div className="row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <label className="field">League name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} /></label>
         <button className="btn" onClick={() => { setSeed(randomSeed()); setPick(null) }}>Shuffle league</button>

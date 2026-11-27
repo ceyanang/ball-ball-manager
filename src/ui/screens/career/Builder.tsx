@@ -1,0 +1,105 @@
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { BUILD_BUDGET, BUILD_TEMPLATES, START_OVR, buildCost, makeBuild } from '../../../engine/career/build'
+import { HERITAGES, type Heritage } from '../../../engine/face/heritage'
+import { POSITION_HEIGHT_BOUNDS } from '../../../engine/player/generate'
+import { RATING_GROUPS, RATING_MAX, RATING_MIN } from '../../../engine/player/ratings'
+import type { Position, Ratings } from '../../../engine/types'
+import { useStore } from '../../store'
+
+const POSITIONS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C']
+const randomSeed = () => Math.floor(Math.random() * 1_000_000)
+const feet = (inch: number) => `${Math.floor(inch / 12)}'${inch % 12}"`
+
+/** MyCareer step one: set the maximum of every attribute from a shared point pool. */
+export function Builder() {
+  const newCareer = useStore((s) => s.newCareer)
+  const busy = useStore((s) => s.busy)
+  const navigate = useNavigate()
+  const [seed] = useState(randomSeed)
+  const [templateId, setTemplateId] = useState(BUILD_TEMPLATES[0].id)
+  const [pos, setPos] = useState<Position>(BUILD_TEMPLATES[0].pos)
+  const [max, setMax] = useState<Ratings>({ ...BUILD_TEMPLATES[0].max })
+  const [first, setFirst] = useState('')
+  const [last, setLast] = useState('')
+  const [heritage, setHeritage] = useState<Heritage | ''>('')
+  const [heightIn, setHeightIn] = useState(Math.round(POSITION_HEIGHT_BOUNDS[BUILD_TEMPLATES[0].pos][0]))
+  const [leagueName, setLeagueName] = useState('My Career')
+
+  const spent = buildCost(max)
+  const left = BUILD_BUDGET - spent
+  const build = useMemo(() => makeBuild(max, pos), [max, pos])
+  const [, hMin, hMax] = POSITION_HEIGHT_BOUNDS[pos]
+
+  const pickTemplate = (id: string) => {
+    const t = BUILD_TEMPLATES.find((x) => x.id === id)!
+    setTemplateId(id); setPos(t.pos); setMax({ ...t.max })
+    setHeightIn(Math.round(POSITION_HEIGHT_BOUNDS[t.pos][0]))
+  }
+  const pickPos = (p: Position) => {
+    setPos(p)
+    const [mean, lo, hi] = POSITION_HEIGHT_BOUNDS[p]
+    setHeightIn(Math.max(lo, Math.min(hi, Math.round(mean))))
+  }
+  const setKey = (k: keyof Ratings, v: number) => setMax((m) => ({ ...m, [k]: Math.max(RATING_MIN, Math.min(RATING_MAX, Math.min(v, m[k] + left))) }))
+
+  const go = async () => {
+    await newCareer({ seed, name: leagueName.trim() || 'My Career', build: { max, pos, first, last, heritage: heritage || undefined, heightIn } })
+    navigate('/career/draft')
+  }
+
+  return (
+    <div className="stack">
+      <h1>MyCareer — build your player</h1>
+      <p className="muted" style={{ margin: 0, maxWidth: '62ch' }}>
+        Set each attribute’s <b>maximum</b>. You spend every point you have, then you start well below those maxes at 19 and grow into them.
+        However you build him, a fully maxed player is a 99.
+      </p>
+      <div className="row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <label className="field">First name<input value={first} onChange={(e) => setFirst(e.target.value)} maxLength={16} /></label>
+        <label className="field">Last name<input value={last} onChange={(e) => setLast(e.target.value)} maxLength={20} /></label>
+        <label className="field">Heritage
+          <select value={heritage} onChange={(e) => setHeritage(e.target.value as Heritage | '')}>
+            <option value="">Random</option>
+            {HERITAGES.map((h) => <option key={h} value={h}>{h}</option>)}
+          </select>
+        </label>
+        <label className="field">League name<input value={leagueName} onChange={(e) => setLeagueName(e.target.value)} maxLength={40} /></label>
+      </div>
+      <div className="chips" role="tablist" aria-label="Position">
+        {POSITIONS.map((p) => <button key={p} role="tab" aria-selected={pos === p} className={`chip${pos === p ? ' on' : ''}`} onClick={() => pickPos(p)}>{p}</button>)}
+        <label className="field" style={{ marginLeft: '0.6rem' }}>Height {feet(heightIn)}
+          <input type="range" min={hMin} max={hMax} value={heightIn} onChange={(e) => setHeightIn(Number(e.target.value))} />
+        </label>
+      </div>
+      <div className="chips" aria-label="Templates">
+        {BUILD_TEMPLATES.map((t) => <button key={t.id} className={`chip${templateId === t.id ? ' on' : ''}`} onClick={() => pickTemplate(t.id)}>{t.label}</button>)}
+      </div>
+      <div className="panel" style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+        <div className="row" style={{ flexWrap: 'wrap', gap: '1.2rem' }}>
+          <span><b>{build.archetype}</b></span>
+          <span title="Points left to spend">Points left <b className="num">{left}</b> / {BUILD_BUDGET}</span>
+          <span>Max Career OVR <b className="num">{left === 0 ? 99 : '—'}</b></span>
+          <span>Starts at <b className="num">{START_OVR}</b></span>
+        </div>
+      </div>
+      {RATING_GROUPS.map(([group, entries]) => (
+        <section key={group} className="stack">
+          <h2>{group}</h2>
+          {entries.map(([k, label]) => (
+            <label key={k} className="row" style={{ gap: '0.6rem' }}>
+              <span style={{ width: '11rem' }}>{label}</span>
+              <input type="range" min={RATING_MIN} max={RATING_MAX} value={max[k]} onChange={(e) => setKey(k, Number(e.target.value))} style={{ flex: 1 }} />
+              <span className="num" style={{ width: '2rem', textAlign: 'right' }}>{max[k]}</span>
+            </label>
+          ))}
+        </section>
+      ))}
+      <div className="start-bar">
+        <button className="btn btn-primary" disabled={left !== 0 || busy} onClick={go}>
+          {left === 0 ? 'Continue to draft night' : `Spend ${left} more point${left === 1 ? '' : 's'} to continue`}
+        </button>
+      </div>
+    </div>
+  )
+}
