@@ -1,6 +1,6 @@
 # MyCareer — design
 
-Status: draft for owner approval (2026-11-27). Nothing built. Supersedes the handoff notes in
+Status: approved by the owner (2026-11-27). Plan: `docs/superpowers/plans/2026-11-27-mycareer.md`. Nothing built yet. Supersedes the handoff notes in
 `2026-11-27-mycareer-brainstorm-notes.md` (kept for history). Depends on rivalries (shipped):
 `2026-11-27-rivalries-design.md`.
 
