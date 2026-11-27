@@ -13,6 +13,8 @@ Works in the normal GM mode now and is the foundation for the planned
 - Up to 2 **dynamic rivals** that form from playoff "heat" and can change.
 - Rival games: players are more volatile (bursts and bricks), and fan buzz and
   morale swing harder.
+- Long-tenured vets tend to burst in rival games; rookies/new arrivals tend to
+  struggle, and those who play well can earn a slight POT bump.
 - Rivalries visible in the UI (team page, schedule, game banner, news).
 
 ## Non-goals
@@ -66,6 +68,25 @@ Works in the normal GM mode now and is the foundation for the planned
 - Fan buzz (`fans.players`) and team fans (`fans.teams`) swing ~1.5× on rival
   results in the weekly/after-game sentiment pass; player morale likewise.
 - Rival games get a banner, news line, and the team's rivals listed on its page.
+
+### Vets vs. new guys in rival games (owner idea, 2026-11-27)
+- Volatility is **not equal for everyone**. Players with long tenure on their
+  team lean toward *bursting* (wider swings skewed to the upside); rookies and
+  recent arrivals lean toward *struggling* (swings skewed to the downside).
+  Implemented as a per-player tilt on the same temporary `GameMods` volatility,
+  so still no rating edits. Tenure comes from the same data the fan-base
+  calculation in `stories/sentiment.ts` already uses. Cutoffs (my calls):
+  vet ≈ 3+ seasons on the team, "new" = rookie or under 1 season.
+- **Earning POT:** a rookie or new guy who performs well in rival games
+  (tracked as a small per-season "rival showing" tally, reset each offseason)
+  gets a slight chance at a potential bump in the offseason, rolled through
+  the existing breakout path (`breakoutBump` → `onBreakout`, so it already
+  produces news). A bad showing gives no penalty; the downside is just the
+  struggle in the games themselves.
+- The tally is a new small save field (rolled into the v13 migration).
+- In MyCareer, POT is locked at 99 until 30, so the POT bump simply does not
+  apply there; the vet/rookie tilt still does (it is how rival games hit *your*
+  guy early in his career).
 
 ### Testing
 Engine is pure, so unit-test: heat added per round, cooling, dynamic pick
