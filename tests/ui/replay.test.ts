@@ -7,7 +7,7 @@ import type { GameResult, Team } from '../../src/engine/types'
 import {
   advanceTo, beatsAverage, benchLine, clockText, describePlays, elapsedFraction, finalState, initState, isHot, onPace, periodCount,
   periodLabel, periodMs, shotDelays, shotMs, ftGapMs, standout, sittingIds, courtCard,
-  cardIdFor, describeSub, eventCards, feedItems, pushFeed, FEED_KEEP,
+  cardIdFor, describeSub, nextCheckIn, eventCards, feedItems, pushFeed, FEED_KEEP,
 } from '../../src/ui/watch/replay'
 
 const league = createLeague({ seed: 1, userTeamIndex: 0, name: 'G' })
@@ -256,5 +256,20 @@ describe('play-by-play feed', () => {
     for (let i = 0; i < 30; i++) feed = pushFeed(feed, [{ text: `p${i}`, kind: 'play' }])
     expect(feed).toHaveLength(FEED_KEEP)
     expect(feed[0].text).toBe('p29')
+  })
+})
+
+describe('nextCheckIn', () => {
+  it('finds his next sub-in after he sits, skips his own start, and is null when he never returns', () => {
+    const e = (o: object) => ({ period: 1, t: 0, ...o }) as PlayEvent
+    const log = [
+      e({ k: 'lineup', side: 'home', players: ['a', 'b', 'c', 'd', 'x'] }),
+      e({ t: 0.2, k: 'sub', side: 'home', out: 'x', in: 'e', slot: 4 }),
+      e({ t: 0.5, k: 'sub', side: 'home', out: 'e', in: 'x', slot: 4 }),
+      e({ t: 0.8, k: 'sub', side: 'home', out: 'x', in: 'e', slot: 4 }),
+    ]
+    expect(nextCheckIn(log, initState(), 'x')).toBe(2) // starts, sits, then checks in
+    expect(nextCheckIn(log, advanceTo(log, initState(), 1, 0.6).state, 'x')).toBeNull() // on the floor, sits at .8, never back
+    expect(nextCheckIn(log, initState(), 'nobody')).toBeNull()
   })
 })

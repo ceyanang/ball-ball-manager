@@ -136,11 +136,19 @@ describe('career contracts', () => {
         sawCut = true
         expect(me(l).teamId).toBeNull()
         expect(l.career!.offers!.length).toBeGreaterThanOrEqual(1)
+        expect(l.career!.alert?.kind).toBe('cut')
       } else if (kind === 'trade') {
         sawTrade = true
         expect(me(l).teamId).not.toBe(before)
         expect(l.userTeamId).toBe(me(l).teamId)
         expect(teamPlayers(l, me(l).teamId!).length).toBeLessThanOrEqual(ROSTER_MAX)
+        // Never for nothing: a pick or a player comes back to the old team, and the pop-up + inbox say so.
+        const gotPick = l.picks.some((k) => k.ownerId === before && !base.picks.find((o) => o.id === k.id && o.ownerId === before))
+        const gotPlayer = Object.values(l.players).some((q) => q.teamId === before && base.players[q.id].teamId !== before)
+        expect(gotPick || gotPlayer).toBe(true)
+        expect(l.career!.alert).toMatchObject({ kind: 'trade', fromTeamId: before, toTeamId: me(l).teamId })
+        expect(l.career!.alert!.lines.join(' ')).toContain('Coming back:')
+        expect(l.inbox.at(-1)!.body).toContain(' for ')
       }
     }
     expect(sawCut && sawTrade).toBe(true)

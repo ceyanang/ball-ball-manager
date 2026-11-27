@@ -274,3 +274,20 @@ export function shotDelays(events: PlayEvent[], speed: number): number[] {
     return delay
   })
 }
+
+/**
+ * The log index of the next time `playerId` checks in (a sub that brings him on) at or after the replay cursor.
+ * If he is on the floor now, "next" means after he has sat down. Null when he never plays again (or isn't in the game).
+ */
+export function nextCheckIn(log: PlayEvent[], s: ReplayState, playerId: string): number | null {
+  let on = s.court ? s.court.home.includes(playerId) || s.court.away.includes(playerId) : false
+  for (let i = s.cursor; i < log.length; i++) {
+    const e = log[i]
+    if (e.k === 'lineup') { if (e.players.includes(playerId)) on = true }
+    else if (e.k === 'sub') {
+      if (e.out === playerId) on = false
+      else if (e.in === playerId && !on) return i
+    }
+  }
+  return null
+}

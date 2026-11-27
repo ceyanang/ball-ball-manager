@@ -35,6 +35,7 @@ import { ContractChoice } from './screens/career/ContractChoice'
 import { Moment } from './screens/career/Moment'
 import { DraftNight } from './screens/career/DraftNight'
 import { isCareer } from '../engine/career/state'
+import { CareerAlert } from './screens/career/CareerAlert'
 import { EventModal } from './components/EventModal'
 import { useStore } from './store'
 import './theme.css'
@@ -76,6 +77,7 @@ export default function App() {
     <HashRouter>
       <EventModal />
       <Moment />
+      <CareerAlert />
       <ContractChoice />
       <RetirementPrompt />
       <Routes>

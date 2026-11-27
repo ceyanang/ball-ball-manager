@@ -4,7 +4,7 @@ import { askSalary, askYears, strengthOrder } from '../gm/value'
 import { ping } from '../stories/inbox'
 import { clamp, storyRng } from '../stories/state'
 import type { Rng } from '../rng'
-import type { League, Player } from '../types'
+import type { DraftPick, League, Player } from '../types'
 import type { CareerOffer } from './types'
 
 export type { CareerOffer }
@@ -89,6 +89,13 @@ export function suddenMoveChance(l: League): { trade: number; cut: number } {
   }
 }
 
+/** The earliest pick of `round` that `teamId` still owns and can trade (its draft slot unused), else the other round. */
+function tradePickBack(l: League, teamId: string, round: 1 | 2): DraftPick | null {
+  const live = (k: DraftPick) => k.ownerId === teamId && (!l.draft || k.season > l.draft.season || l.draft.order.some((s) => s.pickId === k.id && !s.playerId))
+  const best = (r: number) => l.picks.filter((k) => k.round === r && live(k)).sort((a, b) => a.season - b.season)[0]
+  return best(round) ?? best(round === 1 ? 2 : 1) ?? null
+}
+
 /**
  * Rolls the weekly sudden move. A cut leaves him unsigned with a pending contract choice; a trade moves him to another
  * CPU team (who sends their weakest player back if they are full). Returns what happened.
@@ -107,22 +114,29 @@ export function rollSuddenMove(l: League, rng: Rng): 'trade' | 'cut' | null {
     log(l, 'release', [from], [p.id], `${tname(l, from)} waived ${pname(p)}.`)
     c.log.push({ season: l.season, text: `Cut by ${tname(l, from)}.` })
     c.offers = contractOffers(l)
+    c.alert = { kind: 'cut', title: `Cut by ${tname(l, from)}`, lines: ['Your agent has a few teams on the line.'], fromTeamId: from, toTeamId: null, season: l.season, day: l.day }
     ping(l, 'morale', `career-cut-${l.season}-${l.day}`, `You were cut by ${tname(l, from)}`, 'Your agent has a few teams on the line. Pick one — or take the minimum and prove yourself.')
     return 'cut'
   }
   if (r < chance.cut + chance.trade && tradesOpen(l)) {
     const candidates = Object.keys(l.teams).filter((id) => id !== from)
     const to = rng.pick(candidates)
-    const back = teamPlayers(l, to).length >= ROSTER_MAX ? [...teamPlayers(l, to)].sort((a, b) => ovr(a) - ovr(b))[0] : null
+    const star = Object.values(l.players).filter((q) => q.teamId && ovr(q) > ovr(p)).length < 90
+    const pick = tradePickBack(l, to, star ? 1 : 2)
+    const full = teamPlayers(l, to).length >= ROSTER_MAX
+    const back = full || !pick ? [...teamPlayers(l, to)].sort((a, b) => ovr(a) - ovr(b))[0] ?? null : null
     p.teamId = to
     if (back) { back.teamId = from; if (!back.contract) back.contract = { salary: MIN_SALARY, expires: capSeason(l) } }
+    else if (pick) pick.ownerId = from
+    const got = back ? pname(back) : pick ? `their ${pick.season} round-${pick.round} pick` : 'nothing'
     l.userTeamId = to
     l.teams[to].rotation.auto = true
     refreshRotation(l, to)
     refreshRotation(l, from)
-    log(l, 'trade', [from, to], back ? [p.id, back.id] : [p.id], `${tname(l, from)} traded ${pname(p)} to ${tname(l, to)}${back ? ` for ${pname(back)}` : ''}.`)
-    c.log.push({ season: l.season, text: `Traded to ${tname(l, to)}.` })
-    ping(l, 'morale', `career-trade-${l.season}-${l.day}`, `You were traded to ${tname(l, to)}`, `${tname(l, from)} moved you. New city, new role.`)
+    log(l, 'trade', [from, to], back ? [p.id, back.id] : [p.id], `${tname(l, from)} traded ${pname(p)} to ${tname(l, to)} for ${got}.`)
+    c.log.push({ season: l.season, text: `Traded to ${tname(l, to)} for ${got}.` })
+    ping(l, 'morale', `career-trade-${l.season}-${l.day}`, `You were traded to ${tname(l, to)}`, `${tname(l, from)} sent you to ${tname(l, to)} for ${got}. New city, new role.`)
+    c.alert = { kind: 'trade', title: `Traded to ${tname(l, to)}!`, lines: [`${tname(l, from)} sent you to ${tname(l, to)}.`, `Coming back: ${got}.`], fromTeamId: from, toTeamId: to, season: l.season, day: l.day }
     return 'trade'
   }
   return null

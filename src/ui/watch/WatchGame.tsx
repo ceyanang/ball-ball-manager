@@ -15,6 +15,7 @@ import { QuarterBreak, type RecapRow } from './QuarterBreak'
 import {
   advanceTo, beatsAverage, benchLine, clockText, elapsedFraction, eventCards, feedItems, finalState, initState, isHot,
   periodCount, periodLabel, periodMs, pushFeed, shotDelays, shotMs, sittingIds, standout, type FeedItem, type ReplayState,
+  nextCheckIn,
 } from './replay'
 import { courtTheme, distinctColor } from '../color'
 import { Sheet } from '../components/Sheet'
@@ -302,6 +303,21 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     setFeed((f) => pushFeed(f, [{ text: `${periodLabel(period)} is under way`, kind: 'info' }]))
     setPhase('play')
   }
+  /** MyCareer: jump to the next time he checks in; if he never plays again, jump to the final. */
+  const followedId = league.career?.status === 'active' ? league.career.playerId : null
+  const skipToNextPlay = () => {
+    const i = followedId ? nextCheckIn(log, rsRef.current, followedId) : null
+    if (i === null) { skipToFinal(); return }
+    const e = log[i]
+    clearFx()
+    const { state } = advanceTo(log, rsRef.current, e.period, e.t)
+    rsRef.current = state
+    clockRef.current = { period: e.period, t: e.t }
+    setRs(state)
+    setClock(clockRef.current)
+    setFeed((f) => pushFeed(f, [{ text: `${fullName(league.players[followedId!])} checks in`, kind: 'info' }]))
+    setPhase('play')
+  }
   const skipToFinal = () => {
     clearFx()
     sfx.buzzer()
@@ -447,6 +463,7 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
               </button>
             )}
             <span className="w-spacer" />
+            {followedId && <button className="btn" onClick={skipToNextPlay}>⏭ Next time I play</button>}
             <button className="btn" onClick={skipToFinal}>Skip to final</button>
           </div>
         )}

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { ovrOf } from '../../../engine/career/careerOvr'
+import { Face } from '../../face/Face'
 import { useStore } from '../../store'
 import { nextGame, teamFull } from '../../util'
 
@@ -25,8 +26,10 @@ export function DayCard() {
   return (
     <div className="panel stack">
       <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <div>
-          <b>{p.firstName} {p.lastName}</b> <span className="muted">· {p.pos} · {p.age} · Career OVR</span> <b className="num">{ovrOf(p)}</b>
+        <div className="row" style={{ gap: '0.75rem' }}>
+          <Face seed={p.faceSeed} age={p.age} colors={team?.colors ?? { primary: '#5b6378', secondary: '#ffffff' }} size={64} jersey={p.jersey} title={`${p.firstName} ${p.lastName}`} />
+          <div><b>{p.firstName} {p.lastName}</b> <span className="muted">· {p.pos} · {p.age} · Career OVR</span> <b className="num">{ovrOf(p)}</b>
+          {team && <div className="muted">#{p.jersey} · {team.city} {team.name}</div>}</div>
         </div>
         <span className="row"><Link className="link" to={`/player/${p.id}`}>Player page</Link>
           <button className="btn" disabled={busy} onClick={() => { if (confirm('Retire now? Your career ends and your epilogue is written.')) retire('force') }}>Retire</button></span>
