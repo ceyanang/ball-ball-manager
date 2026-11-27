@@ -17,8 +17,9 @@ events → contract and trade/cut events → retirement prompts → epilogue. Ev
 **later slices**; slice A must leave clean seams for them.
 
 ## Goals
-- A character builder that feels like 2K MyCareer: you set each attribute's **max**; spending every
-  point always yields a **99 OVR max build**, whatever archetype you chase.
+- A character builder that feels like 2K MyCareer: you set each attribute's **max**. The player has his
+  own **Career OVR** (progress toward his max build), which is exactly **99 when the build is fully
+  maxed**, whatever archetype you chase.
 - Start from archetype templates, then move points around.
 - You start well below your max (about 65–70% of the way from 25 to each max at 19), so a 99 three-point
   max is a solid shooter, not Steph yet. Growth closes the gap, but stardom is not guaranteed.
@@ -80,8 +81,13 @@ retired`), draft-night answers/hidden tags, play-vs-sim counters, and the ending
 
 ### Builder
 - Attributes are the existing ~30 on the 25–99 scale.
-- Points budget is sized so that spending all of it, in any archetype template, yields a **99 OVR**
-  max build (calibrated against the existing OVR formula, with a test over every template).
+- A fixed points budget is spent across the maxes (templates and free allocation both use it all).
+- **Career OVR** (owner's idea): the player's displayed OVR is not the league's OVR formula. It is his
+  progress toward his own max build, scaled so a fully maxed build reads **99** and a new rookie
+  reads about 68. Progress is a weighted average of (current − floor) / (max − floor), with weights
+  leaning on the stats that define his archetype. The sim never reads it: games use his real
+  attribute ratings, and AI contract/trade value and league awards keep using the normal OVR. The
+  player page shows Career OVR, with the league OVR as a small secondary line.
 - Templates come from the existing archetype data (`player/archetype.ts`); the screen shows the live
   archetype (`archetypeFor`), max OVR, and starting OVR at 19.
 - Starting ratings = floor + a start fraction (≈ 0.65–0.70; tunable) of the way to each max.
@@ -142,7 +148,7 @@ Layout and polish are left to the builder; the rough mockups are a starting poin
 this repo). GM controls are hidden/disabled in MyCareer; viewing screens stay.
 
 ### Testing
-Unit tests for: the budget (every template totals 99 max OVR), start-fraction ratings, draft-night
+Unit tests for: Career OVR (a fully maxed build is exactly 99 for every template and random allocations; a fresh rookie is about 68; it is monotonic in growth), start-fraction ratings, draft-night
 tag → pick mapping (deterministic by seed), moment determinism, **non-MyCareer games bit-identical**,
 all-"shoot" equals plain sim, box-equals-score with answers, half-reward on sim, growth caps,
 contract-event pause, ending selection, and the v13 → v14 migration.
@@ -152,10 +158,10 @@ contract-event pause, ending selection, and the v13 → v14 migration.
   to the player's team at the draft and updated on trade/cut/re-sign. While he is unsigned there are no
   user games (days still advance; contract events pause as usual). My call: if no AI team offers, a
   minimum deal is always available so a career can't dead-end.
-- **"Spend-all = 99 OVR" is a hard requirement, the mechanism is open.** The existing OVR formula may
-  not reach 99 for every lopsided allocation (e.g. all offence, no defence). The builder must pick a
-  mechanism (build points weighted by the OVR formula, minimum floors per group, or a MyCareer build
-  OVR) and prove it with a test over every template and a randomised set of allocations.
+- **Career OVR is a display/progress number, not a sim input.** A lopsided build can read 99 and still
+  play weaker than a balanced league 99; that is intended (builds have trade-offs). Everything that
+  values a player for the league (AI offers, trade value, awards) uses the league OVR so the economy
+  stays honest.
 - **Injuries** use the existing injury system; they feed growth (health) and retirement prompts. A
   played game's moments are skipped if he is out, with that game auto-simmed.
 
@@ -170,7 +176,7 @@ screen layouts and copy, template set, event and ending wording, how AI free-age
 scored, and the migration details.
 
 ## Decided by the owner
-Build = max per stat; spending all = 99 OVR; templates then adjust; start at draft night with 3 ominous
+Build = max per stat; the player has his own Career OVR that is 99 when the build is maxed (not the league's OVR rules); templates then adjust; start at draft night with 3 ominous
 prompts; play games (full) vs sim (half); contracts player-driven, trades/cuts out of the blue; event
 choices pick the growth stat; replay-pause approach; spend-for-stats is later; GM menus removed or
 read-only; the UI is the builder's call.
