@@ -1,6 +1,6 @@
 # Rivalries — design
 
-Status: draft for owner approval (2026-11-27)
+Status: implemented (2026-11-27)
 
 ## Intent
 Make the league feel personal. Every team has rivals; games against them are
