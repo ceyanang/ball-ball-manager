@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams } from 'react-router-dom'
 import { computeStandings } from '../../engine/standings'
 import { RosterTable } from '../components/RosterTable'
 import { TeamBadge } from '../components/TeamBadge'
 import { Face } from '../face/Face'
+import { allRivals, rivalLabel } from '../rivals'
 import { useStore } from '../store'
 import { RecordTable } from './History'
 import { rankOf, teamStatRows } from '../teamStats'
@@ -36,6 +37,7 @@ export function TeamPage() {
     ['3P%', (mine.tpPct * 100).toFixed(1), rankOf(rows, team.id, 'tpPct')],
     ['FT%', (mine.ftPct * 100).toFixed(1), rankOf(rows, team.id, 'ftPct')],
   ]
+  const rivals = allRivals(league, team.id)
   return (
     <div className="stack">
       <div className="page-head" style={{ background: `linear-gradient(110deg, ${team.colors.primary} 55%, ${team.colors.secondary})` }}>
@@ -52,6 +54,20 @@ export function TeamPage() {
           </div>
         </div>
       </div>
+      {rivals.length > 0 && (
+        <section className="panel stack">
+          <h2>🔥 Rivals</h2>
+          <div className="row" style={{ gap: '0.9rem', flexWrap: 'wrap' }}>
+            {rivals.map((id) => (
+              <Link key={id} className="link row" style={{ gap: '0.45rem' }} to={`/team/${id}`}>
+                <TeamBadge team={league.teams[id]} size={28} />
+                <span>{teamFull(league.teams[id])}</span>
+                {rivalLabel(league, team.id, id) === 'dynamic' && <span className="muted">🔥 new</span>}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
       <section className="panel stack">
         <h2>Roster</h2>
         <RosterTable league={league} team={team} players={roster} />

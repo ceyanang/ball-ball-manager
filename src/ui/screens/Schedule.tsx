@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { SubNav } from '../components/SubNav'
 import { TeamBadge } from '../components/TeamBadge'
+import { isRivalGame } from '../../engine/rivals/rivalry'
 import { LEAGUE_SUBNAV } from '../nav'
 import { useStore } from '../store'
 import { didWin, teamFull, teamGames } from '../util'
@@ -60,6 +61,7 @@ export function Schedule() {
                           <span className="m-hide">{teamFull(opp)}</span>
                           <span className="m-show">{opp.name}</span>
                         </Link>
+                        {isRivalGame(league, g) && <span title="Rivalry game">🔥</span>}
                         {g.playoff && <span className="muted m-show">G{g.playoff.gameNum}</span>}
                       </span>
                     </td>
