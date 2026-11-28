@@ -2,7 +2,13 @@ import { ACTIVE_MAX, OT_MIN, STARTERS, TEAM_MINUTES } from '../constants'
 import { ovrOf, slotOvr } from '../career/careerOvr'
 import type { Player, Position, Rotation, Team } from '../types'
 
-const ovr = (p: Player): number => ovrOf(p)
+/**
+ * MyCareer: the coach gives the followed player the benefit of the doubt over teammates of about his OVR, so a rookie
+ * gets real minutes (and real moments) instead of sitting 12th. Only the depth-chart pick sees it, never the sim.
+ */
+export const CAREER_COACH_BONUS = 5
+/** The coach's ranking OVR: the MyCareer player gets the bonus, plus half a point so ties go his way. */
+const ovr = (p: Player): number => ovrOf(p) + (p.careerBuild ? CAREER_COACH_BONUS + 0.5 : 0)
 
 /** Starting-five slot order: starters[i] plays SLOTS[i]. */
 export const SLOTS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C']
@@ -23,7 +29,7 @@ export function bestStartingFive(players: Player[]): Player[] {
   const cands = [...players].sort((a, b) => ovr(b) - ovr(a)).slice(0, 12)
   if (cands.length <= STARTERS) return cands
   const n = cands.length
-  const fit = cands.map((p) => SLOTS.map((s) => slotFit(p, s)))
+  const fit = cands.map((p) => SLOTS.map((s) => slotFit(p, s) + (p.careerBuild ? CAREER_COACH_BONUS + 0.5 : 0)))
   const best = new Map<number, { v: number; prev: number; pick: number }>([[0, { v: 0, prev: -1, pick: -1 }]])
   let layer = [0]
   for (let slot = 0; slot < STARTERS; slot++) {

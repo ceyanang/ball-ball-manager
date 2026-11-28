@@ -52,6 +52,7 @@ describe('careerPlayDay', () => {
     for (let i = 0; i < 40 && !found; i++) {
       l = toGameDay(l)
       const g = gameToday(l)!
+      const playedBefore = l.career!.played
       const out = playThrough(l)
       if (out.moments > 0) {
         found = true
@@ -60,7 +61,7 @@ describe('careerPlayDay', () => {
         expect(played.result).not.toBeNull()
         expect(played.result!.box.filter((b) => b.teamId === g.homeId).reduce((s, b) => s + b.pts, 0)).toBe(played.result!.homeScore)
         expect(played.result!.box.filter((b) => b.teamId === g.awayId).reduce((s, b) => s + b.pts, 0)).toBe(played.result!.awayScore)
-        expect(done.career!.played).toBe(1)
+        expect(done.career!.played).toBe(playedBefore + 1)
         expect(done.career!.pending).toBeNull()
       }
       l = careerPlayDay(out.league, 'sim').league
