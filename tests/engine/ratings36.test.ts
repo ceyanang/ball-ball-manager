@@ -10,6 +10,8 @@ import { rollInjuries } from '../../src/engine/sim/injury'
 import { autoRotation } from '../../src/engine/sim/rotation'
 import type { Player, Position, Team } from '../../src/engine/types'
 
+/** Quarter-variance comparison needs a big sample: the consistency effect is small next to game noise. */
+const N_GAMES = 1500
 describe('36-attribute schema & OVR', () => {
   it('defines exactly 36 attributes across 7 groups', () => {
     expect(RATING_GROUPS).toHaveLength(7)
@@ -75,7 +77,7 @@ describe('quarter-by-quarter consistency & durability', () => {
     const qVariance = (team: Team) => {
       const rng = Rng.fromSeed(17)
       const qs: number[] = []
-      for (let i = 0; i < 400; i++) {
+      for (let i = 0; i < N_GAMES; i++) {
         const r = simGame(team, opp.team, players, l.coaches, rng)
         qs.push(...r.quarters.home.slice(0, 4))
       }

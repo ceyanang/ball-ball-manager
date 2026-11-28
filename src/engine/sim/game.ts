@@ -5,6 +5,7 @@ import type { PlayEvent, Side } from './playlog'
 import type { GameMods } from '../events/mods'
 import { drawRivalForms } from '../rivals/tilt'
 import { generatePlayerArchetype } from '../player/archetype'
+import { applyHabits } from '../player/playStyle'
 import { gameLineup, lineupPenalties, minutesTargets, SLOTS, slotFit } from './rotation'
 import { chooseSubs, isBlowout, returnStarterSwaps, SUB } from './subs'
 import { MomentPause, bestOption, lookFor, momentTriggers, type MomentOption } from './moments'
@@ -286,7 +287,9 @@ export function simGame(
       const p = players[id]
       const r = p.ratings
       const arch = generatePlayerArchetype(p)
-      const t = arch.tendencies
+      // Play style habits ride on top of the archetype (archetype detection still reads stored ratings).
+      const style = applyHabits(arch.tendencies, p.playStyle)
+      const t = style.t
       const rimThreat = Math.max(r.layup, r.drivingDunk, r.standingDunk, r.closeShot)
       const postThreat = r.postControl * 0.45 + Math.max(r.postHook, r.postFade) * 0.55
       const bestScore = Math.max(rimThreat, r.midRangeShot, r.threePointShot, postThreat)
@@ -310,8 +313,8 @@ export function simGame(
       prof[id] = {
         usage: Math.pow(scoring / K.pivot, K.usageExp) * t.usageMult,
         handlerW: Math.pow(scoring / K.pivot, K.usageExp) * (0.45 * r.ballHandle + 0.35 * r.speedWithBall + 0.2 * r.passVision) * t.handlerMult,
-        rebOffW: (0.62 * r.offensiveRebound + 0.15 * r.vertical + 0.13 * r.strength + 0.1 * r.hustle) ** 2,
-        rebDefW: (0.62 * r.defensiveRebound + 0.15 * r.vertical + 0.13 * r.strength + 0.1 * r.hustle) ** 2,
+        rebOffW: (0.62 * r.offensiveRebound + 0.15 * r.vertical + 0.13 * r.strength + 0.1 * r.hustle) ** 2 * style.rebOffMult,
+        rebDefW: (0.62 * r.defensiveRebound + 0.15 * r.vertical + 0.13 * r.strength + 0.1 * r.hustle) ** 2 * style.rebDefMult,
         stealW: ((0.64 * r.steal + 0.22 * r.passPerception + 0.14 * r.helpDefenseIQ) ** 2) * t.stealMult,
         blockW: ((0.76 * r.block + 0.24 * r.vertical) ** 3) * t.blockMult,
         passerW: ((0.5 * r.passVision + 0.3 * r.passIQ + 0.2 * r.passAccuracy) ** 5.5) * t.passerMult,
@@ -326,7 +329,7 @@ export function simGame(
         ],
         offSpread: 0.11 * (1 - (r.offensiveConsistency - 25) / 80),
         defSpread: 6.5 * (1 - (r.defensiveConsistency - 25) / 80),
-        paceSkill: r.speed * 0.5 + r.agility * 0.3 + r.speedWithBall * 0.1 + r.hustle * 0.1,
+        paceSkill: r.speed * 0.5 + r.agility * 0.3 + r.speedWithBall * 0.1 + r.hustle * 0.1 + style.paceDelta,
         foulDrawMult: t.foulDrawMult,
         tovDelta: t.tovDelta,
         assistShareDelta: t.assistShareDelta,

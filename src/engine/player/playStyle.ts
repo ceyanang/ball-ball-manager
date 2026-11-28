@@ -1,4 +1,5 @@
 import type { Position, Ratings } from '../types'
+import type { ArchetypeTendencies } from './archetype'
 
 /**
  * Play styles: a fixed trait rolled once at generation that changes how a player plays (habits) and gives a
@@ -159,3 +160,63 @@ export function backfillPlayStyles(raw: { players?: unknown }): void {
   }
 }
 
+/** Sim habits per style: multiplies the archetype tendencies and adds rebound weights and pace skill. */
+export interface StyleHabits {
+  /** Multipliers for [layup, driveDunk, standDunk, close, post, mid, three]. */
+  zoneMult: [number, number, number, number, number, number, number]
+  usageMult: number
+  handlerMult: number
+  passerMult: number
+  tovDelta: number
+  assistShareDelta: number
+  foulDrawMult: number
+  stealMult: number
+  blockMult: number
+  rebOffMult: number
+  rebDefMult: number
+  paceDelta: number
+}
+
+export const STYLE_HABITS: Record<PlayStyle, StyleHabits> = {
+  smart: {
+    zoneMult: [1, 1, 1, 1, 1, 1.04, 1], usageMult: 1, handlerMult: 1.1, passerMult: 1.25, tovDelta: -0.008,
+    assistShareDelta: 0.03, foulDrawMult: 1, stealMult: 1.06, blockMult: 1, rebOffMult: 1, rebDefMult: 1, paceDelta: 0,
+  },
+  offense: {
+    zoneMult: [1.06, 1.1, 0.9, 1, 0.85, 1, 1.2], usageMult: 1.06, handlerMult: 1.05, passerMult: 1, tovDelta: 0.002,
+    assistShareDelta: 0, foulDrawMult: 1.04, stealMult: 1, blockMult: 0.97, rebOffMult: 0.95, rebDefMult: 0.95, paceDelta: 8,
+  },
+  allAround: {
+    zoneMult: [1, 1, 1, 1, 1, 1, 1], usageMult: 1.02, handlerMult: 1.04, passerMult: 1.05, tovDelta: 0,
+    assistShareDelta: 0, foulDrawMult: 1, stealMult: 1, blockMult: 1, rebOffMult: 1, rebDefMult: 1, paceDelta: 0,
+  },
+  power: {
+    zoneMult: [1.1, 1.08, 1.2, 1.15, 1.3, 0.9, 0.7], usageMult: 1.04, handlerMult: 0.92, passerMult: 0.95, tovDelta: 0.002,
+    assistShareDelta: 0, foulDrawMult: 1.12, stealMult: 0.97, blockMult: 1.08, rebOffMult: 1.15, rebDefMult: 1.05, paceDelta: -8,
+  },
+  defensive: {
+    zoneMult: [1, 1, 1, 1, 1, 1, 1], usageMult: 0.94, handlerMult: 0.96, passerMult: 1, tovDelta: 0,
+    assistShareDelta: 0, foulDrawMult: 1, stealMult: 1.2, blockMult: 1.2, rebOffMult: 1.1, rebDefMult: 1.2, paceDelta: 0,
+  },
+}
+
+/** The archetype's tendencies with the style's habits applied (a new object; the input is never mutated). */
+export function applyHabits(t: ArchetypeTendencies, style: PlayStyle): { t: ArchetypeTendencies; rebOffMult: number; rebDefMult: number; paceDelta: number } {
+  const h = STYLE_HABITS[style] ?? STYLE_HABITS.allAround
+  return {
+    t: {
+      zoneMult: t.zoneMult.map((z, i) => z * h.zoneMult[i]) as ArchetypeTendencies['zoneMult'],
+      usageMult: t.usageMult * h.usageMult,
+      handlerMult: t.handlerMult * h.handlerMult,
+      passerMult: t.passerMult * h.passerMult,
+      foulDrawMult: t.foulDrawMult * h.foulDrawMult,
+      tovDelta: t.tovDelta + h.tovDelta,
+      assistShareDelta: t.assistShareDelta + h.assistShareDelta,
+      stealMult: t.stealMult * h.stealMult,
+      blockMult: t.blockMult * h.blockMult,
+    },
+    rebOffMult: h.rebOffMult,
+    rebDefMult: h.rebDefMult,
+    paceDelta: h.paceDelta,
+  }
+}
