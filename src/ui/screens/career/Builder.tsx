@@ -90,8 +90,8 @@ export function Builder() {
           {entries.map(([k, label]) => (
             <label key={k} className="row cb-rating" style={{ gap: '0.6rem' }}>
               <span className="cb-label" style={{ width: '11rem' }}>{label}</span>
-              <input type="range" min={CAREER_FLOOR} max={RATING_MAX} value={max[k]} onChange={(e) => setKey(k, Number(e.target.value))} style={{ flex: 1, accentColor: ratingColor(max[k]) }} />
-              <strong className="num cb-val" style={{ width: '2rem', textAlign: 'right', color: ratingColor(max[k]) }}>{max[k]}</strong>
+              <input type="range" min={CAREER_FLOOR} max={RATING_MAX} value={k === 'intangibles' ? RATING_MAX : max[k]} disabled={k === 'intangibles'} title={k === 'intangibles' ? 'Always 99 — free' : undefined} onChange={(e) => setKey(k, Number(e.target.value))} style={{ flex: 1, accentColor: ratingColor(max[k]) }} />
+              <strong className="num cb-val" style={{ width: '2rem', textAlign: 'right', color: ratingColor(max[k]) }}>{k === 'intangibles' ? RATING_MAX : max[k]}</strong>
             </label>
           ))}
         </section>

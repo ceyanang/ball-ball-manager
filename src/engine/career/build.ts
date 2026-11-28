@@ -5,13 +5,16 @@ import type { Player, Position, Ratings } from '../types'
 import type { CareerBuild } from './types'
 
 export { START_OVR, CAREER_FLOOR } from './careerOvr'
-export const START_FRACTION = 0.67
-/** Points spent above the 40 floor across all 36 maxes; every template spends it exactly. */
-export const BUILD_BUDGET = 960
+export const START_FRACTION = 0.5
+/** Points spent above the 40 floor across the 35 maxes (intangibles is free, always 99); every template spends it exactly. */
+export const BUILD_BUDGET = 1300
 
 export interface BuildTemplate { id: string; label: string; pos: Position; max: Ratings }
 
-export const buildCost = (max: Ratings): number => RATING_KEYS.reduce((s, k) => s + (max[k] - CAREER_FLOOR), 0)
+/** The followed player's intangibles are always 99 and are never bought: they cost no build budget. */
+export const CAREER_INTANGIBLES = RATING_MAX
+
+export const buildCost = (max: Ratings): number => RATING_KEYS.reduce((s, k) => (k === 'intangibles' ? s : s + (max[k] - CAREER_FLOOR)), 0)
 
 export function isValidBuild(max: Ratings): boolean {
   for (const k of RATING_KEYS) {
@@ -24,7 +27,7 @@ export function isValidBuild(max: Ratings): boolean {
 /** Rounded 40 + fraction of the way to each max. */
 export function startRatings(max: Ratings, fraction: number = START_FRACTION): Ratings {
   const r = {} as Ratings
-  for (const k of RATING_KEYS) r[k] = Math.round(CAREER_FLOOR + fraction * (max[k] - CAREER_FLOOR))
+  for (const k of RATING_KEYS) r[k] = k === 'intangibles' ? CAREER_INTANGIBLES : Math.round(CAREER_FLOOR + fraction * (max[k] - CAREER_FLOOR))
   return r
 }
 
@@ -50,7 +53,7 @@ export function liftToFloor(p: Player): void {
 export function makeBuild(max: Ratings, pos: Position): CareerBuild {
   const start = startRatings(max)
   return {
-    max: { ...max }, startFraction: START_FRACTION, startProgress: progressOf(start, max, pos), floor: CAREER_FLOOR,
+    max: { ...max, intangibles: CAREER_INTANGIBLES }, startFraction: START_FRACTION, startProgress: progressOf(start, max, pos), floor: CAREER_FLOOR,
     archetype: archetypeFor({ ratings: max, pos } as Player),
   }
 }
@@ -76,7 +79,7 @@ const DEFS: TemplateDef[] = [
 function fit(desire: Record<Key, number>, budget: number): Ratings {
   const at = (s: number) => {
     const r = {} as Ratings
-    for (const k of RATING_KEYS) r[k] = Math.max(CAREER_FLOOR, Math.min(RATING_MAX, Math.round(CAREER_FLOOR + s * desire[k])))
+    for (const k of RATING_KEYS) r[k] = k === 'intangibles' ? CAREER_INTANGIBLES : Math.max(CAREER_FLOOR, Math.min(RATING_MAX, Math.round(CAREER_FLOOR + s * desire[k])))
     return r
   }
   let lo = 0, hi = 100
@@ -100,6 +103,6 @@ function fit(desire: Record<Key, number>, budget: number): Ratings {
 export const BUILD_TEMPLATES: BuildTemplate[] = DEFS.map((d) => {
   const w = POSITION_WEIGHTS[d.pos]
   const desire = {} as Record<Key, number>
-  for (const k of RATING_KEYS) desire[k] = (k === 'intangibles' ? 3 : Math.max(w[k], 1)) + (d.add[k] ?? 0)
+  for (const k of RATING_KEYS) desire[k] = k === 'intangibles' ? 0 : Math.max(w[k], 1) + (d.add[k] ?? 0)
   return { id: d.id, label: d.label, pos: d.pos, max: fit(desire, BUILD_BUDGET) }
 })

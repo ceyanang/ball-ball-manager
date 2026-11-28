@@ -13,7 +13,7 @@ import { emptyRivalry } from '../engine/rivals/state'
 import { backfillHeritage } from '../engine/face/backfill'
 import { liftToFloor } from '../engine/career/build'
 
-export const CURRENT_VERSION = 14
+export const CURRENT_VERSION = 15
 
 const clampRating = (v: number) => Math.max(RATING_MIN, Math.min(RATING_MAX, Math.round(v)))
 const numOr = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
@@ -193,6 +193,14 @@ export function migrateLeague(raw: any): League {
   }
   if (raw?.version === 12) raw = { ...raw, version: 13, rivalry: emptyRivalry() }
   if (raw?.version === 13) raw = { ...raw, version: 14, career: null }
+  if (raw?.version === 14) {
+    raw = { ...raw, version: 15 }
+    // MyCareer: the followed player's intangibles are always 99 (and no longer part of his build).
+    const id = raw.career?.playerId
+    const me = id && raw.players?.[id]
+    if (me?.careerBuild && me.ratings)
+      raw = { ...raw, players: { ...raw.players, [id]: { ...me, ratings: { ...me.ratings, intangibles: 99 }, careerBuild: { ...me.careerBuild, max: { ...me.careerBuild.max, intangibles: 99 } } } } }
+  }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)
   if (!Array.isArray(raw.favoritePlayerIds)) raw = { ...raw, favoritePlayerIds: [] }

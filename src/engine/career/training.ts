@@ -21,7 +21,7 @@ export const TRAINING_GROUPS: TrainingGroup[] = [
   { id: 'defense', label: 'Defense', emoji: '🛡️', blurb: 'On-ball, help, steals and blocks', keys: ['interiorDefense', 'perimeterDefense', 'steal', 'block', 'helpDefenseIQ', 'passPerception', 'defensiveConsistency'] },
   { id: 'rebounding', label: 'Rebounding', emoji: '🧲', blurb: 'Crashing both glasses', keys: ['offensiveRebound', 'defensiveRebound'] },
   { id: 'athleticism', label: 'Athleticism', emoji: '💨', blurb: 'Speed, bounce, strength and motor', keys: ['speed', 'agility', 'strength', 'vertical', 'stamina', 'hustle', 'overallDurability'] },
-  { id: 'mental', label: 'IQ & Mindset', emoji: '🧠', blurb: 'Reads, consistency and leadership', keys: ['intangibles', 'shotIQ', 'passIQ', 'helpDefenseIQ', 'offensiveConsistency', 'defensiveConsistency'] },
+  { id: 'mental', label: 'IQ & Mindset', emoji: '🧠', blurb: 'Reads, consistency and leadership', keys: ['shotIQ', 'passIQ', 'helpDefenseIQ', 'offensiveConsistency', 'defensiveConsistency'] },
 ]
 
 export interface TrainingTier { cost: number; points: number }

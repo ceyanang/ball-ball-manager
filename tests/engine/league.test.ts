@@ -111,7 +111,7 @@ describe('createLeague', () => {
     expect(league.phase).toBe('regular')
     expect(league.day).toBe(1)
     expect(league.season).toBe(1)
-    expect(league.version).toBe(14)
+    expect(league.version).toBe(15)
     expect(league.favoritePlayerIds).toEqual([])
     expect(league.progress).toEqual([])
   })

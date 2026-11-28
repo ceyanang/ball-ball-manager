@@ -13,8 +13,8 @@ function followed(l: ReturnType<typeof createLeague>) {
   const weak = [...roster].sort((a, b) => computeOvr(a.ratings, a.pos) - computeOvr(b.ratings, b.pos))[0]
   for (const k of Object.keys(weak.ratings) as (keyof typeof weak.ratings)[]) weak.ratings[k] = Math.max(CAREER_FLOOR, weak.ratings[k])
   const max = { ...weak.ratings }
-  for (const k of Object.keys(max) as (keyof typeof max)[]) max[k] = max[k] === CAREER_FLOOR ? CAREER_FLOOR : Math.min(99, max[k] + 2)
-  weak.careerBuild = { ...makeBuild(max, weak.pos), startProgress: 0.6 }
+  for (const k of Object.keys(max) as (keyof typeof max)[]) max[k] = max[k]
+  weak.careerBuild = makeBuild(max, weak.pos)
   return { roster, weak }
 }
 

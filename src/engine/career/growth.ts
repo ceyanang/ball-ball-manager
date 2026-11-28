@@ -14,7 +14,7 @@ export function ageCareerPlayer(l: League, p: Player, rng: Rng): void {
   if (p.age >= 32) {
     const points = Math.max(1, Math.round(0.8 + (p.age - 31) * 0.7))
     for (let i = 0; i < points; i++) {
-      const options = RATING_KEYS.filter((k) => p.ratings[k] > CAREER_FLOOR)
+      const options = RATING_KEYS.filter((k) => k !== 'intangibles' && p.ratings[k] > CAREER_FLOOR)
       if (!options.length) break
       const k = rng.weighted(options, (key) => (ATHLETIC.has(key) ? 3 : 1))
       p.ratings[k] -= 1

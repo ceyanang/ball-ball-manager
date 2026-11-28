@@ -13,6 +13,7 @@ export function progressOf(cur: Ratings, max: Ratings, pos: Position): number {
   const w = weightsForRatings(max, pos)
   let num = 0, den = 0
   for (const k of RATING_KEYS) {
+    if (k === 'intangibles') continue // always 99 for the career player: never part of progress
     const span = max[k] - CAREER_FLOOR
     if (span <= 0) continue
     den += w[k]
@@ -21,13 +22,19 @@ export function progressOf(cur: Ratings, max: Ratings, pos: Position): number {
   return den > 1e-9 ? num / den : 1
 }
 
-/** The followed player's Career OVR: START_OVR at the start, exactly 99 when his ratings equal his max build. */
+/**
+ * The followed player's Career OVR, anchored to the real league formula: it is `computeOvr` of his ratings, rescaled
+ * linearly so his draft-night ratings read START_OVR and his max build reads exactly 99. So a displayed 80 plays like an
+ * 80 in this league (the max build itself is sized so its real OVR is about 96-99, i.e. the rescale is gentle).
+ */
 export function careerOvr(p: Player): number {
   const b = p.careerBuild
   if (!b) return computeOvr(p.ratings, p.pos)
-  const prog = progressOf(p.ratings, b.max, p.pos)
-  if (b.startProgress >= 0.999) return prog >= 0.999 ? RATING_MAX : START_OVR
-  const v = START_OVR + (RATING_MAX - START_OVR) * ((prog - b.startProgress) / (1 - b.startProgress))
+  const start = {} as Ratings
+  for (const k of RATING_KEYS) start[k] = k === 'intangibles' ? b.max[k] : Math.round(CAREER_FLOOR + b.startFraction * (b.max[k] - CAREER_FLOOR))
+  const real0 = computeOvr(start, p.pos), real1 = computeOvr(b.max, p.pos), real = computeOvr(p.ratings, p.pos)
+  if (real1 - real0 < 1) return progressOf(p.ratings, b.max, p.pos) >= 0.999 ? RATING_MAX : START_OVR
+  const v = START_OVR + (RATING_MAX - START_OVR) * ((real - real0) / (real1 - real0))
   return Math.round(clamp(v, START_OVR - 10, RATING_MAX))
 }
 

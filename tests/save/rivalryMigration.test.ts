@@ -11,7 +11,7 @@ describe('v12 → v13 rivalry migration', () => {
     delete raw.rivalry
     const m = migrateLeague(raw)
     expect(m.version).toBe(CURRENT_VERSION)
-    expect(CURRENT_VERSION).toBe(14)
+    expect(CURRENT_VERSION).toBe(15)
     expect(m.rivalry).toEqual({ heat: {}, dynamic: {}, showing: {}, met: [] })
   })
   it('tolerates a v13 save with partial rivalry keys', () => {

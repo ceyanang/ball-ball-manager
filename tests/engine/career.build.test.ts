@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Rng } from '../../src/engine/rng'
-import { RATING_KEYS } from '../../src/engine/player/ratings'
+import { RATING_KEYS, computeOvr } from '../../src/engine/player/ratings'
 import { BUILD_BUDGET, BUILD_TEMPLATES, CAREER_FLOOR, START_FRACTION, START_OVR, buildCost, isValidBuild, liftToFloor, makeBuild, startRatings } from '../../src/engine/career/build'
 import { careerOvr } from '../../src/engine/career/careerOvr'
 import type { Player, Position, Ratings } from '../../src/engine/types'
@@ -17,11 +17,12 @@ function playerWith(ratings: Ratings, pos: Position, max: Ratings): Player {
 /** Random valid allocation: shuffle-spread BUILD_BUDGET points across keys capped at 74 each. */
 function randomMax(rng: Rng): Ratings {
   const r = {} as Ratings
-  for (const k of RATING_KEYS) r[k] = 40
+  for (const k of RATING_KEYS) r[k] = k === 'intangibles' ? 99 : 40
+  const keys = RATING_KEYS.filter((k) => k !== 'intangibles')
   let left = BUILD_BUDGET
   let guard = 0
   while (left > 0 && guard++ < 100000) {
-    const k = RATING_KEYS[rng.int(0, RATING_KEYS.length - 1)]
+    const k = keys[rng.int(0, keys.length - 1)]
     const add = Math.min(left, rng.int(1, 12), 99 - r[k])
     r[k] += add
     left -= add
@@ -30,6 +31,11 @@ function randomMax(rng: Rng): Ratings {
 }
 
 describe('career build', () => {
+  it('intangibles is always 99, free, and never in the build budget', () => {
+    for (const t of BUILD_TEMPLATES) { expect(t.max.intangibles).toBe(99); expect(startRatings(t.max).intangibles).toBe(99) }
+    expect(makeBuild({ ...BUILD_TEMPLATES[0].max, intangibles: 40 }, 'PG').max.intangibles).toBe(99)
+  })
+
   it('has templates that each spend the whole budget exactly and are valid', () => {
     expect(BUILD_TEMPLATES.length).toBeGreaterThanOrEqual(8)
     for (const t of BUILD_TEMPLATES) {
@@ -80,17 +86,28 @@ describe('career build', () => {
     expect(isValidBuild(over)).toBe(false)
   })
 
-  it('startRatings is 40 + 0.67 of the way to each max, rounded', () => {
-    expect(START_FRACTION).toBe(0.67)
+  it('Career OVR is honest: tracks the real league OVR, and a max build is a real 94+ superstar', () => {
+    for (const t of BUILD_TEMPLATES) {
+      expect(computeOvr(t.max, t.pos), t.id).toBeGreaterThanOrEqual(94)
+      const mid = {} as Ratings
+      for (const k of RATING_KEYS) mid[k] = Math.round(40 + 0.8 * (t.max[k] - 40))
+      const real = computeOvr(mid, t.pos), shown = careerOvr(playerWith(mid, t.pos, t.max))
+      expect(Math.abs(shown - real), t.id).toBeLessThanOrEqual(3)
+      expect(shown, t.id).toBeGreaterThanOrEqual(78)
+    }
+  })
+
+  it('startRatings is 40 + START_FRACTION of the way to each max, rounded (intangibles fixed)', () => {
+    expect(START_FRACTION).toBe(0.5)
     const max = BUILD_TEMPLATES[1].max
     const s = startRatings(max)
-    for (const k of RATING_KEYS) expect(s[k]).toBe(Math.round(40 + 0.67 * (max[k] - 40)))
+    for (const k of RATING_KEYS) expect(s[k]).toBe(k === 'intangibles' ? 99 : Math.round(40 + START_FRACTION * (max[k] - 40)))
   })
 
   it('makeBuild records the fraction, start progress and a live archetype', () => {
     const t = BUILD_TEMPLATES[2]
     const b = makeBuild(t.max, t.pos)
-    expect(b.startFraction).toBe(0.67)
+    expect(b.startFraction).toBe(0.5)
     expect(b.startProgress).toBeGreaterThan(0.5)
     expect(b.startProgress).toBeLessThan(0.8)
     expect(b.archetype.length).toBeGreaterThan(0)
@@ -126,7 +143,8 @@ describe('career 40 floor', () => {
         expect(p.ratings[k]).toBeGreaterThanOrEqual(CAREER_FLOOR)
         expect(p.careerBuild!.max[k]).toBeGreaterThanOrEqual(CAREER_FLOOR)
       }
-      expect(Math.abs(careerOvr(p) - START_OVR), t.id).toBeLessThanOrEqual(1)
+      // Legacy (0.67-fraction, 960-budget) saves are re-anchored by careerOvr, so only sanity-check the range here.
+      expect(Math.abs(careerOvr(p) - START_OVR), t.id).toBeLessThanOrEqual(12)
       const before = JSON.stringify(p)
       liftToFloor(p)
       expect(JSON.stringify(p)).toBe(before)
