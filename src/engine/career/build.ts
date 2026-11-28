@@ -50,10 +50,35 @@ export function liftToFloor(p: Player): void {
   b.floor = CAREER_FLOOR
 }
 
+/**
+ * Moves an older build onto the current BUILD_BUDGET (idempotent: builds marked with it are left alone). Every rating
+ * but intangibles, and its max, is stretched away from the 40 floor by the same factor, so he keeps his shape and his
+ * progress, and the draft-night anchor moves to START_FRACTION so his Career OVR reads his real strength.
+ */
+export function rebudgetBuild(p: Player): void {
+  const b = p.careerBuild
+  if (!b || b.budget === BUILD_BUDGET) return
+  const cost = buildCost(b.max)
+  if (cost > 0) {
+    const s = BUILD_BUDGET / cost
+    const up = (v: number) => Math.max(CAREER_FLOOR, Math.min(RATING_MAX, Math.round(CAREER_FLOOR + (v - CAREER_FLOOR) * s)))
+    for (const k of RATING_KEYS) {
+      if (k === 'intangibles') continue
+      b.max[k] = up(b.max[k])
+      p.ratings[k] = Math.min(b.max[k], up(p.ratings[k]))
+    }
+  }
+  b.max.intangibles = RATING_MAX
+  p.ratings.intangibles = RATING_MAX
+  b.startFraction = START_FRACTION
+  b.startProgress = progressOf(startRatings(b.max), b.max, p.pos)
+  b.budget = BUILD_BUDGET
+}
+
 export function makeBuild(max: Ratings, pos: Position): CareerBuild {
   const start = startRatings(max)
   return {
-    max: { ...max, intangibles: CAREER_INTANGIBLES }, startFraction: START_FRACTION, startProgress: progressOf(start, max, pos), floor: CAREER_FLOOR,
+    max: { ...max, intangibles: CAREER_INTANGIBLES }, startFraction: START_FRACTION, startProgress: progressOf(start, max, pos), floor: CAREER_FLOOR, budget: BUILD_BUDGET,
     archetype: archetypeFor({ ratings: max, pos } as Player),
   }
 }
