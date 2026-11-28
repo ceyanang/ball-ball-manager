@@ -10,7 +10,7 @@ const POS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C']
 function playerWith(ratings: Ratings, pos: Position, max: Ratings): Player {
   return {
     id: 'c', firstName: 'A', lastName: 'B', age: 19, heightIn: 78, pos, jersey: 1, hometown: 'x', college: 'y', ratings, pot: 99,
-    faceSeed: 0, teamId: null, contract: null, injury: null, morale: 70, draft: null, ratingHistory: [], careerBuild: makeBuild(max, pos),
+    faceSeed: 0, playStyle: 'allAround', teamId: null, contract: null, injury: null, morale: 70, draft: null, ratingHistory: [], careerBuild: makeBuild(max, pos),
   }
 }
 

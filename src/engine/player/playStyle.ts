@@ -54,25 +54,45 @@ function pillarScores(r: Ratings): Record<Specialty, number> {
   }
 }
 
-/** Ratings-fit tilt: ~0.4–3 per specialty from how far its pillar sits above the player's average pillar. */
-function fitOf(r: Ratings): Record<PlayStyle, number> {
+/**
+ * Typical pillar scores per position (smart, offense, power, defensive), measured from generated leagues. The fit
+ * compares a player to what is normal at his position, so the owner's chart stays the baseline mix.
+ */
+const POS_PILLAR_BASE: Record<Position, Record<Specialty, number>> = {
+  PG: { smart: 74, offense: 75, power: 56, defensive: 55 },
+  SG: { smart: 71, offense: 78, power: 62, defensive: 58 },
+  SF: { smart: 69, offense: 73, power: 67, defensive: 65 },
+  PF: { smart: 62, offense: 67, power: 76, defensive: 73 },
+  C: { smart: 61, offense: 58, power: 71, defensive: 71 },
+}
+
+/** Ratings-fit tilt: 0.5–2 per specialty from how far its pillar beats the player's other pillars (vs position norm). */
+function fitOf(pos: Position, r: Ratings): Record<PlayStyle, number> {
   const s = pillarScores(r)
-  const vals = [s.smart, s.offense, s.power, s.defensive]
+  const base = POS_PILLAR_BASE[pos] ?? POS_PILLAR_BASE.SF
+  const dev = {
+    smart: s.smart - base.smart,
+    offense: s.offense - base.offense,
+    power: s.power - base.power,
+    defensive: s.defensive - base.defensive,
+  }
+  const vals = [dev.smart, dev.offense, dev.power, dev.defensive]
   const mean = avg(...vals)
   const spread = Math.max(...vals) - Math.min(...vals)
-  const f = (x: number) => clamp(Math.exp((x - mean) / 10), 0.4, 3)
+  const f = (x: number) => clamp(Math.exp((x - mean) / 12), 0.5, 2)
   return {
-    smart: f(s.smart),
-    offense: f(s.offense),
-    power: f(s.power),
-    defensive: f(s.defensive),
-    allAround: clamp(1 + (10 - spread) / 20, 0.6, 1.4),
+    smart: f(dev.smart),
+    offense: f(dev.offense),
+    power: f(dev.power),
+    defensive: f(dev.defensive),
+    // Balanced profiles (no pillar standing out) lean All-Around.
+    allAround: clamp(1 + (12 - spread) / 30, 0.7, 1.4),
   }
 }
 
 /** Normalized probabilities (sum 1) of each style for this position and ratings. */
 export function styleOdds(pos: Position, r: Ratings): Record<PlayStyle, number> {
-  const fit = fitOf(r)
+  const fit = fitOf(pos, r)
   const base = POSITION_ODDS[pos] ?? POSITION_ODDS.SF
   const w = {} as Record<PlayStyle, number>
   let total = 0
@@ -121,3 +141,21 @@ export function hashId(id: string): number {
   }
   return h >>> 0
 }
+
+/**
+ * Save migration: give every player lacking a valid style one rolled from his position + ratings, seeded by his
+ * id (stable across reloads). Works on raw save data; skips anything malformed; never touches a valid style.
+ */
+export function backfillPlayStyles(raw: { players?: unknown }): void {
+  const players = raw.players
+  if (!players || typeof players !== 'object' || Array.isArray(players)) return
+  for (const [id, p] of Object.entries(players as Record<string, unknown>)) {
+    if (!p || typeof p !== 'object') continue
+    const pl = p as { id?: unknown; pos?: unknown; ratings?: unknown; playStyle?: unknown }
+    if (isPlayStyle(pl.playStyle)) continue
+    if (!pl.ratings || typeof pl.ratings !== 'object') continue
+    const pos = (typeof pl.pos === 'string' && pl.pos in POSITION_ODDS ? pl.pos : 'SF') as Position
+    pl.playStyle = rollPlayStyle(pos, pl.ratings as Ratings, hashId(typeof pl.id === 'string' ? pl.id : id))
+  }
+}
+

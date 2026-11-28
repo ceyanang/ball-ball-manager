@@ -15,8 +15,8 @@ describe('v13 → v15 career migration', () => {
     delete raw.career
     const before = JSON.parse(JSON.stringify(raw))
     const m = migrateLeague(raw)
-    expect(CURRENT_VERSION).toBe(15)
-    expect(m.version).toBe(15)
+    expect(CURRENT_VERSION).toBe(16)
+    expect(m.version).toBe(16)
     expect(m.career).toBeNull()
     const { version: _v, career: _c, ...rest } = m as unknown as Record<string, unknown>
     const { version: _bv, ...bRest } = before
@@ -43,7 +43,7 @@ describe('v14 → v15 intangibles migration', () => {
     p.ratings.intangibles = 50
     p.careerBuild = { max: { ...p.ratings, intangibles: 60 }, startFraction: 0.67, startProgress: 0, floor: 40, archetype: 'x' }
     const m = migrateLeague(raw)
-    expect(m.version).toBe(15)
+    expect(m.version).toBe(16)
     expect(m.players[id].ratings.intangibles).toBe(99)
     expect(m.players[id].careerBuild!.max.intangibles).toBe(99)
   })

@@ -2,12 +2,13 @@ import { createLeague } from '../league/create'
 import { Rng } from '../rng'
 import { encodeHeritage, type Heritage } from '../face/heritage'
 import { generatePlayer } from '../player/generate'
+import { hashId, isPlayStyle, rollPlayStyle, type PlayStyle } from '../player/playStyle'
 import type { League, Player, Position, Ratings } from '../types'
 import { isValidBuild, makeBuild, startRatings } from './build'
 import { careerOvr } from './careerOvr'
 import { emptyCareer } from './state'
 
-export interface CareerBuildInput { max: Ratings; pos: Position; first: string; last: string; heritage?: Heritage; heightIn: number }
+export interface CareerBuildInput { max: Ratings; pos: Position; first: string; last: string; heritage?: Heritage; heightIn: number; playStyle?: PlayStyle }
 
 /** A normal league plus the followed player (undrafted, age 19) and `career` in draft-night status. */
 export function createCareerLeague(opts: { seed: number; name: string; build: CareerBuildInput; season?: number }): League {
@@ -25,6 +26,7 @@ export function createCareerLeague(opts: { seed: number; name: string; build: Ca
     faceSeed: b.heritage ? encodeHeritage(base.faceSeed, b.heritage) : base.faceSeed,
     ratings: startRatings(b.max), careerBuild, teamId: null, contract: null, injury: null, morale: 70, draft: null,
   }
+  p.playStyle = isPlayStyle(b.playStyle) ? b.playStyle : rollPlayStyle(b.pos, p.ratings, hashId(p.id))
   p.ratingHistory = [{ season, ovr: careerOvr(p) }]
   league.players[p.id] = p
   league.career = { ...emptyCareer(p.id, careerBuild), status: 'draftNight' }

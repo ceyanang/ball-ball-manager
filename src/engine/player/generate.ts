@@ -4,6 +4,7 @@ import { Rng } from '../rng'
 import type { Player, Position, Ratings } from '../types'
 import { RATING_KEYS, RATING_MAX, RATING_MIN, SKILL_KEYS, calculatePlayerOVR, heightMaxFor } from './ratings'
 import { pickJersey } from './jerseyNumber'
+import { rollPlayStyle } from './playStyle'
 
 export { RATING_MIN }
 export const POSITIONS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C']
@@ -404,6 +405,8 @@ export function generatePlayer(
     ratings,
     pot,
     faceSeed,
+    // Seeded from rawSeed only: the league rng stream is untouched.
+    playStyle: rollPlayStyle(pos, ratings, mixHash(rawSeed, 0x5ca1ab1e)),
     teamId: null,
     contract: null,
     injury: null,

@@ -12,8 +12,9 @@ import { emptyEvents } from '../engine/events/state'
 import { emptyRivalry } from '../engine/rivals/state'
 import { backfillHeritage } from '../engine/face/backfill'
 import { liftToFloor, rebudgetBuild } from '../engine/career/build'
+import { backfillPlayStyles } from '../engine/player/playStyle'
 
-export const CURRENT_VERSION = 15
+export const CURRENT_VERSION = 16
 
 const clampRating = (v: number) => Math.max(RATING_MIN, Math.min(RATING_MAX, Math.round(v)))
 const numOr = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
@@ -200,6 +201,12 @@ export function migrateLeague(raw: any): League {
     const me = id && raw.players?.[id]
     if (me?.careerBuild && me.ratings)
       raw = { ...raw, players: { ...raw.players, [id]: { ...me, ratings: { ...me.ratings, intangibles: 99 }, careerBuild: { ...me.careerBuild, max: { ...me.careerBuild.max, intangibles: 99 } } } } }
+  }
+  if (raw?.version === 15) {
+    // Play styles: every existing player rolls once from his current ratings and an id-derived seed.
+    raw = { ...raw, version: 16 }
+    if (raw.players && typeof raw.players === 'object') raw.players = Object.fromEntries(Object.entries(raw.players).map(([id, p]) => [id, p && typeof p === 'object' ? { ...(p as object) } : p]))
+    backfillPlayStyles(raw)
   }
   if (raw?.version !== CURRENT_VERSION)
     throw new SaveImportError(`This save is version ${String(raw?.version)}, but this app reads versions 1–${CURRENT_VERSION}.`)

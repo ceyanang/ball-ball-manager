@@ -54,6 +54,7 @@ export interface Ratings {
 export interface Contract { salary: number; expires: number }
 export interface Injury { type: string; gamesRemaining: number; severity: 'dtd' | 'short' | 'long' | 'season' }
 export interface DraftInfo { season: number; round: number; pick: number; teamId: string }
+import type { PlayStyle } from './player/playStyle'
 export interface Player {
   id: string; firstName: string; lastName: string; age: number; heightIn: number; pos: Position
   jersey: number; hometown: string; college: string; ratings: Ratings; pot: number; faceSeed: number
@@ -61,6 +62,8 @@ export interface Player {
   ratingHistory: { season: number; ovr: number }[]
   /** Set once a player hangs it up; retired players stay in the save for history. */
   retired?: boolean
+  /** Fixed play style, rolled once at generation (never changes); shapes sim habits and in-sim boosts only. */
+  playStyle: PlayStyle
   /** MyCareer: set only on the followed player; his league-visible OVR is the Career OVR. */
   careerBuild?: CareerBuild
 }
@@ -204,7 +207,7 @@ export interface AllStarEvent {
 export interface TrainingSlot { playerId: string; season: number; day: number }
 
 export interface League {
-  version: 15; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
+  version: 16; name: string; seed: number; rng: { s: number }; season: number; phase: Phase; day: number
   userTeamId: string; teams: Record<string, Team>; players: Record<string, Player>; coaches: Record<string, Coach>
   games: Game[]; statLines: Record<string, StatLine>; playoffs: PlayoffBracket | null
   progress: ProgressEvent[]
