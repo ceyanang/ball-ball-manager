@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createLeague } from '../../src/engine/league/create'
 import { BUILD_TEMPLATES, makeBuild } from '../../src/engine/career/build'
-import { careerOvr, ovrOf } from '../../src/engine/career/careerOvr'
+import { CAREER_FLOOR, careerOvr, ovrOf } from '../../src/engine/career/careerOvr'
 import { computeOvr } from '../../src/engine/player/ratings'
 import { autoRotation, coachRotation } from '../../src/engine/sim/rotation'
 import type { Player } from '../../src/engine/types'
@@ -11,8 +11,9 @@ function followed(l: ReturnType<typeof createLeague>) {
   const team = Object.values(l.teams)[0]
   const roster = Object.values(l.players).filter((p) => p.teamId === team.id)
   const weak = [...roster].sort((a, b) => computeOvr(a.ratings, a.pos) - computeOvr(b.ratings, b.pos))[0]
+  for (const k of Object.keys(weak.ratings) as (keyof typeof weak.ratings)[]) weak.ratings[k] = Math.max(CAREER_FLOOR, weak.ratings[k])
   const max = { ...weak.ratings }
-  for (const k of Object.keys(max) as (keyof typeof max)[]) max[k] = Math.min(99, max[k] + 3)
+  for (const k of Object.keys(max) as (keyof typeof max)[]) max[k] = max[k] === CAREER_FLOOR ? CAREER_FLOOR : Math.min(99, max[k] + 2)
   weak.careerBuild = { ...makeBuild(max, weak.pos), startProgress: 0.6 }
   return { roster, weak }
 }

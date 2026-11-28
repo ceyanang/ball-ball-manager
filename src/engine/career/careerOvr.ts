@@ -1,5 +1,8 @@
-import { RATING_KEYS, RATING_MAX, RATING_MIN, computeOvr, weightsForRatings } from '../player/ratings'
+import { RATING_KEYS, RATING_MAX, computeOvr, weightsForRatings } from '../player/ratings'
 import type { Player, Position, Ratings } from '../types'
+
+/** No MyCareer rating (start, max build or aged) ever sits below this — league players almost never do either. */
+export const CAREER_FLOOR = 40
 
 /** What a fresh 19-year-old MyCareer player reads. */
 export const START_OVR = 68
@@ -10,10 +13,10 @@ export function progressOf(cur: Ratings, max: Ratings, pos: Position): number {
   const w = weightsForRatings(max, pos)
   let num = 0, den = 0
   for (const k of RATING_KEYS) {
-    const span = max[k] - RATING_MIN
+    const span = max[k] - CAREER_FLOOR
     if (span <= 0) continue
     den += w[k]
-    num += w[k] * clamp((cur[k] - RATING_MIN) / span, 0, 1)
+    num += w[k] * clamp((cur[k] - CAREER_FLOOR) / span, 0, 1)
   }
   return den > 1e-9 ? num / den : 1
 }

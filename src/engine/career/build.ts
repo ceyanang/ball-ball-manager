@@ -1,31 +1,43 @@
-import { RATING_KEYS, RATING_MAX, RATING_MIN, POSITION_WEIGHTS } from '../player/ratings'
+import { RATING_KEYS, RATING_MAX, POSITION_WEIGHTS } from '../player/ratings'
 import { archetypeFor } from '../player/archetype'
-import { progressOf } from './careerOvr'
+import { CAREER_FLOOR, progressOf } from './careerOvr'
 import type { Player, Position, Ratings } from '../types'
 import type { CareerBuild } from './types'
 
-export { START_OVR } from './careerOvr'
+export { START_OVR, CAREER_FLOOR } from './careerOvr'
 export const START_FRACTION = 0.67
-/** Points spent above the 25 floor across all 36 maxes; every template spends it exactly. */
-export const BUILD_BUDGET = 1500
+/** Points spent above the 40 floor across all 36 maxes; every template spends it exactly. */
+export const BUILD_BUDGET = 960
 
 export interface BuildTemplate { id: string; label: string; pos: Position; max: Ratings }
 
-export const buildCost = (max: Ratings): number => RATING_KEYS.reduce((s, k) => s + (max[k] - RATING_MIN), 0)
+export const buildCost = (max: Ratings): number => RATING_KEYS.reduce((s, k) => s + (max[k] - CAREER_FLOOR), 0)
 
 export function isValidBuild(max: Ratings): boolean {
   for (const k of RATING_KEYS) {
     const v = max[k]
-    if (!Number.isFinite(v) || v < RATING_MIN || v > RATING_MAX || !Number.isInteger(v)) return false
+    if (!Number.isFinite(v) || v < CAREER_FLOOR || v > RATING_MAX || !Number.isInteger(v)) return false
   }
   return buildCost(max) <= BUILD_BUDGET
 }
 
-/** Rounded 25 + fraction of the way to each max. */
+/** Rounded 40 + fraction of the way to each max. */
 export function startRatings(max: Ratings, fraction: number = START_FRACTION): Ratings {
   const r = {} as Ratings
-  for (const k of RATING_KEYS) r[k] = Math.round(RATING_MIN + fraction * (max[k] - RATING_MIN))
+  for (const k of RATING_KEYS) r[k] = Math.round(CAREER_FLOOR + fraction * (max[k] - CAREER_FLOOR))
   return r
+}
+
+/** Lifts a (possibly older, 25-floor) build and its current ratings onto the 40 floor; idempotent. */
+export function liftToFloor(p: Player): void {
+  const b = p.careerBuild
+  if (!b) return
+  let changed = false
+  for (const k of RATING_KEYS) {
+    if (b.max[k] < CAREER_FLOOR) { b.max[k] = CAREER_FLOOR; changed = true }
+    if (p.ratings[k] < CAREER_FLOOR) { p.ratings[k] = CAREER_FLOOR; changed = true }
+  }
+  if (changed) b.startProgress = progressOf(startRatings(b.max, b.startFraction), b.max, p.pos)
 }
 
 export function makeBuild(max: Ratings, pos: Position): CareerBuild {
@@ -57,7 +69,7 @@ const DEFS: TemplateDef[] = [
 function fit(desire: Record<Key, number>, budget: number): Ratings {
   const at = (s: number) => {
     const r = {} as Ratings
-    for (const k of RATING_KEYS) r[k] = Math.max(RATING_MIN, Math.min(RATING_MAX, Math.round(RATING_MIN + s * desire[k])))
+    for (const k of RATING_KEYS) r[k] = Math.max(CAREER_FLOOR, Math.min(RATING_MAX, Math.round(CAREER_FLOOR + s * desire[k])))
     return r
   }
   let lo = 0, hi = 100

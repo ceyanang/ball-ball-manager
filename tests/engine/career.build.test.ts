@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { Rng } from '../../src/engine/rng'
 import { RATING_KEYS } from '../../src/engine/player/ratings'
-import { BUILD_BUDGET, BUILD_TEMPLATES, START_FRACTION, START_OVR, buildCost, isValidBuild, makeBuild, startRatings } from '../../src/engine/career/build'
+import { BUILD_BUDGET, BUILD_TEMPLATES, CAREER_FLOOR, START_FRACTION, START_OVR, buildCost, isValidBuild, liftToFloor, makeBuild, startRatings } from '../../src/engine/career/build'
 import { careerOvr } from '../../src/engine/career/careerOvr'
 import type { Player, Position, Ratings } from '../../src/engine/types'
 
@@ -17,7 +17,7 @@ function playerWith(ratings: Ratings, pos: Position, max: Ratings): Player {
 /** Random valid allocation: shuffle-spread BUILD_BUDGET points across keys capped at 74 each. */
 function randomMax(rng: Rng): Ratings {
   const r = {} as Ratings
-  for (const k of RATING_KEYS) r[k] = 25
+  for (const k of RATING_KEYS) r[k] = 40
   let left = BUILD_BUDGET
   let guard = 0
   while (left > 0 && guard++ < 100000) {
@@ -80,11 +80,11 @@ describe('career build', () => {
     expect(isValidBuild(over)).toBe(false)
   })
 
-  it('startRatings is 25 + 0.67 of the way to each max, rounded', () => {
+  it('startRatings is 40 + 0.67 of the way to each max, rounded', () => {
     expect(START_FRACTION).toBe(0.67)
     const max = BUILD_TEMPLATES[1].max
     const s = startRatings(max)
-    for (const k of RATING_KEYS) expect(s[k]).toBe(Math.round(25 + 0.67 * (max[k] - 25)))
+    for (const k of RATING_KEYS) expect(s[k]).toBe(Math.round(40 + 0.67 * (max[k] - 40)))
   })
 
   it('makeBuild records the fraction, start progress and a live archetype', () => {
@@ -94,5 +94,34 @@ describe('career build', () => {
     expect(b.startProgress).toBeGreaterThan(0.5)
     expect(b.startProgress).toBeLessThan(0.8)
     expect(b.archetype.length).toBeGreaterThan(0)
+  })
+})
+
+describe('career 40 floor', () => {
+  it('never starts, builds or ages a career rating below 40', () => {
+    for (const t of BUILD_TEMPLATES) {
+      const s = startRatings(t.max)
+      for (const k of RATING_KEYS) {
+        expect(t.max[k], `${t.id} ${k}`).toBeGreaterThanOrEqual(CAREER_FLOOR)
+        expect(s[k], `${t.id} ${k}`).toBeGreaterThanOrEqual(CAREER_FLOOR)
+      }
+    }
+    const low = { ...BUILD_TEMPLATES[0].max, block: 39 }
+    expect(isValidBuild(low)).toBe(false)
+  })
+
+  it('liftToFloor raises an old 25-floor career player and keeps him near his old OVR band', () => {
+    const t = BUILD_TEMPLATES[0]
+    const max = { ...t.max, block: 25, postHook: 30 }
+    const p = playerWith({ ...startRatings(t.max), block: 25, postHook: 33 }, t.pos, max)
+    p.careerBuild = { ...makeBuild(t.max, t.pos), max }
+    liftToFloor(p)
+    for (const k of RATING_KEYS) {
+      expect(p.ratings[k]).toBeGreaterThanOrEqual(CAREER_FLOOR)
+      expect(p.careerBuild.max[k]).toBeGreaterThanOrEqual(CAREER_FLOOR)
+    }
+    const before = JSON.stringify(p)
+    liftToFloor(p)
+    expect(JSON.stringify(p)).toBe(before)
   })
 })

@@ -11,6 +11,7 @@ import { recomputeFanBase } from '../engine/stories/sentiment'
 import { emptyEvents } from '../engine/events/state'
 import { emptyRivalry } from '../engine/rivals/state'
 import { backfillHeritage } from '../engine/face/backfill'
+import { liftToFloor } from '../engine/career/build'
 
 export const CURRENT_VERSION = 14
 
@@ -198,5 +199,13 @@ export function migrateLeague(raw: any): League {
   if (!Array.isArray(raw.progress)) raw = { ...raw, progress: [] }
   if (raw.career === undefined) raw = { ...raw, career: null }
   raw = { ...raw, rivalry: { ...emptyRivalry(), ...(raw.rivalry ?? {}) } }
+  // MyCareer ratings used to floor at 25; lift the followed player onto the 40 floor (no-op once done).
+  const careerId = raw.career?.playerId
+  const me = careerId && raw.players?.[careerId]
+  if (me?.careerBuild && me.ratings) {
+    const p = { ...me, ratings: { ...me.ratings }, careerBuild: { ...me.careerBuild, max: { ...me.careerBuild.max } } }
+    liftToFloor(p)
+    raw = { ...raw, players: { ...raw.players, [careerId]: p } }
+  }
   return raw as League
 }

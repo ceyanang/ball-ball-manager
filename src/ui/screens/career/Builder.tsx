@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BUILD_BUDGET, BUILD_TEMPLATES, START_OVR, buildCost, makeBuild } from '../../../engine/career/build'
+import { BUILD_BUDGET, BUILD_TEMPLATES, CAREER_FLOOR, START_OVR, buildCost, makeBuild } from '../../../engine/career/build'
 import { HERITAGES, type Heritage } from '../../../engine/face/heritage'
 import { POSITION_HEIGHT_BOUNDS } from '../../../engine/player/generate'
-import { RATING_GROUPS, RATING_MAX, RATING_MIN } from '../../../engine/player/ratings'
+import { RATING_GROUPS, RATING_MAX } from '../../../engine/player/ratings'
 import type { Position, Ratings } from '../../../engine/types'
 import { useStore } from '../../store'
 import { ratingColor } from '../../ratingColor'
@@ -42,7 +42,7 @@ export function Builder() {
     const [mean, lo, hi] = POSITION_HEIGHT_BOUNDS[p]
     setHeightIn(Math.max(lo, Math.min(hi, Math.round(mean))))
   }
-  const setKey = (k: keyof Ratings, v: number) => setMax((m) => ({ ...m, [k]: Math.max(RATING_MIN, Math.min(RATING_MAX, Math.min(v, m[k] + left))) }))
+  const setKey = (k: keyof Ratings, v: number) => setMax((m) => ({ ...m, [k]: Math.max(CAREER_FLOOR, Math.min(RATING_MAX, Math.min(v, m[k] + left))) }))
 
   const go = async () => {
     await newCareer({ seed, name: leagueName.trim() || 'My Career', build: { max, pos, first, last, heritage: heritage || undefined, heightIn } })
@@ -90,7 +90,7 @@ export function Builder() {
           {entries.map(([k, label]) => (
             <label key={k} className="row cb-rating" style={{ gap: '0.6rem' }}>
               <span className="cb-label" style={{ width: '11rem' }}>{label}</span>
-              <input type="range" min={RATING_MIN} max={RATING_MAX} value={max[k]} onChange={(e) => setKey(k, Number(e.target.value))} style={{ flex: 1, accentColor: ratingColor(max[k]) }} />
+              <input type="range" min={CAREER_FLOOR} max={RATING_MAX} value={max[k]} onChange={(e) => setKey(k, Number(e.target.value))} style={{ flex: 1, accentColor: ratingColor(max[k]) }} />
               <strong className="num cb-val" style={{ width: '2rem', textAlign: 'right', color: ratingColor(max[k]) }}>{max[k]}</strong>
             </label>
           ))}
