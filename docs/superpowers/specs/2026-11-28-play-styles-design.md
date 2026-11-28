@@ -1,6 +1,6 @@
 # Play styles — design
 
-Status: approved by owner (2026-11-28).
+Status: approved by owner (2026-11-28); implemented.
 
 ## Intent and why
 Archetypes (`player/archetype.ts`) are a label worked out from ratings every game, so a Shaq-like center and a
