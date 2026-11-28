@@ -2,9 +2,8 @@ import { playPendingAllStar, selectAllStars } from '../allstar/allstar'
 import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
-import { DEFAULT_MOMENT_RATE, type MomentPlay } from '../sim/moments'
-import { growPlayer } from '../career/growth'
-import { RATING_KEYS } from '../player/ratings'
+import { DEFAULT_MOMENT_RATE, momentOutcome, type MomentPlay } from '../sim/moments'
+import { awardGameSp } from '../career/training'
 import { rollSuddenMove } from '../career/contracts'
 import { onCareerOffseasonStart } from '../career/offseason'
 import { storyRng } from '../stories/state'
@@ -42,9 +41,12 @@ function careerMods(league: League, g: Game, mods: GameMods | undefined, auto: b
   return { ...base, career: { playerId: p.id, rate: DEFAULT_MOMENT_RATE, answers, auto, playoffs: g.playoff !== null } }
 }
 
-function playGame(league: League, g: Game, rng: Rng, capture?: Capture, careerAuto = true, passive = false): void {
-  const log: PlayEvent[] | undefined = capture && (g.homeId === capture.teamId || g.awayId === capture.teamId) ? [] : undefined
+function playGame(league: League, g: Game, rng: Rng, capture?: Capture, careerAuto = true): void {
+  let log: PlayEvent[] | undefined = capture && (g.homeId === capture.teamId || g.awayId === capture.teamId) ? [] : undefined
   const mods = careerMods(league, g, buildMods(league, g), careerAuto)
+  // A game he plays by hand always keeps a log, so the moments that went his way can pay out skill points.
+  const ownLog = !log && !!mods?.career && !careerAuto
+  if (ownLog) log = []
   const marks: number[] = []
   const plays: MomentPlay[] = []
   if (log && mods?.career) { mods.career.marks = marks; mods.career.plays = plays }
@@ -55,19 +57,19 @@ function playGame(league: League, g: Game, rng: Rng, capture?: Capture, careerAu
     const line = res.box.find((b) => b.playerId === c.playerId)
     if (line && line.min > 0) {
       if (careerAuto) c.simmed++; else c.played++
-      // Bulk sims roll no pop-up events, so every game he plays still adds a little (halved by reward share when simmed).
-      if (passive) {
-        const p = league.players[c.playerId]
-        const r = storyRng(league, 640 + c.played + c.simmed)
-        if (p.careerBuild && r.chance(0.5)) {
-          const keys = RATING_KEYS.filter((k) => p.careerBuild!.max[k] > p.ratings[k])
-          if (keys.length) growPlayer(league, p.id, [{ key: r.pick(keys), amount: 2 }], 'Season grind')
+      // Skill points: 1 a game, more for beating his own average and for moments he cashed in (hand-played only).
+      let good = 0
+      if (!careerAuto && log) {
+        for (let i = 0; i < plays.length; i++) {
+          if (!plays[i] || marks[i] === undefined) continue
+          if (momentOutcome(log, marks[i], plays[i], c.playerId, () => '')?.good) good++
         }
       }
+      awardGameSp(league, line, good)
     }
   }
   if (g.homeId === league.userTeamId || g.awayId === league.userTeamId) tickEffects(league)
-  if (log && capture) capture.out = mods?.career ? { gameId: g.id, log, moments: marks, plays } : { gameId: g.id, log }
+  if (log && capture && !ownLog) capture.out = mods?.career ? { gameId: g.id, log, moments: marks, plays } : { gameId: g.id, log }
   g.result = res
   addBoxToStatLines(league.statLines, g)
   const hurt = Object.values(league.players).filter((p) => p.injury && (p.teamId === g.homeId || p.teamId === g.awayId)).map((p) => p.id)
@@ -130,7 +132,7 @@ export function stepDay(league: League, rng: Rng, capture?: Capture, pause = fal
   if (league.phase === 'regular') playPendingAllStar(league)
   for (const g of league.games) {
     if (g.day === league.day && !g.result && (league.phase === 'playoffs') === (g.playoff !== null)) {
-      playGame(league, g, rng, capture, careerAuto, !pause)
+      playGame(league, g, rng, capture, careerAuto)
       played.push(g)
     }
   }

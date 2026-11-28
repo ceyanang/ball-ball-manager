@@ -1,7 +1,7 @@
 /** Navigation model shared by the desktop sidebar, sub-nav strips, and mobile tab bar + "More" sheet. */
 export type IconName =
   | 'home' | 'inbox' | 'team' | 'rotation' | 'office' | 'calendar' | 'trophy' | 'chart'
-  | 'star' | 'medal' | 'chat' | 'history' | 'grid' | 'save' | 'more' | 'sun' | 'play' | 'close'
+  | 'star' | 'medal' | 'chat' | 'history' | 'grid' | 'save' | 'more' | 'sun' | 'play' | 'close' | 'dumbbell'
 
 export type NavItem = { to: string; label: string; icon: IconName; match?: string[] }
 
@@ -21,6 +21,8 @@ export const HISTORY: NavItem = { to: '/history', label: 'History', icon: 'histo
 export const TEAMS: NavItem = { to: '/teams', label: 'Teams', icon: 'grid', match: ['/teams', '/team'] }
 export const EVENTS: NavItem = { to: '/events', label: 'Events', icon: 'star', match: ['/events'] }
 export const SAVES: NavItem = { to: '/saves', label: 'Saves', icon: 'save', match: ['/saves', '/new'] }
+/** MyCareer only: spend skill points on trainings. */
+export const DEVELOPMENT: NavItem = { to: '/career/dev', label: 'Development', icon: 'dumbbell', match: ['/career/dev'] }
 export const OFFSEASON: NavItem = { to: '/offseason', label: 'Offseason', icon: 'sun', match: ['/offseason'] }
 
 /** Grouped destinations for the desktop sidebar. */
@@ -81,3 +83,8 @@ export const isGmPath = (path: string): boolean => [...GM_ONLY].some((g) => path
 export const withoutGm = <T extends { to: string }>(items: T[]): T[] => items.filter((i) => !GM_ONLY.has(i.to))
 export const withoutGmGroups = (groups: { title: string; items: NavItem[] }[]) =>
   groups.map((g) => ({ ...g, items: withoutGm(g.items) })).filter((g) => g.items.length > 0)
+
+/** MyCareer: Development sits right under Home in the sidebar and takes the GM Office slot in the mobile tab bar. */
+export const withCareerGroups = (groups: { title: string; items: NavItem[] }[]) =>
+  groups.map((g, i) => (i === 0 ? { ...g, items: [g.items[0], DEVELOPMENT, ...g.items.slice(1)] } : g))
+export const careerTabs = (tabs: (NavItem & { match: string[] })[]) => [...withoutGm(tabs), { ...DEVELOPMENT, label: 'Train', match: ['/career/dev'] }]

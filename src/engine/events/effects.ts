@@ -1,4 +1,4 @@
-import { growPlayer } from '../career/growth'
+import { awardSp, grantSp } from '../career/training'
 import { ovr, pname } from '../gm/cap'
 import { RATING_KEYS, RATING_LABELS, RATING_MAX, RATING_MIN } from '../player/ratings'
 import { ping } from '../stories/inbox'
@@ -92,7 +92,10 @@ export function applyEffects(l: League, effects: Effect[]): string[] {
       case 'grow': {
         const p = player(e.player)
         if (!p) break
-        for (const g of growPlayer(l, e.player, e.grants, e.source)) lines.push(`${pname(p)} ${SKILL_LABEL[g.key]} ${sign(g.delta)}`)
+        // MyCareer: a card that goes his way pays out skill points to spend in Development.
+        if (!l.career || l.career.playerId !== p.id) break
+        const n = awardSp(l, grantSp(e.grants), e.source)
+        if (n) lines.push(`${pname(p)} +${n} SP (${e.source})`)
         break
       }
       case 'inbox':

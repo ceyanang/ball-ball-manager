@@ -31,4 +31,9 @@ export interface CareerState {
   /** The latest trade/cut, shown as a pop-up until dismissed. */
   alert?: CareerAlert | null
   ending: { id: string; title: string; lines: string[] } | null
+  /** Skill points in the bank (missing on older saves = 0), lifetime earned, recent earnings, trainings bought. */
+  sp?: number
+  spEarned?: number
+  spLog?: { season: number; day: number; amount: number; source: string }[]
+  trainings?: number
 }

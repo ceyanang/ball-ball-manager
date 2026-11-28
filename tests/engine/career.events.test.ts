@@ -90,19 +90,18 @@ describe('career event catalog', () => {
     expect(scare.pick(ctxFor(l, scare))).toBeNull()
   })
 
-  it('answering grows only the followed player', () => {
+  it('a card that goes his way pays skill points and edits nobody\'s ratings', () => {
     const l = active()
-    const others = Object.values(l.players).filter((p) => p.id !== me(l).id).map((p) => JSON.stringify(p.ratings))
+    const all = JSON.stringify(Object.values(l.players).map((p) => p.ratings))
     const gym = CAREER_EVENTS.find((d) => d.id === 'career-gym-night')!
     const s = gym.pick(ctxFor(l, gym))!
-    const before = JSON.stringify(me(l).ratings)
-    let grew = false
+    let paid = false
     for (const c of gym.choices) for (const o of c.outcomes) {
       const copy = structuredClone(l)
-      applyEffects(copy, o.effects(s, copy))
-      if (JSON.stringify(copy.players[me(l).id].ratings) !== before) grew = true
-      expect(Object.values(copy.players).filter((p) => p.id !== me(l).id).map((p) => JSON.stringify(p.ratings))).toEqual(others)
+      const lines = applyEffects(copy, o.effects(s, copy))
+      if ((copy.career!.sp ?? 0) > 0) { paid = true; expect(lines.join(' ')).toMatch(/\+\d+ SP/) }
+      expect(JSON.stringify(Object.values(copy.players).map((p) => p.ratings))).toEqual(all)
     }
-    expect(grew).toBe(true)
+    expect(paid).toBe(true)
   })
 })

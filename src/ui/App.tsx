@@ -34,6 +34,7 @@ import { RetirementPrompt } from './screens/career/RetirementPrompt'
 import { ContractChoice } from './screens/career/ContractChoice'
 import { Moment } from './screens/career/Moment'
 import { DraftNight } from './screens/career/DraftNight'
+import { Development } from './screens/career/Development'
 import { isCareer } from '../engine/career/state'
 import { CareerAlert } from './screens/career/CareerAlert'
 import { EventModal } from './components/EventModal'
@@ -89,6 +90,7 @@ export default function App() {
           <Route path="/career/build" element={<Builder />} />
           <Route path="/career/draft" element={guarded(<DraftNight />)} />
           <Route path="/career/ending" element={guarded(<Ending />)} />
+          <Route path="/career/dev" element={guarded(<Development />)} />
           <Route path="/my-team" element={guarded(<MyTeam />)} />
           <Route path="/roster" element={guarded(<Roster />)} />
           <Route path="/team/:id" element={guarded(<TeamPage />)} />

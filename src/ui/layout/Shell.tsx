@@ -10,7 +10,7 @@ import { Icon } from '../components/Icon'
 import { Sheet } from '../components/Sheet'
 import { RosterPeek } from '../components/RosterPeek'
 import { ErrorBoundary } from '../ErrorBoundary'
-import { activeTab, matchesNav, MORE_GROUPS, OFFSEASON, SAVES, SIDEBAR_GROUPS, TABS, withoutGm, withoutGmGroups } from '../nav'
+import { activeTab, careerTabs, DEVELOPMENT, matchesNav, MORE_GROUPS, OFFSEASON, SAVES, SIDEBAR_GROUPS, TABS, withCareerGroups, withoutGmGroups } from '../nav'
 import { isCareer } from '../../engine/career/state'
 import { WatchGame } from '../watch/WatchGame'
 import { useMusic } from '../../audio/useMusic'
@@ -58,11 +58,11 @@ export function Shell() {
     : offseason
       ? [{ title: 'Now', items: [OFFSEASON] }, ...SIDEBAR_GROUPS]
       : SIDEBAR_GROUPS
-  const sidebarGroups = career ? withoutGmGroups(sidebarGroupsAll) : sidebarGroupsAll
+  const sidebarGroups = career ? withCareerGroups(withoutGmGroups(sidebarGroupsAll)) : sidebarGroupsAll
   const moreGroupsAll = offseason ? [{ title: 'Now', items: [OFFSEASON] }, ...MORE_GROUPS] : MORE_GROUPS
   const moreGroups = career ? withoutGmGroups(moreGroupsAll) : moreGroupsAll
-  const tabs = career ? withoutGm(TABS) : TABS
-  const tab = activeTab(pathname)
+  const tabs = career ? careerTabs(TABS) : TABS
+  const tab = career && matchesNav(pathname, DEVELOPMENT) ? DEVELOPMENT.to : activeTab(pathname)
   const inboxBadge = unread > 0 && <span className="nav-count" aria-label={`${unread} unread`}>{unread > 99 ? '99+' : unread}</span>
 
   // Watching a game: nothing else in the app is rendered, so nothing can spoil the result.

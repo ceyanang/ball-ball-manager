@@ -826,3 +826,27 @@ table.dt-table tr.group-row th:first-child { background: var(--surface-2); }
   .cb-choices .btn { padding: 0.7rem 0.9rem; }
 }
 /* === end career mobile: builder/draft === */
+
+/* MyCareer: Player Development */
+.dev-bank { display: inline-flex; align-items: baseline; gap: 0.3rem; padding: 0.35rem 0.9rem; border-radius: 999px; background: color-mix(in srgb, var(--accent) 16%, var(--surface)); border: 1px solid var(--accent); }
+.dev-bank-num { font-size: 1.7rem; font-weight: 800; line-height: 1; }
+.dev-bank-label { font-weight: 700; color: var(--ink-2); }
+.dev-result { display: flex; flex-wrap: wrap; gap: 0.3rem 0.8rem; align-items: baseline; border-color: var(--accent); }
+.dev-ovr-up { font-weight: 700; color: var(--win, #3fb950); }
+.dev-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.75rem; }
+.dev-group { display: flex; flex-direction: column; gap: 0.6rem; }
+.dev-maxed { opacity: 0.6; }
+.dev-title { font-weight: 700; font-size: 1.05rem; }
+.dev-blurb { font-size: 0.85rem; }
+.dev-room { background: none; border: none; color: var(--ink-2); font-weight: 600; cursor: pointer; white-space: nowrap; padding: 0.2rem 0; }
+.dev-skills { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; font-size: 0.85rem; }
+.dev-skills li { display: grid; grid-template-columns: 8.5rem 1fr auto; gap: 0.5rem; align-items: center; }
+.dev-bar { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.dev-bar > span { display: block; height: 100%; border-radius: 999px; }
+.dev-tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin-top: auto; }
+.dev-tier { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 0.35rem 0.4rem; border-radius: 12px; min-height: 44px; }
+.dev-tier:disabled { opacity: 0.45; }
+.dev-cost { font-size: 0.75rem; font-weight: 600; opacity: 0.85; }
+.dev-how, .dev-log { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
+.dev-log { list-style: none; padding-left: 0; font-size: 0.88rem; }
+.dev-plus { font-weight: 700; color: var(--accent); display: inline-block; min-width: 2rem; }
