@@ -2,7 +2,7 @@ import { playPendingAllStar, selectAllStars } from '../allstar/allstar'
 import { progressTick } from '../player/progress'
 import { Rng } from '../rng'
 import { simGame } from '../sim/game'
-import { DEFAULT_MOMENT_RATE } from '../sim/moments'
+import { DEFAULT_MOMENT_RATE, type MomentPlay } from '../sim/moments'
 import { growPlayer } from '../career/growth'
 import { RATING_KEYS } from '../player/ratings'
 import { rollSuddenMove } from '../career/contracts'
@@ -27,7 +27,8 @@ const PROGRESS_EVERY = 10
 
 /** A play-by-play log of one team's game for the day, kept for the watch-live view. */
 /** `moments`: MyCareer only — the log position of each of his moments, by moment index. */
-export interface WatchCapture { gameId: string; log: PlayEvent[]; moments?: number[] }
+/** `plays`: MyCareer only — what each moment turned into (his choice, the shooter, the zone), by moment index. */
+export interface WatchCapture { gameId: string; log: PlayEvent[]; moments?: number[]; plays?: MomentPlay[] }
 export interface Capture { teamId: string; out: WatchCapture | null }
 
 /** MyCareer: the followed player's moment settings for `g` (his team plays, he is signed); undefined in every other game. */
@@ -45,7 +46,8 @@ function playGame(league: League, g: Game, rng: Rng, capture?: Capture, careerAu
   const log: PlayEvent[] | undefined = capture && (g.homeId === capture.teamId || g.awayId === capture.teamId) ? [] : undefined
   const mods = careerMods(league, g, buildMods(league, g), careerAuto)
   const marks: number[] = []
-  if (log && mods?.career) mods.career.marks = marks
+  const plays: MomentPlay[] = []
+  if (log && mods?.career) { mods.career.marks = marks; mods.career.plays = plays }
   const res = simGame(league.teams[g.homeId], league.teams[g.awayId], league.players, league.coaches, rng, log, mods)
   // Reward share: a game he actually played counts full when played by hand, half when simmed.
   const c = league.career
@@ -65,7 +67,7 @@ function playGame(league: League, g: Game, rng: Rng, capture?: Capture, careerAu
     }
   }
   if (g.homeId === league.userTeamId || g.awayId === league.userTeamId) tickEffects(league)
-  if (log && capture) capture.out = mods?.career ? { gameId: g.id, log, moments: marks } : { gameId: g.id, log }
+  if (log && capture) capture.out = mods?.career ? { gameId: g.id, log, moments: marks, plays } : { gameId: g.id, log }
   g.result = res
   addBoxToStatLines(league.statLines, g)
   const hurt = Object.values(league.players).filter((p) => p.injury && (p.teamId === g.homeId || p.teamId === g.awayId)).map((p) => p.id)

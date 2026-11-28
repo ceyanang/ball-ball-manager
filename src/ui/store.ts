@@ -13,7 +13,7 @@ import { eventGame, playAllStarEvent, userSideIndex } from '../engine/allstar/al
 import type { AllStarKind, Game, League, Rotation } from '../engine/types'
 import { deleteSave, listSaves, loadSave, onSaveWritten, parseImport, rememberOpenedSave, writeSave } from '../save/db'
 import { runCareerDay, runCareerOffseason, runCareerWatch, runSim, runWatch } from '../worker/client'
-import type { MomentAnswer, MomentPrompt } from '../engine/sim/moments'
+import type { MomentAnswer, MomentPlay, MomentPrompt } from '../engine/sim/moments'
 import type { PlayEvent } from '../engine/sim/playlog'
 import type { SimCommand } from '../worker/protocol'
 
@@ -26,7 +26,7 @@ export interface WatchSession {
    * MyCareer: `prompt` is the moment waiting for an answer; the log is then a preview that is exact up to
    * `moments[prompt.index]`, where the replay pauses to ask. `preview` stands in for the not-yet-played game.
    */
-  moments?: number[]; prompt?: MomentPrompt | null; preview?: Game
+  moments?: number[]; plays?: MomentPlay[]; prompt?: MomentPrompt | null; preview?: Game
 }
 
 interface State {
@@ -252,7 +252,7 @@ export const useStore = create<State>((set, get) => {
       set({
         league: r.league,
         watch: cur && r.watch && r.watch.gameId === cur.gameId
-          ? { ...cur, log: r.watch.log, moments: r.watch.moments, prompt: r.moment, preview: r.preview ?? undefined }
+          ? { ...cur, log: r.watch.log, moments: r.watch.moments, plays: r.watch.plays, prompt: r.moment, preview: r.preview ?? undefined }
           : cur,
       })
       if (saveId) await writeSave(saveId, r.league)

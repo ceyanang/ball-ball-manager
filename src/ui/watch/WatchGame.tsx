@@ -8,7 +8,7 @@ import { sfxFor } from '../../audio/watchSfx'
 import { computeStandings } from '../../engine/standings'
 import { perGame, playerSeasonStats } from '../../engine/stats/stats'
 import type { PlayEvent, Side } from '../../engine/sim/playlog'
-import type { MomentAnswer } from '../../engine/sim/moments'
+import { momentOutcome, type MomentAnswer, type MomentOutcome } from '../../engine/sim/moments'
 import type { Game, League, Player, Team } from '../../engine/types'
 import { useStore, type WatchSession } from '../store'
 import { fullName, seasonLine, teamFull } from '../util'
@@ -119,6 +119,23 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   /** MyCareer: the log index the replay must stop at to ask his moment (the log after it is only a preview). */
   const stopAt = watch.prompt ? watch.moments?.[watch.prompt.index] ?? 0 : null
   const [asking, setAsking] = useState(false)
+  /** The call for his last moment ("💥 THROWS IT DOWN!"), shown over the court for a few seconds. */
+  const [result, setResult] = useState<(MomentOutcome & { key: number }) | null>(null)
+  const followed = league.career?.playerId ?? null
+  /** How each moment he has already answered played out, keyed by the log index that ends it. */
+  const outcomes = useMemo(() => {
+    const out = new Map<number, MomentOutcome>()
+    const marks = watch.moments ?? [], plays = watch.plays ?? []
+    const answered = watch.prompt ? watch.prompt.index : marks.length
+    const name = (id: string) => { const p = m.players[id]; return p ? fullName(p) : 'Your teammate' }
+    for (let i = 0; i < answered; i++) {
+      const play = plays[i]
+      if (marks[i] === undefined || !play || !followed) continue
+      const o = momentOutcome(log, marks[i], play, followed, name)
+      if (o) out.set(o.endAt, o)
+    }
+    return out
+  }, [log, watch.moments, watch.plays, watch.prompt, followed, m.players])
   const nPeriods = Math.max(1, periodCount(log))
   const favs = useMemo(() => new Set(league.favoritePlayerIds), [league.favoritePlayerIds])
 
@@ -159,6 +176,11 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
   useEffect(() => clearFx, [])
   useEffect(() => { window.scrollTo(0, 0) }, [])
   useEffect(() => { setIntensity(0); return () => setIntensity(0) }, [])
+  useEffect(() => {
+    if (!result) return
+    const id = window.setTimeout(() => setResult(null), 3200)
+    return () => clearTimeout(id)
+  }, [result])
 
   /** Flies a ball from a card to the rim: made = through the net, miss = off the rim, blocked = swatted away. */
   function shoot(cardId: string, side: Side, kind: ShotKind, pts: number, ft: boolean, salt: number) {
@@ -264,6 +286,13 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
     }
     const last = (id: string) => m.players[id]?.lastName ?? '?'
     const items = feedItems(fired, last)
+    for (let i = 0; i < fired.length; i++) {
+      const o = outcomes.get(start + i)
+      if (!o) continue
+      items.push({ text: o.text, kind: 'hot' })
+      setResult({ ...o, key: start + i })
+      if (o.good) sfx.crowd()
+    }
     if (hot) {
       sfx.crowd()
       items.push({ text: hot, kind: 'hot' })
@@ -475,6 +504,11 @@ function WatchView({ watch, league, game }: { watch: WatchSession; league: Leagu
             {teamHead(us)}
           </div>
           <div className="w-fx" ref={fxRef} aria-hidden="true" />
+          {result && phase === 'play' && (
+            <div key={result.key} className={`w-moment-result ${result.good ? 'good' : 'bad'}`} role="status" onClick={() => setResult(null)}>
+              {result.text}
+            </div>
+          )}
           {phase !== 'play' && breakView()}
         </div>
 

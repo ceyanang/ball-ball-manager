@@ -93,7 +93,7 @@ export function drainPerMinute(p: Player, hot: boolean): number {
   return FATIGUE.drain * (1 - FATIGUE.stamRelief * (p.ratings.stamina / 99)) * (hot ? FATIGUE.hotDrain : 1)
 }
 
-type ShotZone = 'layup' | 'driveDunk' | 'standDunk' | 'close' | 'post' | 'mid' | 'three'
+export type ShotZone = 'layup' | 'driveDunk' | 'standDunk' | 'close' | 'post' | 'mid' | 'three'
 
 interface PlayerSim {
   usage: number
@@ -743,6 +743,7 @@ export function simGame(
               p = shotProb(shooter, zone)
             }
           }
+          if (log && cm.plays) cm.plays[idx] = { kind: ans.kind, shooter, zone }
         }
       }
 
