@@ -1,6 +1,6 @@
 # Play styles — design
 
-Status: draft for owner approval (2026-11-28).
+Status: approved by owner (2026-11-28).
 
 ## Intent and why
 Archetypes (`player/archetype.ts`) are a label worked out from ratings every game, so a Shaq-like center and a
@@ -76,6 +76,7 @@ Per-style rating bumps added to the player's effective ratings **when building `
 Starting sizes ≈ +4–6 on a style's core stats (+2–3 All-Around), capped so no rating exceeds 99. Final values tuned with a sim test (see below).
 
 ### UI
+- **Portrait badge (owner's call):** wherever a player portrait shows an OVR, a small style emoji sits in the opposite corner: 🧠 Smart, ⚔️ Offense, 🏀 All-Around, 💪 Power, 🛡 Defensive. Hover/tap title gives the style name. Portraits without an OVR overlay get no badge unless the builder finds a natural spot.
 - Player page and roster: show the style (label/badge next to the archetype).
 - Player page rating list: highlight the names of the stats that style boosts (small marker + tooltip "Power boost: plays +N in games"); the displayed numbers and OVR stay the real ones.
 - Find-a-player / roster filters: optional style filter (builder's call).
