@@ -3,7 +3,8 @@ import type { Ratings } from '../types'
 export type CareerStatus = 'building' | 'draftNight' | 'active' | 'retired'
 /** One answer to an in-game "you're open" moment. */
 export type MomentAnswer = { kind: 'shoot' } | { kind: 'pass'; to: string } | { kind: 'drive' }
-export interface CareerBuild { max: Ratings; startFraction: number; startProgress: number; archetype: string }
+/** `floor` is 40 for builds made on (or migrated to) the 40 rating floor; missing on older 25-floor saves. */
+export interface CareerBuild { max: Ratings; startFraction: number; startProgress: number; archetype: string; floor?: number }
 export interface GrowthEntry { season: number; day: number; key: keyof Ratings; delta: number; source: string }
 /** The game being played right now: saved so a reload asks the same moment again (Task 7 fills `rngState`). */
 export interface PendingGame { gameId: string; answers: MomentAnswer[]; rngState?: number }

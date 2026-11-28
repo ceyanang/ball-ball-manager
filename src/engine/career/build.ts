@@ -28,22 +28,29 @@ export function startRatings(max: Ratings, fraction: number = START_FRACTION): R
   return r
 }
 
-/** Lifts a (possibly older, 25-floor) build and its current ratings onto the 40 floor; idempotent. */
+/**
+ * Moves an older 25-floor build onto the 40 floor (idempotent: builds marked `floor: 40` are left alone). Ratings and
+ * maxes below 40 are raised, and the draft-day baseline is re-measured from what he really started with under the old
+ * formula (lifted to 40), so his Career OVR keeps meaning "growth since draft night".
+ */
 export function liftToFloor(p: Player): void {
   const b = p.careerBuild
-  if (!b) return
-  let changed = false
+  if (!b || b.floor === CAREER_FLOOR) return
+  const OLD_FLOOR = 25
+  const oldStart = {} as Ratings
   for (const k of RATING_KEYS) {
-    if (b.max[k] < CAREER_FLOOR) { b.max[k] = CAREER_FLOOR; changed = true }
-    if (p.ratings[k] < CAREER_FLOOR) { p.ratings[k] = CAREER_FLOOR; changed = true }
+    oldStart[k] = Math.max(CAREER_FLOOR, Math.round(OLD_FLOOR + b.startFraction * (b.max[k] - OLD_FLOOR)))
+    b.max[k] = Math.max(CAREER_FLOOR, b.max[k])
+    p.ratings[k] = Math.max(CAREER_FLOOR, p.ratings[k])
   }
-  if (changed) b.startProgress = progressOf(startRatings(b.max, b.startFraction), b.max, p.pos)
+  b.startProgress = progressOf(oldStart, b.max, p.pos)
+  b.floor = CAREER_FLOOR
 }
 
 export function makeBuild(max: Ratings, pos: Position): CareerBuild {
   const start = startRatings(max)
   return {
-    max: { ...max }, startFraction: START_FRACTION, startProgress: progressOf(start, max, pos),
+    max: { ...max }, startFraction: START_FRACTION, startProgress: progressOf(start, max, pos), floor: CAREER_FLOOR,
     archetype: archetypeFor({ ratings: max, pos } as Player),
   }
 }

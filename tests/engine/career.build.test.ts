@@ -110,18 +110,35 @@ describe('career 40 floor', () => {
     expect(isValidBuild(low)).toBe(false)
   })
 
-  it('liftToFloor raises an old 25-floor career player and keeps him near his old OVR band', () => {
-    const t = BUILD_TEMPLATES[0]
-    const max = { ...t.max, block: 25, postHook: 30 }
-    const p = playerWith({ ...startRatings(t.max), block: 25, postHook: 33 }, t.pos, max)
-    p.careerBuild = { ...makeBuild(t.max, t.pos), max }
-    liftToFloor(p)
-    for (const k of RATING_KEYS) {
-      expect(p.ratings[k]).toBeGreaterThanOrEqual(CAREER_FLOOR)
-      expect(p.careerBuild.max[k]).toBeGreaterThanOrEqual(CAREER_FLOOR)
+  it('liftToFloor moves an old 25-floor save onto 40 without dropping his Career OVR', () => {
+    const oldStart = (max: Ratings) => {
+      const r = {} as Ratings
+      for (const k of RATING_KEYS) r[k] = Math.round(25 + 0.67 * (max[k] - 25))
+      return r
     }
+    for (const t of BUILD_TEMPLATES) {
+      const max = { ...t.max, block: 25, postHook: 30 }
+      // An untouched pre-floor draftee: old start ratings, no `floor` marker.
+      const p = playerWith(oldStart(max), t.pos, max)
+      p.careerBuild = { max: { ...max }, startFraction: 0.67, startProgress: 0.67, archetype: 'x' }
+      liftToFloor(p)
+      for (const k of RATING_KEYS) {
+        expect(p.ratings[k]).toBeGreaterThanOrEqual(CAREER_FLOOR)
+        expect(p.careerBuild!.max[k]).toBeGreaterThanOrEqual(CAREER_FLOOR)
+      }
+      expect(Math.abs(careerOvr(p) - START_OVR), t.id).toBeLessThanOrEqual(1)
+      const before = JSON.stringify(p)
+      liftToFloor(p)
+      expect(JSON.stringify(p)).toBe(before)
+    }
+  })
+
+  it('liftToFloor leaves a build made on the 40 floor alone', () => {
+    const t = BUILD_TEMPLATES[3]
+    const p = playerWith(startRatings(t.max), t.pos, t.max)
     const before = JSON.stringify(p)
     liftToFloor(p)
     expect(JSON.stringify(p)).toBe(before)
+    expect(careerOvr(p)).toBe(START_OVR)
   })
 })
