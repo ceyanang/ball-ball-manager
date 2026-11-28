@@ -14,8 +14,8 @@ export function CareerAlert() {
   const to = alert.toTeamId ? league.teams[alert.toTeamId] : null
   const colors = (to ?? from).colors
   return (
-    <div role="dialog" aria-modal="true" aria-label={alert.title} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'grid', placeItems: 'center', zIndex: 60, padding: '1rem' }}>
-      <div className="panel stack" style={{ maxWidth: '30rem', width: '100%', textAlign: 'center', alignItems: 'center' }}>
+    <div className="cd-alert" role="dialog" aria-modal="true" aria-label={alert.title} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'grid', placeItems: 'center', zIndex: 60, padding: '1rem' }}>
+      <div className="panel stack cd-alert-box" style={{ maxWidth: '30rem', width: '100%', textAlign: 'center', alignItems: 'center' }}>
         <div className="muted" style={{ letterSpacing: '0.1em', fontWeight: 700 }}>{alert.kind === 'trade' ? '🔔 BREAKING · TRADE' : '🔔 BREAKING · CUT'}</div>
         <Face seed={p.faceSeed} age={p.age} colors={colors} size={96} jersey={p.jersey} title={`${p.firstName} ${p.lastName}`} />
         <h2 style={{ margin: 0 }}>{alert.title}</h2>

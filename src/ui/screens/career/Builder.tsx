@@ -56,7 +56,7 @@ export function Builder() {
         Set each attribute’s <b>maximum</b>. You spend every point you have, then you start well below those maxes at 19 and grow into them.
         However you build him, a fully maxed player is a 99.
       </p>
-      <div className="row" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
+      <div className="row cb-fields" style={{ flexWrap: 'wrap', alignItems: 'flex-end' }}>
         <label className="field">First name<input value={first} onChange={(e) => setFirst(e.target.value)} maxLength={16} /></label>
         <label className="field">Last name<input value={last} onChange={(e) => setLast(e.target.value)} maxLength={20} /></label>
         <label className="field">Heritage
@@ -67,17 +67,17 @@ export function Builder() {
         </label>
         <label className="field">League name<input value={leagueName} onChange={(e) => setLeagueName(e.target.value)} maxLength={40} /></label>
       </div>
-      <div className="chips" role="tablist" aria-label="Position">
+      <div className="chips cb-pos" role="tablist" aria-label="Position">
         {POSITIONS.map((p) => <button key={p} role="tab" aria-selected={pos === p} className={`chip${pos === p ? ' on' : ''}`} onClick={() => pickPos(p)}>{p}</button>)}
-        <label className="field" style={{ marginLeft: '0.6rem' }}>Height {feet(heightIn)}
+        <label className="field cb-height" style={{ marginLeft: '0.6rem' }}>Height {feet(heightIn)}
           <input type="range" min={hMin} max={hMax} value={heightIn} onChange={(e) => setHeightIn(Number(e.target.value))} />
         </label>
       </div>
-      <div className="chips" aria-label="Templates">
+      <div className="chips cb-templates" aria-label="Templates">
         {BUILD_TEMPLATES.map((t) => <button key={t.id} className={`chip${templateId === t.id ? ' on' : ''}`} onClick={() => pickTemplate(t.id)}>{t.label}</button>)}
       </div>
-      <div className="panel" style={{ position: 'sticky', top: 0, zIndex: 2 }}>
-        <div className="row" style={{ flexWrap: 'wrap', gap: '1.2rem' }}>
+      <div className="panel cb-summary" style={{ position: 'sticky', top: 0, zIndex: 2 }}>
+        <div className="row cb-summary-row" style={{ flexWrap: 'wrap', gap: '1.2rem' }}>
           <span><b>{build.archetype}</b></span>
           <span title="Points left to spend">Points left <b className="num">{left}</b> / {BUILD_BUDGET}</span>
           <span>Max Career OVR <b className="num">{left === 0 ? 99 : '—'}</b></span>
@@ -88,10 +88,10 @@ export function Builder() {
         <section key={group} className="stack">
           <h2>{group}</h2>
           {entries.map(([k, label]) => (
-            <label key={k} className="row" style={{ gap: '0.6rem' }}>
-              <span style={{ width: '11rem' }}>{label}</span>
+            <label key={k} className="row cb-rating" style={{ gap: '0.6rem' }}>
+              <span className="cb-label" style={{ width: '11rem' }}>{label}</span>
               <input type="range" min={RATING_MIN} max={RATING_MAX} value={max[k]} onChange={(e) => setKey(k, Number(e.target.value))} style={{ flex: 1, accentColor: ratingColor(max[k]) }} />
-              <strong className="num" style={{ width: '2rem', textAlign: 'right', color: ratingColor(max[k]) }}>{max[k]}</strong>
+              <strong className="num cb-val" style={{ width: '2rem', textAlign: 'right', color: ratingColor(max[k]) }}>{max[k]}</strong>
             </label>
           ))}
         </section>

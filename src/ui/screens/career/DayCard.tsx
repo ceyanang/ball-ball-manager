@@ -25,14 +25,14 @@ export function DayCard() {
   const injured = !!p.injury
 
   return (
-    <div className="panel stack">
-      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-        <div className="row" style={{ gap: '0.75rem' }}>
+    <div className="panel stack cd-card">
+      <div className="row cd-head" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <div className="row cd-who" style={{ gap: '0.75rem' }}>
           <Face seed={p.faceSeed} age={p.age} colors={team?.colors ?? { primary: '#5b6378', secondary: '#ffffff' }} size={64} jersey={p.jersey} title={`${p.firstName} ${p.lastName}`} />
           <div><b>{p.firstName} {p.lastName}</b> <span className="muted">· {p.pos} · {p.age} · Career OVR</span> <b className="num">{ovrOf(p)}</b>
           {team && <div className="muted">#{p.jersey} · {team.city} {team.name}</div>}</div>
         </div>
-        <span className="row"><Link className="link" to={`/player/${p.id}`}>Player page</Link>
+        <span className="row cd-links"><Link className="link" to={`/player/${p.id}`}>Player page</Link>
           <button className="btn" disabled={busy} onClick={() => { if (confirm('Retire now? Your career ends and your epilogue is written.')) retire('force') }}>Retire</button></span>
       </div>
       {offseason ? (
@@ -43,9 +43,9 @@ export function DayCard() {
         <div className="muted">{team ? `No game today (day ${league.day}).` : 'You’re a free agent — no games until you sign.'}</div>
       )}
       {offseason ? (
-        <div className="row"><button className="btn btn-primary" disabled={busy} onClick={() => void careerOffseason()}>Continue to next season</button></div>
+        <div className="row cd-actions"><button className="btn btn-primary" disabled={busy} onClick={() => void careerOffseason()}>Continue to next season</button></div>
       ) : (
-      <div className="row" style={{ flexWrap: 'wrap' }}>
+      <div className="row cd-actions" style={{ flexWrap: 'wrap' }}>
         <button className="btn btn-primary" disabled={busy} onClick={() => void (resuming || (today && !injured) ? startWatch() : careerDay('play'))}>{resuming ? '▶ Resume game' : today && !injured ? '▶ Play' : 'Next day'}</button>
         {today && !injured && <button className="btn" disabled={busy} title="Half the growth, none of the pressure" onClick={() => void careerDay('sim')}>Sim</button>}
         <button className="btn" disabled={busy} onClick={() => void sim({ type: 'simDays', days: 7 })}>Sim a week</button>

@@ -787,3 +787,42 @@ table.dt-table tr.group-row th:first-child { background: var(--surface-2); }
 .synergy-card.syn-warn { border-color: var(--loss, #d9534f); background: color-mix(in srgb, var(--loss, #d9534f) 10%, var(--surface-2)); }
 .synergy-card.syn-muted { opacity: 0.75; }
 .scout-panel { padding: 0.65rem 0.75rem; background: var(--surface-2); border-radius: var(--r); border: 1px solid var(--line); }
+
+/* === career mobile: day/alert/ending === */
+@media (max-width: 720px) {
+  .cd-head { gap: 0.6rem; }
+  .cd-who { min-width: 0; flex: 1 1 14rem; }
+  .cd-links { width: 100%; justify-content: space-between; }
+  .cd-card .btn, .cd-ending .btn, .cd-alert .btn { min-height: 44px; }
+  .cd-actions { flex-direction: column; align-items: stretch !important; }
+  .cd-actions > .btn { width: 100%; justify-content: center; text-align: center; display: inline-flex; align-items: center; }
+  .cd-alert {
+    align-items: start !important;
+    overflow-y: auto;
+    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left)) !important;
+  }
+  .cd-alert-box { margin: auto; max-height: none; overflow-wrap: anywhere; }
+  .cd-ending { max-width: 100% !important; }
+  .cd-ending h1 { overflow-wrap: anywhere; }
+  .cd-stats { display: grid !important; grid-template-columns: 1fr 1fr; gap: 0.75rem 1rem !important; }
+}
+/* === end career mobile: day/alert/ending === */
+
+/* === career mobile: builder/draft === */
+@media (max-width: 720px) {
+  .cb-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; align-items: end; }
+  .cb-fields .field { min-width: 0; }
+  .cb-fields .field input, .cb-fields .field select { min-height: 44px; width: 100%; box-sizing: border-box; }
+  .cb-pos .chip, .cb-templates .chip { min-height: 40px; padding: 0.4rem 0.9rem; }
+  .cb-pos .cb-height { flex: 1 1 100%; margin-left: 0 !important; }
+  .cb-pos .cb-height input { width: 100%; min-height: 32px; }
+  .cb-summary { padding: 0.5rem 0.7rem; }
+  .cb-summary-row { gap: 0.2rem 0.9rem !important; font-size: 0.85rem; }
+  .cb-rating { display: grid; grid-template-columns: 1fr auto; gap: 0.1rem 0.6rem !important; min-height: 44px; }
+  .cb-rating .cb-label { width: auto !important; min-width: 0; overflow-wrap: anywhere; font-size: 0.9rem; }
+  .cb-rating .cb-val { grid-column: 2; grid-row: 1; width: auto !important; }
+  .cb-rating input[type="range"] { grid-column: 1 / -1; grid-row: 2; width: 100%; min-height: 28px; margin: 0; }
+  .cb-draft .btn { min-height: 44px; text-align: left; white-space: normal; }
+  .cb-choices .btn { padding: 0.7rem 0.9rem; }
+}
+/* === end career mobile: builder/draft === */

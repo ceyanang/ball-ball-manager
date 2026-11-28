@@ -17,7 +17,7 @@ export function DraftNight() {
     const d = p.draft
     const team = d ? league.teams[d.teamId] : null
     return (
-      <div className="stack" style={{ maxWidth: '40rem' }}>
+      <div className="stack cb-draft" style={{ maxWidth: '40rem' }}>
         <h1>Draft night</h1>
         <div className="panel stack">
           <p style={{ margin: 0, fontSize: '1.3rem' }}>
@@ -33,7 +33,7 @@ export function DraftNight() {
   const step = c.draftAnswers.length
   const prompt = prompts[step]
   return (
-    <div className="stack" style={{ maxWidth: '40rem' }}>
+    <div className="stack cb-draft" style={{ maxWidth: '40rem' }}>
       <h1>Draft night</h1>
       <div className="row" aria-label={`Question ${Math.min(step + 1, 3)} of 3`} style={{ gap: '0.4rem' }}>
         {prompts.map((_, i) => <span key={i} style={{ width: 12, height: 12, borderRadius: 6, background: i < step ? 'var(--accent, #e8590c)' : 'var(--line)' }} />)}
@@ -43,7 +43,7 @@ export function DraftNight() {
           <p className="muted" style={{ margin: 0, fontStyle: 'italic' }}>{prompt.omen}</p>
           <h2 style={{ margin: 0 }}>{prompt.title}</h2>
           <p style={{ margin: 0 }}>{prompt.text}</p>
-          <div className="stack">
+          <div className="stack cb-choices">
             {prompt.choices.map((ch, i) => (
               <button key={i} className="btn" disabled={busy} onClick={() => act((l) => { answerDraftPrompt(l, prompt.id, i) }, { career: true })}>
                 <b>{ch.label}</b> <span className="muted">— {ch.sub}</span>
