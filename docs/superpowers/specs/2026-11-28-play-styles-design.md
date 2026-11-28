@@ -74,6 +74,7 @@ Per-style rating bumps added to the player's effective ratings **when building `
 - Smart: passVision, passIQ, passAccuracy, ballHandle, shotIQ, helpDefenseIQ, passPerception; the bump scales with the smartest Smart player in his team's top-8 rotation, fixed per game (a Smart player also lifts teammates' passIQ/shotIQ by +1). Fixed per game, not per lineup change, so the sim builds boosted ratings once.
 - All-Around: a smaller bump across every group.
 Starting sizes ≈ +4–6 on a style's core stats (+2–3 All-Around), capped so no rating exceeds 99. Final values tuned with a sim test (see below).
+Final sizes (tuned so league scoring stays inside the realism band, since four of five styles lift offense): Offense +4, Power +4, Defensive +10, All-Around +2, Smart +3 rising to +6 with the smartest Smart player's IQ (mean passVision/passIQ/shotIQ, +1 per 10 above 70), and +1 shotIQ/passIQ for his non-Smart teammates (`STYLE_BOOST` in `player/playStyle.ts`).
 
 ### UI
 - **Portrait badge (owner's call):** wherever a player portrait shows an OVR, a small style emoji sits in the opposite corner: 🧠 Smart, ⚔️ Offense, 🏀 All-Around, 💪 Power, 🛡 Defensive. Hover/tap title gives the style name. Portraits without an OVR overlay get no badge unless the builder finds a natural spot.

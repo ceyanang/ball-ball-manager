@@ -26,6 +26,6 @@ describe('golden sim snapshot', () => {
       acc += fnv(JSON.stringify(r))
     }
     const hash = fnv(acc)
-    expect(hash).toBe('d7b9e070') // re-recorded when play style habits started shaping games
+    expect(hash).toBe('bb193259') // re-recorded when play style habits and in-game boosts started shaping games
   })
 })

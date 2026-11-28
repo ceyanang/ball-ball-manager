@@ -1,11 +1,11 @@
 import { OT_MIN, QUARTER_MIN, STARTERS } from '../constants'
 import type { Rng } from '../rng'
-import type { BoxLine, Coach, CoachStyle, GameResult, Player, Team } from '../types'
+import type { BoxLine, Coach, CoachStyle, GameResult, Player, Ratings, Team } from '../types'
 import type { PlayEvent, Side } from './playlog'
 import type { GameMods } from '../events/mods'
 import { drawRivalForms } from '../rivals/tilt'
 import { generatePlayerArchetype } from '../player/archetype'
-import { applyHabits } from '../player/playStyle'
+import { applyHabits, boostedRatings, smartIqOf } from '../player/playStyle'
 import { gameLineup, lineupPenalties, minutesTargets, SLOTS, slotFit } from './rotation'
 import { chooseSubs, isBlowout, returnStarterSwaps, SUB } from './subs'
 import { MomentPause, bestOption, lookFor, momentTriggers, type MomentOption } from './moments'
@@ -171,6 +171,31 @@ interface Ctx {
 const SIDES: readonly Side[] = ['home', 'away']
 const ZONES: ShotZone[] = ['layup', 'driveDunk', 'standDunk', 'close', 'post', 'mid', 'three']
 
+/**
+ * The ratings the sim plays each rostered player at this game: stored ratings plus his play style's boost
+ * (capped at 99). Smart scales from the smartest Smart player in that team's top-8 rotation, fixed for the game.
+ * New objects only; stored ratings and OVR never see the boost.
+ */
+export function effectiveRatings(home: Team, away: Team, players: Record<string, Player>): Record<string, Ratings> {
+  const eff: Record<string, Ratings> = {}
+  for (const t of [home, away]) {
+    const lu = gameLineup(t, players)
+    let smartIq = 0
+    let hasSmart = false
+    for (const id of [...lu.starters, ...lu.bench].slice(0, 8)) {
+      const p = players[id]
+      if (p?.playStyle !== 'smart') continue
+      hasSmart = true
+      smartIq = Math.max(smartIq, smartIqOf(p.ratings))
+    }
+    for (const id of [...t.rotation.starters, ...t.rotation.bench, ...t.rotation.inactive]) {
+      const p = players[id]
+      if (p && !eff[id]) eff[id] = boostedRatings(p, smartIq, hasSmart)
+    }
+  }
+  return eff
+}
+
 export function simGame(
   home: Team,
   away: Team,
@@ -187,7 +212,8 @@ export function simGame(
     if (n < STARTERS) throw new Error(`${t.name} has fewer than ${STARTERS} players and cannot play a game (has ${n}).`)
   }
   const momentSeed = rng.state.s
-  const R = (id: string) => players[id].ratings
+  const eff = effectiveRatings(home, away, players)
+  const R = (id: string) => eff[id] ?? players[id].ratings
   const prof: Record<string, PlayerSim> = {}
   const box: Record<string, BoxLine> = {}
   /** Energy 0–100 and the hot streak (made minus missed shots, 0..5) per player. */
@@ -285,7 +311,7 @@ export function simGame(
     const ids = [...lu.starters, ...lu.bench]
     for (const id of ids) {
       const p = players[id]
-      const r = p.ratings
+      const r = R(id)
       const arch = generatePlayerArchetype(p)
       // Play style habits ride on top of the archetype (archetype detection still reads stored ratings).
       const style = applyHabits(arch.tendencies, p.playStyle)
@@ -613,7 +639,7 @@ export function simGame(
       const clutchDefBoost = clutch ? 1 : 0
       for (let di = 0; di < d.length; di++) {
         const id = d[di]
-        const dr = players[id].ratings
+        const dr = R(id)
         const t = energy[id] < FATIGUE.line ? FATIGUE.line - energy[id] : 0
         const modD = mods?.defense[id] ?? 0
         const cost = (dPen[id] ?? 0) * K.oopDef + t * FATIGUE.def - modD - qDefMod[id] - clutchDefBoost * ((dr.defensiveConsistency - 70) * 0.1)

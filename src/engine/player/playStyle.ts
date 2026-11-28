@@ -1,5 +1,6 @@
 import type { Position, Ratings } from '../types'
 import type { ArchetypeTendencies } from './archetype'
+import { RATING_MAX, SKILL_KEYS } from './ratings'
 
 /**
  * Play styles: a fixed trait rolled once at generation that changes how a player plays (habits) and gives a
@@ -219,4 +220,47 @@ export function applyHabits(t: ArchetypeTendencies, style: PlayStyle): { t: Arch
     rebDefMult: h.rebDefMult,
     paceDelta: h.paceDelta,
   }
+}
+
+/** The stats each style lifts inside the sim (All-Around: every skill, by a smaller amount). */
+export const BOOSTED_KEYS: Record<PlayStyle, readonly (keyof Ratings)[]> = {
+  offense: ['threePointShot', 'midRangeShot', 'closeShot', 'speed', 'speedWithBall'],
+  power: ['strength', 'vertical', 'standingDunk', 'drivingDunk', 'layup', 'postControl', 'postHook', 'postFade'],
+  defensive: ['perimeterDefense', 'interiorDefense', 'steal', 'block', 'defensiveRebound', 'offensiveRebound', 'helpDefenseIQ'],
+  smart: ['passVision', 'passIQ', 'passAccuracy', 'ballHandle', 'shotIQ', 'helpDefenseIQ', 'passPerception'],
+  allAround: SKILL_KEYS,
+}
+
+/** In-game boost sizes: specialties on their keys, All-Around on every skill; Smart scales (see `smartBump`). */
+export const STYLE_BOOST = { offense: 4, power: 4, defensive: 10, allAround: 2, smartBase: 3, smartMax: 6, mateLift: 1 } as const
+
+/** How sharp a player reads the game: mean of passVision, passIQ and shotIQ. */
+export const smartIqOf = (r: Ratings): number => (r.passVision + r.passIQ + r.shotIQ) / 3
+
+/** Smart's bump: +3 at a smartest-Smart IQ of 70 or less, up to +6 at 100. */
+export function smartBump(smartIq: number): number {
+  const v = Number.isFinite(smartIq) ? smartIq : 0
+  return Math.round(STYLE_BOOST.smartBase + clamp((v - 70) / 10, 0, STYLE_BOOST.smartMax - STYLE_BOOST.smartBase))
+}
+
+/** The boost a style gives one of its keys (for UI copy; Smart shows its minimum). */
+export function boostSize(style: PlayStyle): number {
+  return style === 'smart' ? STYLE_BOOST.smartBase : STYLE_BOOST[style]
+}
+
+/**
+ * The ratings the sim plays this player at: stored ratings plus his style's boost (capped at 99). `smartIq` is the
+ * smartest Smart player in his team's top-8 rotation (0 if none); `hasSmartMate` lifts a non-Smart player's
+ * shotIQ/passIQ by 1. A new object every call: stored ratings, OVR and everything outside the sim never see it.
+ */
+export function boostedRatings(p: { ratings: Ratings; playStyle: PlayStyle }, smartIq: number, hasSmartMate: boolean): Ratings {
+  const out = { ...p.ratings }
+  const style = isPlayStyle(p.playStyle) ? p.playStyle : 'allAround'
+  const bump = style === 'smart' ? smartBump(smartIq) : boostSize(style)
+  for (const k of BOOSTED_KEYS[style]) out[k] = Math.min(RATING_MAX, out[k] + bump)
+  if (style !== 'smart' && hasSmartMate) {
+    out.shotIQ = Math.min(RATING_MAX, out.shotIQ + STYLE_BOOST.mateLift)
+    out.passIQ = Math.min(RATING_MAX, out.passIQ + STYLE_BOOST.mateLift)
+  }
+  return out
 }
