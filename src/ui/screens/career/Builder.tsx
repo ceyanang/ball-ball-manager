@@ -6,6 +6,7 @@ import { POSITION_HEIGHT_BOUNDS } from '../../../engine/player/generate'
 import { RATING_GROUPS, RATING_MAX, RATING_MIN } from '../../../engine/player/ratings'
 import type { Position, Ratings } from '../../../engine/types'
 import { useStore } from '../../store'
+import { ratingColor } from '../../ratingColor'
 
 const POSITIONS: Position[] = ['PG', 'SG', 'SF', 'PF', 'C']
 const randomSeed = () => Math.floor(Math.random() * 1_000_000)
@@ -89,8 +90,8 @@ export function Builder() {
           {entries.map(([k, label]) => (
             <label key={k} className="row" style={{ gap: '0.6rem' }}>
               <span style={{ width: '11rem' }}>{label}</span>
-              <input type="range" min={RATING_MIN} max={RATING_MAX} value={max[k]} onChange={(e) => setKey(k, Number(e.target.value))} style={{ flex: 1 }} />
-              <span className="num" style={{ width: '2rem', textAlign: 'right' }}>{max[k]}</span>
+              <input type="range" min={RATING_MIN} max={RATING_MAX} value={max[k]} onChange={(e) => setKey(k, Number(e.target.value))} style={{ flex: 1, accentColor: ratingColor(max[k]) }} />
+              <strong className="num" style={{ width: '2rem', textAlign: 'right', color: ratingColor(max[k]) }}>{max[k]}</strong>
             </label>
           ))}
         </section>
