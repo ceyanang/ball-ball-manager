@@ -264,3 +264,18 @@ export function boostedRatings(p: { ratings: Ratings; playStyle: PlayStyle }, sm
   }
   return out
 }
+
+/** The style with the best odds for this position and ratings (MyCareer builder default). */
+export function mostLikelyStyle(pos: Position, r: Ratings): PlayStyle {
+  const odds = styleOdds(pos, r)
+  return PLAY_STYLES.reduce((best, s) => (odds[s] > odds[best] ? s : best), PLAY_STYLES[0])
+}
+
+/** One-line description of how each style plays (UI copy). */
+export const STYLE_BLURB: Record<PlayStyle, string> = {
+  smart: 'Reads the floor: more passes and assists, fewer turnovers, lifts teammates’ IQ.',
+  offense: 'Shoots it and pushes the pace: more threes and fast drives, higher usage.',
+  allAround: 'Does a bit of everything: a small boost to every stat.',
+  power: 'Bully ball: posts up, dunks, draws fouls, crashes the glass — a slower, physical game.',
+  defensive: 'Anchors the defense: more steals, blocks and boards.',
+}

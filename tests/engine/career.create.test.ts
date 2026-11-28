@@ -46,3 +46,22 @@ import { createLeague } from '../../src/engine/league/create'
 function createCareerLeagueBaseCount() {
   return Object.keys(createLeague({ seed: 5, userTeamIndex: 0, name: 'Me' }).players).length
 }
+
+describe('MyCareer play style', () => {
+  it('keeps the chosen style and his Career OVR does not depend on it', async () => {
+    const { ovrOf } = await import('../../src/engine/career/careerOvr')
+    const { PLAY_STYLES } = await import('../../src/engine/player/playStyle')
+    const mk = (playStyle: (typeof PLAY_STYLES)[number]) => createCareerLeague({ seed: 5, name: 'Me', build: { ...input, playStyle } })
+    const l = mk('smart')
+    expect(l.players[l.career!.playerId].playStyle).toBe('smart')
+    const ovrs = PLAY_STYLES.map((s) => { const x = mk(s); return ovrOf(x.players[x.career!.playerId]) })
+    expect(new Set(ovrs).size).toBe(1)
+  })
+  it('the builder default is the most likely style for his start ratings', async () => {
+    const { mostLikelyStyle, styleOdds, PLAY_STYLES } = await import('../../src/engine/player/playStyle')
+    const r = startRatings(t.max)
+    const odds = styleOdds(t.pos, r)
+    const best = mostLikelyStyle(t.pos, r)
+    for (const s of PLAY_STYLES) expect(odds[best]).toBeGreaterThanOrEqual(odds[s])
+  })
+})

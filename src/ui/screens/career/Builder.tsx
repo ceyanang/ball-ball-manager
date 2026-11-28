@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BUILD_BUDGET, BUILD_TEMPLATES, CAREER_FLOOR, START_OVR, buildCost, makeBuild } from '../../../engine/career/build'
+import { BUILD_BUDGET, BUILD_TEMPLATES, CAREER_FLOOR, START_OVR, buildCost, makeBuild, startRatings } from '../../../engine/career/build'
+import { mostLikelyStyle, PLAY_STYLES, STYLE_BLURB, STYLE_EMOJI, STYLE_LABEL, type PlayStyle } from '../../../engine/player/playStyle'
 import { HERITAGES, type Heritage } from '../../../engine/face/heritage'
 import { POSITION_HEIGHT_BOUNDS } from '../../../engine/player/generate'
 import { RATING_GROUPS, RATING_MAX } from '../../../engine/player/ratings'
@@ -26,11 +27,15 @@ export function Builder() {
   const [heritage, setHeritage] = useState<Heritage | ''>('')
   const [heightIn, setHeightIn] = useState(Math.round(POSITION_HEIGHT_BOUNDS[BUILD_TEMPLATES[0].pos][0]))
   const [leagueName, setLeagueName] = useState('My Career')
+  /** Null until the user picks: then the default follows his build (the most likely style for his start ratings). */
+  const [chosenStyle, setChosenStyle] = useState<PlayStyle | null>(null)
 
   const spent = buildCost(max)
   const left = BUILD_BUDGET - spent
   const build = useMemo(() => makeBuild(max, pos), [max, pos])
   const [, hMin, hMax] = POSITION_HEIGHT_BOUNDS[pos]
+  const suggestedStyle = useMemo(() => mostLikelyStyle(pos, startRatings(max)), [pos, max])
+  const playStyle = chosenStyle ?? suggestedStyle
 
   const pickTemplate = (id: string) => {
     const t = BUILD_TEMPLATES.find((x) => x.id === id)!
@@ -45,7 +50,7 @@ export function Builder() {
   const setKey = (k: keyof Ratings, v: number) => setMax((m) => ({ ...m, [k]: Math.max(CAREER_FLOOR, Math.min(RATING_MAX, Math.min(v, m[k] + left))) }))
 
   const go = async () => {
-    await newCareer({ seed, name: leagueName.trim() || 'My Career', build: { max, pos, first, last, heritage: heritage || undefined, heightIn } })
+    await newCareer({ seed, name: leagueName.trim() || 'My Career', build: { max, pos, first, last, heritage: heritage || undefined, heightIn, playStyle } })
     navigate('/career/draft')
   }
 
@@ -76,6 +81,17 @@ export function Builder() {
       <div className="chips cb-templates" aria-label="Templates">
         {BUILD_TEMPLATES.map((t) => <button key={t.id} className={`chip${templateId === t.id ? ' on' : ''}`} onClick={() => pickTemplate(t.id)}>{t.label}</button>)}
       </div>
+      <section className="stack cb-style" aria-label="Play style">
+        <h2 style={{ margin: 0 }}>Play style <span className="muted" style={{ fontSize: '0.85rem', fontWeight: 400 }}>fixed for his whole career</span></h2>
+        <div className="chips" role="radiogroup" aria-label="Play style">
+          {PLAY_STYLES.map((s) => (
+            <button key={s} role="radio" aria-checked={playStyle === s} className={`chip${playStyle === s ? ' on' : ''}`} onClick={() => setChosenStyle(s)} title={STYLE_BLURB[s]}>
+              {STYLE_EMOJI[s]} {STYLE_LABEL[s]}{chosenStyle === null && s === suggestedStyle ? ' · fits your build' : ''}
+            </button>
+          ))}
+        </div>
+        <p className="muted" style={{ margin: 0 }}>{STYLE_EMOJI[playStyle]} <b>{STYLE_LABEL[playStyle]}</b>: {STYLE_BLURB[playStyle]}</p>
+      </section>
       <div className="panel cb-summary" style={{ position: 'sticky', top: 0, zIndex: 2 }}>
         <div className="row cb-summary-row" style={{ flexWrap: 'wrap', gap: '1.2rem' }}>
           <span><b>{build.archetype}</b></span>
