@@ -1,3 +1,4 @@
+import { StyleBadge, StyleChip } from '../components/StyleBadge'
 import { archetypeFor } from '../../engine/player/archetype'
 import type { Player, Team } from '../../engine/types'
 import { Sheet } from '../components/Sheet'
@@ -39,10 +40,10 @@ export function WatchPlayerSheet({ player, team, line, ppg, frac, periods, final
       {player && team && (
         <div className="w-sheet">
           <div className="w-sheet-top">
-            <span className="w-sheet-face"><Face seed={player.faceSeed} age={player.age} colors={team.colors} size={56} jersey={player.jersey} title={fullName(player)} /></span>
+            <span className="w-sheet-face"><Face seed={player.faceSeed} age={player.age} colors={team.colors} size={56} jersey={player.jersey} title={fullName(player)} /><StyleBadge style={player.playStyle} corner="tr" /></span>
             <div className="w-sheet-who">
               <div>{player.pos} · #{player.jersey} · {teamFull(team)}</div>
-              <div className="muted">{archetypeFor(player)} · {ppg === null ? 'No games yet this season' : `Averages ${ppg.toFixed(1)} ppg`}</div>
+              <div className="muted">{archetypeFor(player)} · <StyleChip style={player.playStyle} /> · {ppg === null ? 'No games yet this season' : `Averages ${ppg.toFixed(1)} ppg`}</div>
             </div>
             <button className={`btn${fav ? ' w-fav-on' : ''}`} onClick={onToggleFav} aria-pressed={fav}>{fav ? '⭐ Your guy' : '☆ Favorite'}</button>
           </div>

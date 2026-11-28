@@ -6,6 +6,7 @@ import { Face } from '../face/Face'
 import { useStore } from '../store'
 import { fullName, moodOf, ovrOf } from '../util'
 import { OvrPill } from './OvrPill'
+import { WithStyle } from './StyleBadge'
 
 const TONE = { good: { icon: '🎯', label: 'Nailed it!' }, bad: { icon: '💥', label: 'Backfired!' }, neutral: { icon: '😐', label: 'Meh.' } } as const
 
@@ -17,7 +18,9 @@ export function EventPlayer({ league, playerId }: { league: League; playerId: st
   const mood = moodOf(p.morale)
   return (
     <div className="event-player">
-      <Face seed={p.faceSeed} age={p.age} colors={team?.colors ?? { primary: '#5b6378', secondary: '#ffffff' }} size={56} jersey={p.jersey} title={fullName(p)} />
+      <WithStyle style={p.playStyle} corner="tl">
+        <Face seed={p.faceSeed} age={p.age} colors={team?.colors ?? { primary: '#5b6378', secondary: '#ffffff' }} size={56} jersey={p.jersey} title={fullName(p)} />
+      </WithStyle>
       <div className="event-player-info">
         <div className="event-player-name">{fullName(p)}</div>
         <div className="event-player-sub">#{p.jersey} · {p.pos} · {p.age} yrs</div>

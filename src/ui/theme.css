@@ -850,3 +850,19 @@ table.dt-table tr.group-row th:first-child { background: var(--surface-2); }
 .dev-how, .dev-log { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.2rem; }
 .dev-log { list-style: none; padding-left: 0; font-size: 0.88rem; }
 .dev-plus { font-weight: 700; color: var(--accent); display: inline-block; min-width: 2rem; }
+
+/* Play style badges: an emoji pinned in a portrait corner, opposite the OVR. */
+.badged { position: relative; display: inline-flex; flex: none; line-height: 0; }
+.style-badge { position: absolute; z-index: 3; font-size: 15px; line-height: 1; pointer-events: auto; filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.75)); user-select: none; }
+.style-badge.sb-tl { top: -3px; left: -3px; }
+.style-badge.sb-tr { top: -3px; right: -3px; }
+.style-badge.sb-bl { bottom: -2px; left: -3px; }
+.style-badge.sb-br { bottom: -2px; right: -3px; }
+.w-face .style-badge.sb-br { bottom: 1px; right: 1px; }
+.w-sheet-face { position: relative; }
+.w-sheet-face .style-badge.sb-tr { top: 2px; right: 2px; }
+.style-chip { white-space: nowrap; }
+/* Ratings the player's style boosts in games (stored numbers shown, never the boosted ones). */
+.rating-row.boosted .boost-name { color: var(--accent, var(--gold)); font-weight: 700; }
+.rating-row.boosted .boost-name span { font-size: 0.7em; vertical-align: 0.1em; }
+.boost-note { font-size: 0.85rem; }

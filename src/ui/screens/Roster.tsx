@@ -1,3 +1,4 @@
+import { WithStyle } from '../components/StyleBadge'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { capSeason, tradesOpen } from '../../engine/gm/cap'
@@ -136,7 +137,7 @@ export function Roster() {
             <div key={p.id} className={`rq${isOpen ? ' open' : ''}`}>
               <div className="rq-head">
                 <button className="rq-row" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : p.id)}>
-                  <Face seed={p.faceSeed} age={p.age} colors={t.colors} size={34} />
+                  <WithStyle style={p.playStyle} corner="br" size={13}><Face seed={p.faceSeed} age={p.age} colors={t.colors} size={34} /></WithStyle>
                   <span className="asset-main">
                     <span className="asset-name">{fullName(p)}{p.injury ? ' 🤕' : ''}</span>
                     <span className="asset-sub">

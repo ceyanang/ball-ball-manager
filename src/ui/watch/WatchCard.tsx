@@ -1,3 +1,4 @@
+import { StyleBadge } from '../components/StyleBadge'
 import { memo, useCallback } from 'react'
 import type { Player, Team } from '../../engine/types'
 import { Face } from '../face/Face'
@@ -185,6 +186,7 @@ export const WatchCard = memo(function WatchCard({ cardId, player, team, benchCo
           {player
             ? <Face seed={player.faceSeed} age={player.age} colors={team.colors} size={42} jersey={player.jersey} title={fullName(player)} />
             : <span className="w-bench-tag">BENCH</span>}
+          {player && <StyleBadge style={player.playStyle} corner="br" size={11} />}
         </div>
         {tier && <PortraitFx tier={tier} />}
       </div>

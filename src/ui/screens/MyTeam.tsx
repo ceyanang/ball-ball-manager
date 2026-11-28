@@ -1,3 +1,4 @@
+import { WithStyle } from '../components/StyleBadge'
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { STARTERS, ACTIVE_MAX } from '../../engine/constants'
 import { archetypeFor } from '../../engine/player/archetype'
@@ -150,7 +151,7 @@ export function MyTeam() {
       >
         <span className="grip" aria-hidden="true">⠿</span>
         {slotLabel && <span className={`slot-tag${offPos ? ' off' : ''}`}>{slotLabel}</span>}
-        <Face seed={p.faceSeed} age={p.age} colors={team.colors} size={40} title={fullName(p)} />
+        <WithStyle style={p.playStyle} corner="br" size={14}><Face seed={p.faceSeed} age={p.age} colors={team.colors} size={40} title={fullName(p)} /></WithStyle>
         <span className="rinfo">
           <span className="rname">{fullName(p)}</span>
           <span className="rsub">

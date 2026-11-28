@@ -8,6 +8,7 @@ import { Face } from '../face/Face'
 import { fullName, one, ovrOf, rosterOf, seasonLine, teamFull } from '../util'
 import { OvrPill } from './OvrPill'
 import { TeamBadge } from './TeamBadge'
+import { StyleBadge } from './StyleBadge'
 
 /** The lineup a team will actually start today, plus its headliner (best OVR among the five). */
 function todaysFive(league: League, team: Team) {
@@ -25,6 +26,7 @@ function StarterCard({ league, team, p, slot, crowned }: { league: League; team:
       <span className="gd-face">
         {crowned && <span className="gd-crown" role="img" aria-label="Main guy">👑</span>}
         <Face seed={p.faceSeed} age={p.age} colors={team.colors} size={64} jersey={p.jersey} title={fullName(p)} />
+        <StyleBadge style={p.playStyle} corner="bl" />
       </span>
       <span className="gd-name">{p.firstName[0]}. {p.lastName}</span>
       <span className="gd-arch">{archetypeFor(p)}</span>

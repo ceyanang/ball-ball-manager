@@ -1,3 +1,5 @@
+import { boostNote, isBoosted, StyleBadge } from '../components/StyleBadge'
+import { STYLE_EMOJI, STYLE_LABEL } from '../../engine/player/playStyle'
 import { retiredByLines } from '../components/JerseyRafters'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { perGame, playerSeasonStats } from '../../engine/stats/stats'
@@ -87,13 +89,15 @@ export function PlayerPage() {
   return (
     <div className="stack">
       <div className="page-head" style={{ background: `linear-gradient(110deg, ${colors.primary} 55%, ${colors.secondary})` }}>
-        <div style={{ background: 'rgba(255,255,255,0.14)', borderRadius: 14, padding: '0.4rem 0.6rem 0' }}>
+        <div style={{ position: 'relative', background: 'rgba(255,255,255,0.14)', borderRadius: 14, padding: '0.4rem 0.6rem 0' }}>
           <Face seed={p.faceSeed} age={p.age} colors={colors} size={110} jersey={p.jersey} title={fullName(p)} />
+          <StyleBadge style={p.playStyle} corner="tl" size={22} />
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
           <h1 className="title">{fullName(p)}</h1>
           <div className="sub">#{p.jersey} · {p.pos} · {team ? teamFull(team) : p.retired ? 'Retired' : league.draftRights[p.id] ? `Draft rights: ${league.teams[league.draftRights[p.id]].name}` : 'Free agent'}</div>
           <span className="archetype-chip">{arch.title}</span>
+          {p.playStyle && <span className="archetype-chip" title={boostNote(p.playStyle)}>{STYLE_EMOJI[p.playStyle]} {STYLE_LABEL[p.playStyle]}</span>}
           {hof && <span className="archetype-chip hof-chip">🎖️ Hall of Fame · S{hof.season}</span>}
           {retiredByLines(league, p.id).map((t) => <span key={t} className="archetype-chip hof-chip">👕 {t}</span>)}
           <div style={{ marginTop: '0.5rem' }}>
@@ -178,8 +182,10 @@ export function PlayerPage() {
                   <span className="grade" style={{ color: ratingColor(avg) }}>{gradeFor(avg)} · {avg}</span>
                 </div>
                 {keys.map(([k, label]) => (
-                  <div key={k} className="rating-row">
-                    <span>{label}</span>
+                  <div key={k} className={`rating-row${isBoosted(p.playStyle, k) ? ' boosted' : ''}`}>
+                    {isBoosted(p.playStyle, k)
+                      ? <span className="boost-name" title={boostNote(p.playStyle)}>{label} <span aria-label="boosted in games">▲</span></span>
+                      : <span>{label}</span>}
                     <span className="grade">{gradeFor(p.ratings[k])}</span>
                     <strong style={{ textAlign: 'right' }}>{p.ratings[k]}</strong>
                     <div className="rating-bar" aria-hidden="true">
@@ -191,6 +197,11 @@ export function PlayerPage() {
             )
           })}
         </div>
+        {p.playStyle && (
+          <p className="muted boost-note">
+            {STYLE_EMOJI[p.playStyle]} {p.playStyle === 'allAround' ? boostNote(p.playStyle) : <>▲ {boostNote(p.playStyle)}</>}. The numbers above and his overall stay the real ones.
+          </p>
+        )}
       </section>
 
       <section className="panel stack">
