@@ -71,7 +71,7 @@ Per-style rating bumps added to the player's effective ratings **when building `
 - Offense: threePointShot, midRangeShot, closeShot, speed, speedWithBall.
 - Power: strength, vertical, standingDunk, drivingDunk, layup, postControl/postHook/postFade.
 - Defensive: perimeterDefense, interiorDefense, steal, block, defensiveRebound, offensiveRebound, helpDefenseIQ.
-- Smart: passVision, passIQ, passAccuracy, ballHandle, shotIQ, helpDefenseIQ, passPerception; the bump scales with the smartest Smart player on court (a Smart player boosts teammates' passIQ/shotIQ a little; the on-court max IQ sets his own bump size).
+- Smart: passVision, passIQ, passAccuracy, ballHandle, shotIQ, helpDefenseIQ, passPerception; the bump scales with the smartest Smart player in his team's top-8 rotation, fixed per game (a Smart player also lifts teammates' passIQ/shotIQ by +1). Fixed per game, not per lineup change, so the sim builds boosted ratings once.
 - All-Around: a smaller bump across every group.
 Starting sizes ≈ +4–6 on a style's core stats (+2–3 All-Around), capped so no rating exceeds 99. Final values tuned with a sim test (see below).
 
